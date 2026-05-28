@@ -23,6 +23,7 @@ const TravelogMapModule = (() => {
   
   // Track triggered places in this walk session
   const triggeredNodes = new Set();
+  let didInit = false;
 
   // Custom marker icons using FontAwesome & CSS
   function createHtmlIcon(iconClass, colorClass) {
@@ -123,7 +124,16 @@ const TravelogMapModule = (() => {
   }
 
   function init() {
+    if (didInit) {
+      return;
+    }
+    didInit = true;
+
     const mapContainer = document.getElementById('map-container');
+    if (!mapContainer) {
+      console.error('[Travelog Map] #map-container not found.');
+      return;
+    }
 
     // Leaflet CDN이 차단되었거나 로드되지 않았을 때도 빈 화면 대신 OSM iframe 지도를 보여줍니다.
     if (typeof L === 'undefined') {
@@ -133,10 +143,17 @@ const TravelogMapModule = (() => {
     }
 
     // 1. Leaflet initialization centered at Gyeongbokgung
-    map = L.map('map-container', {
-      zoomControl: false,
-      preferCanvas: true
-    }).setView([37.5780, 126.9768], 16);
+    try {
+      map = L.map('map-container', {
+        zoomControl: false,
+        preferCanvas: true
+      }).setView([37.5780, 126.9768], 16);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+    } catch (err) {
+      console.error('[Travelog Map] Failed to initialize Leaflet map:', err);
+      renderFallbackMap('지도 초기화 중 오류가 발생해 iframe 지도로 표시합니다.', true);
+      return;
+    }
 
     // 2. Add Map Tiles
     // CARTO 타일이 모바일/브라우저 환경에서 막히는 경우가 있어 OpenStreetMap 기본 타일을 1순위로 사용합니다.
@@ -554,6 +571,29 @@ const TravelogMapModule = (() => {
   function clearCreatorPins() {
     window.TravelogApp.getState().customCreatedPins = [];
     renderTour(); // Redraw baseline tour
+  }
+
+
+  // app.js에서 init을 호출하지 못하는 상황을 대비해 map.js가 스스로도 지도를 시작합니다.
+  // didInit 가드가 있어서 app.js가 다시 호출해도 중복 실행되지 않습니다.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(init, 0);
+      setTimeout(() => {
+        const mapContainer = document.getElementById('map-container');
+        if (mapContainer && !mapContainer.querySelector('.leaflet-tile-loaded') && !mapContainer.querySelector('.map-iframe-fallback-overlay')) {
+          renderFallbackMap('지도 타일이 표시되지 않아 iframe 지도로 전환했습니다.');
+        }
+      }, 8000);
+    });
+  } else {
+    setTimeout(init, 0);
+    setTimeout(() => {
+      const mapContainer = document.getElementById('map-container');
+      if (mapContainer && !mapContainer.querySelector('.leaflet-tile-loaded') && !mapContainer.querySelector('.map-iframe-fallback-overlay')) {
+        renderFallbackMap('지도 타일이 표시되지 않아 iframe 지도로 전환했습니다.');
+      }
+    }, 8000);
   }
 
   return {
