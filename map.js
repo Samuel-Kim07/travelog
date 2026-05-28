@@ -84,20 +84,50 @@ const TravelogMapModule = (() => {
     ];
   };
 
+  function getFallbackMapMarkup(reasonText) {
+    const safeReason = reasonText || '지도 타일 또는 지도 라이브러리를 불러오지 못했습니다.';
+    return `
+      <div class="map-iframe-fallback-overlay">
+        <iframe
+          class="map-fallback-iframe"
+          title="Travelog fallback map"
+          src="https://www.openstreetmap.org/export/embed.html?bbox=126.9700%2C37.5730%2C126.9835%2C37.5830&layer=mapnik&marker=37.5780%2C126.9768"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen>
+        </iframe>
+        <div class="map-fallback-notice glass-panel">
+          <i class="fa-solid fa-map-location-dot"></i>
+          <div>
+            <strong>지도 대체 모드</strong>
+            <p>${safeReason}</p>
+            <a href="https://www.openstreetmap.org/?mlat=37.5780&mlon=126.9768#map=16/37.5780/126.9768" target="_blank" rel="noopener noreferrer">새 창에서 지도 열기</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFallbackMap(reasonText, replaceContainer = false) {
+    const mapContainer = document.getElementById('map-container');
+    if (!mapContainer) return;
+
+    const existing = mapContainer.querySelector('.map-iframe-fallback-overlay');
+    if (existing) return;
+
+    if (replaceContainer) {
+      mapContainer.innerHTML = getFallbackMapMarkup(reasonText);
+    } else {
+      mapContainer.insertAdjacentHTML('beforeend', getFallbackMapMarkup(reasonText));
+    }
+  }
+
   function init() {
     const mapContainer = document.getElementById('map-container');
 
-    // Leaflet CDN이 차단되었거나 로드되지 않았을 때 앱 전체가 멈추지 않도록 안내 표시
+    // Leaflet CDN이 차단되었거나 로드되지 않았을 때도 빈 화면 대신 OSM iframe 지도를 보여줍니다.
     if (typeof L === 'undefined') {
-      if (mapContainer) {
-        mapContainer.innerHTML = `
-          <div class="map-error-card">
-            <i class="fa-solid fa-map-location-dot"></i>
-            <h3>지도를 불러오지 못했습니다</h3>
-            <p>Leaflet 지도 라이브러리가 로드되지 않았습니다. 인터넷 연결 또는 CDN 차단 여부를 확인해 주세요.</p>
-          </div>
-        `;
-      }
+      renderFallbackMap('Leaflet 지도 라이브러리가 로드되지 않아 iframe 지도로 표시합니다.', true);
       console.error('[Travelog Map] Leaflet library is not loaded. Check Leaflet CSS/JS CDN in index.html.');
       return;
     }
@@ -110,23 +140,46 @@ const TravelogMapModule = (() => {
 
     // 2. Add Map Tiles
     // CARTO 타일이 모바일/브라우저 환경에서 막히는 경우가 있어 OpenStreetMap 기본 타일을 1순위로 사용합니다.
+    let loadedTileCount = 0;
+    let tileErrorCount = 0;
+
     const openStreetMapTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; OpenStreetMap contributors',
-  detectRetina: true
-}).addTo(map);
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      detectRetina: true,
+      crossOrigin: true,
+      referrerPolicy: 'strict-origin-when-cross-origin'
+    });
 
     const cartoVoyagerTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 20,
-      crossOrigin: true
+      detectRetina: true,
+      crossOrigin: true,
+      referrerPolicy: 'strict-origin-when-cross-origin'
     });
 
     openStreetMapTiles.addTo(map);
 
-    // 타일 로딩 에러가 반복되면 콘솔에서 확인할 수 있게 표시합니다.
+    const fallbackTimer = setTimeout(() => {
+      if (loadedTileCount === 0) {
+        console.warn('[Travelog Map] No map tiles loaded within timeout. Showing iframe fallback.');
+        renderFallbackMap('지도 타일 서버 응답이 늦거나 차단되어 iframe 지도로 표시합니다.');
+      }
+    }, 6500);
+
+    openStreetMapTiles.on('tileload', () => {
+      loadedTileCount++;
+      clearTimeout(fallbackTimer);
+    });
+
+    // 타일 로딩 에러가 반복되면 빈 화면 대신 iframe 지도를 보여줍니다.
     openStreetMapTiles.on('tileerror', (e) => {
+      tileErrorCount++;
       console.warn('[Travelog Map] OpenStreetMap tile load error:', e);
+      if (tileErrorCount >= 3 && loadedTileCount === 0) {
+        renderFallbackMap('OpenStreetMap 타일이 현재 브라우저에서 차단되어 iframe 지도로 표시합니다.');
+      }
     });
     cartoVoyagerTiles.on('tileerror', (e) => {
       console.warn('[Travelog Map] CARTO tile load error:', e);
@@ -533,6 +586,13 @@ const TravelogMapModule = (() => {
         return { lat: loc.lat, lng: loc.lng };
       }
       return { lat: 37.5750, lng: 126.9768 };
-    }
+    },
+    showFallbackMap: () => renderFallbackMap('수동으로 대체 지도를 표시했습니다.'),
+    getDebugStatus: () => ({
+      hasLeaflet: typeof L !== 'undefined',
+      hasMapObject: !!map,
+      hasUserMarker: !!userMarker,
+      fallbackVisible: !!document.querySelector('.map-iframe-fallback-overlay')
+    })
   };
 })();
