@@ -123,6 +123,85 @@ const TravelogMapModule = (() => {
     }
   }
 
+
+  // ==========================================
+  // Collapsible Map HUD
+  // ==========================================
+  const HUD_COLLAPSE_STORAGE_KEY = 'travelog-map-hud-collapse-state';
+
+  function readHudCollapseState() {
+    try {
+      return JSON.parse(localStorage.getItem(HUD_COLLAPSE_STORAGE_KEY) || '{}');
+    } catch (err) {
+      console.warn('[Travelog Map] Failed to read HUD collapse state:', err);
+      return {};
+    }
+  }
+
+  function saveHudCollapseState(state) {
+    try {
+      localStorage.setItem(HUD_COLLAPSE_STORAGE_KEY, JSON.stringify(state));
+    } catch (err) {
+      console.warn('[Travelog Map] Failed to save HUD collapse state:', err);
+    }
+  }
+
+  function setHudCollapsed(hudId, collapsed, persist = true) {
+    const card = document.querySelector(`.collapsible-hud[data-hud-id="${hudId}"]`);
+    const toggle = document.querySelector(`[data-hud-toggle="${hudId}"]`);
+    if (!card || !toggle) return;
+
+    const icon = toggle.querySelector('.hud-toggle-icon');
+    card.classList.toggle('collapsed', collapsed);
+    card.classList.toggle('expanded', !collapsed);
+    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    toggle.setAttribute('title', collapsed
+      ? t('펼치기', 'Expand', '開く')
+      : t('접기', 'Collapse', '閉じる')
+    );
+
+    if (icon) {
+      icon.className = collapsed
+        ? 'fa-solid fa-chevron-down hud-toggle-icon'
+        : 'fa-solid fa-chevron-up hud-toggle-icon';
+    }
+
+    if (persist) {
+      const state = readHudCollapseState();
+      state[hudId] = collapsed;
+      saveHudCollapseState(state);
+    }
+
+    // Leaflet은 UI 패널 변화 후 크기 재계산을 해주면 모바일에서 더 안정적입니다.
+    if (map) {
+      setTimeout(() => map.invalidateSize(), 280);
+    }
+  }
+
+  function initMapHudCollapse() {
+    const toggles = document.querySelectorAll('[data-hud-toggle]');
+    if (!toggles.length) return;
+
+    const savedState = readHudCollapseState();
+
+    toggles.forEach(toggle => {
+      const hudId = toggle.getAttribute('data-hud-toggle');
+      if (!hudId) return;
+
+      const initialCollapsed = Boolean(savedState[hudId]);
+      setHudCollapsed(hudId, initialCollapsed, false);
+
+      if (toggle.dataset.hudBound === 'true') return;
+      toggle.dataset.hudBound = 'true';
+
+      toggle.addEventListener('click', () => {
+        const card = document.querySelector(`.collapsible-hud[data-hud-id="${hudId}"]`);
+        const nextCollapsed = !(card && card.classList.contains('collapsed'));
+        setHudCollapsed(hudId, nextCollapsed, true);
+      });
+    });
+  }
+
   function init() {
     if (didInit) {
       return;
@@ -134,6 +213,8 @@ const TravelogMapModule = (() => {
       console.error('[Travelog Map] #map-container not found.');
       return;
     }
+
+    initMapHudCollapse();
 
     // Leaflet CDN이 차단되었거나 로드되지 않았을 때도 빈 화면 대신 OSM iframe 지도를 보여줍니다.
     if (typeof L === 'undefined') {

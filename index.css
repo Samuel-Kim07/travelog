@@ -473,6 +473,113 @@ nav.bottom-nav {
   color: var(--text-primary);
 }
 
+/* Collapsible map HUD cards */
+.collapsible-hud {
+  overflow: hidden;
+  transition: padding var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.hud-card-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.hud-card-toggle:hover .hud-card-title,
+.hud-card-toggle:focus-visible .hud-card-title {
+  color: var(--color-ocean);
+}
+
+.hud-card-toggle:focus-visible {
+  outline: 2px solid rgba(112, 162, 183, 0.45);
+  outline-offset: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.hud-card-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  transition: color var(--transition-fast);
+}
+
+.hud-toggle-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(112, 162, 183, 0.10);
+  color: var(--color-ocean);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.hud-card-toggle:hover .hud-toggle-icon {
+  background: rgba(112, 162, 183, 0.18);
+}
+
+.hud-card-body {
+  max-height: 280px;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 0.28s ease, opacity 0.22s ease, margin-top 0.22s ease;
+}
+
+.collapsible-hud.collapsed {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.collapsible-hud.collapsed .hud-card-body {
+  max-height: 0 !important;
+  margin-top: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.collapsible-hud.collapsed .hud-toggle-icon {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 600px) {
+  .map-hud {
+    max-width: min(320px, calc(100vw - 104px));
+    gap: 8px;
+  }
+
+  .hud-card {
+    padding: 14px;
+  }
+
+  .hud-card-title {
+    font-size: 14px;
+  }
+
+  .hud-toggle-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+}
+
 .gps-controls {
   position: absolute;
   top: 20px;
