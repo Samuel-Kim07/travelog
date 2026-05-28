@@ -85,16 +85,57 @@ const TravelogMapModule = (() => {
   };
 
   function init() {
+    const mapContainer = document.getElementById('map-container');
+
+    // Leaflet CDN이 차단되었거나 로드되지 않았을 때 앱 전체가 멈추지 않도록 안내 표시
+    if (typeof L === 'undefined') {
+      if (mapContainer) {
+        mapContainer.innerHTML = `
+          <div class="map-error-card">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <h3>지도를 불러오지 못했습니다</h3>
+            <p>Leaflet 지도 라이브러리가 로드되지 않았습니다. 인터넷 연결 또는 CDN 차단 여부를 확인해 주세요.</p>
+          </div>
+        `;
+      }
+      console.error('[Travelog Map] Leaflet library is not loaded. Check Leaflet CSS/JS CDN in index.html.');
+      return;
+    }
+
     // 1. Leaflet initialization centered at Gyeongbokgung
     map = L.map('map-container', {
-      zoomControl: false
+      zoomControl: false,
+      preferCanvas: true
     }).setView([37.5780, 126.9768], 16);
 
-    // 2. Add Stylized Voyager Maps Tile
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // 2. Add Map Tiles
+    // CARTO 타일이 모바일/브라우저 환경에서 막히는 경우가 있어 OpenStreetMap 기본 타일을 1순위로 사용합니다.
+    const openStreetMapTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      crossOrigin: true
+    });
+
+    const cartoVoyagerTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 20
-    }).addTo(map);
+      maxZoom: 20,
+      crossOrigin: true
+    });
+
+    openStreetMapTiles.addTo(map);
+
+    // 타일 로딩 에러가 반복되면 콘솔에서 확인할 수 있게 표시합니다.
+    openStreetMapTiles.on('tileerror', (e) => {
+      console.warn('[Travelog Map] OpenStreetMap tile load error:', e);
+    });
+    cartoVoyagerTiles.on('tileerror', (e) => {
+      console.warn('[Travelog Map] CARTO tile load error:', e);
+    });
+
+    // 모바일/탭 전환 시 지도 영역 크기 계산이 늦어지는 문제 보정
+    setTimeout(() => {
+      if (map) map.invalidateSize();
+    }, 300);
 
     // 3. Add Layers
     markersLayer = L.layerGroup().addTo(map);
