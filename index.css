@@ -401,6 +401,47 @@ nav.bottom-nav {
   z-index: 1;
 }
 
+
+/* Leaflet mobile/GitHub Pages safety fixes */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  min-height: 420px;
+  font-family: 'Outfit', 'Noto Sans KR', 'Noto Sans JP', sans-serif;
+}
+
+.map-error-card {
+  position: absolute;
+  inset: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 28px;
+  border-radius: var(--radius-arch);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  color: var(--text-primary);
+  z-index: 5;
+}
+
+.map-error-card i {
+  font-size: 44px;
+  color: var(--color-ocean);
+}
+
+.map-error-card h3 {
+  font-size: 18px;
+}
+
+.map-error-card p {
+  max-width: 320px;
+  font-size: 13px;
+}
+
 /* Map HUD overlays */
 .map-hud {
   position: absolute;
