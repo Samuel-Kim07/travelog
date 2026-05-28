@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Travelog - Global Travel Assistant & Adventure Map</title>
+  
+  <!-- FontAwesome & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <i class="fa-solid fa-earth-americas"></i>
+        <span>Travelog</span>
+      </div>
+      
+      <div class="header-actions">
+        <!-- User Profile Widget (Redesign addition) -->
+        <div id="user-profile-widget" class="profile-widget" style="display: none;" role="button" tabindex="0" aria-label="Open profile manager">
+          <div class="profile-widget-avatar" id="header-avatar-container"></div>
+          <span id="header-nickname">Traveler</span>
+          <i class="fa-solid fa-gear profile-widget-gear" aria-hidden="true"></i>
+        </div>
+
+        <!-- User Points Stat -->
+        <div class="stat-pill">
+          <i class="fa-solid fa-coins"></i>
+          <span id="user-points">550</span>
+          <span data-localize="pts">pts</span>
+        </div>
+        
+        <!-- Language Switcher Button -->
+        <button id="lang-toggle-btn" class="lang-btn">
+          <i class="fa-solid fa-globe"></i>
+          <span id="current-lang">English</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Tab Contents -->
+    <main>
+      
+      <!-- TAB 1: MAP TAB -->
+      <section id="map-tab" class="tab-content active">
+        <!-- Leaflet Map Canvas -->
+        <div id="map-container"></div>
+        
+        <!-- Map HUD Left Controls: Guide Info -->
+        <div class="map-hud">
+          <div class="hud-card glass-panel">
+            <h3 data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</h3>
+            <div id="active-guide-box" style="margin-top: 10px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div class="voice-avatar" id="guide-avatar-img" style="width: 44px; height: 44px;">
+                  <i class="fa-solid fa-user-tie"></i>
+                </div>
+                <div>
+                  <h4 id="guide-name">Minho (Seoul Local)</h4>
+                  <span id="guide-desc" style="font-size: 11px; color: var(--text-secondary);">Gyeongbokgung Historical Tour</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-rect" id="play-guide-intro-btn" style="flex: 1; padding: 6px 12px; font-size: 13px;">
+                  <i class="fa-solid fa-circle-play"></i> <span data-localize="intro_video">Intro Video</span>
+                </button>
+                <button class="btn-rect secondary" id="hear-greeting-btn" style="padding: 6px 12px; font-size: 13px;">
+                  <i class="fa-solid fa-volume-high"></i> <span data-localize="greeting">Greeting</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="hud-card glass-panel">
+            <h3 data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</h3>
+            <div id="tour-stops-list" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Map HUD Right Controls: GPS Simulation -->
+        <div class="gps-controls">
+          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk">
+            <i class="fa-solid fa-person-walking"></i>
+          </button>
+          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map">
+            <i class="fa-solid fa-crosshairs"></i>
+          </button>
+          <div id="simulation-status-pill" class="glass-panel" style="display: none; padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--accent-blue); text-align: center;">
+            <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
+          </div>
+        </div>
+
+        <!-- Floating Audio/Voice Player Overlay -->
+        <div id="audio-overlay" class="floating-overlay-player glass-panel">
+          <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 12px; text-transform: uppercase; color: var(--accent-blue); font-weight: 700;" data-localize="audio_guide">Audio Guide Triggered</span>
+            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
+          <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
+          
+          <!-- Animated audio waves -->
+          <div class="player-wave-container" id="waveform-visualizer">
+            <div class="wave-bar" style="height: 10px;"></div>
+            <div class="wave-bar" style="height: 20px;"></div>
+            <div class="wave-bar" style="height: 35px;"></div>
+            <div class="wave-bar" style="height: 15px;"></div>
+            <div class="wave-bar" style="height: 48px;"></div>
+            <div class="wave-bar" style="height: 25px;"></div>
+            <div class="wave-bar" style="height: 10px;"></div>
+            <div class="wave-bar" style="height: 30px;"></div>
+            <div class="wave-bar" style="height: 15px;"></div>
+          </div>
+          
+          <div class="player-controls">
+            <button class="btn-circle" id="prev-audio-btn" style="width: 40px; height: 40px; font-size: 14px;"><i class="fa-solid fa-backward"></i></button>
+            <button class="btn-circle" id="play-audio-btn" style="width: 54px; height: 54px; font-size: 20px; background: var(--accent-blue); border-color: var(--accent-blue); color: white;"><i class="fa-solid fa-play"></i></button>
+            <button class="btn-circle" id="next-audio-btn" style="width: 40px; height: 40px; font-size: 14px;"><i class="fa-solid fa-forward"></i></button>
+          </div>
+        </div>
+
+        <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
+        <div id="video-overlay" class="video-overlay-modal">
+          <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+          <div class="video-wrapper">
+            <!-- Simulated Video (Canvas + Audio + Interactive Graphics) -->
+            <div class="simulated-video" id="simulated-video-screen">
+              <div style="position: absolute; bottom: 20px; left: 20px; z-index: 10; color: white;">
+                <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
+                <p id="video-overlay-author" style="font-size: 12px; color: var(--accent-blue); font-weight: 600;">Minho's Historical Walk</p>
+              </div>
+              <div class="player-wave-container" style="position: absolute; top: 10px; right: 10px; width: 100px; height: 30px;">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+              <!-- Graphic Simulator -->
+              <div id="video-canvas-anim" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; background: radial-gradient(circle, #2b1055, #000000);">
+                <i class="fa-solid fa-video" style="font-size: 48px; color: var(--accent-pink); margin-bottom: 20px; animation: pulse-pin 1.5s infinite;"></i>
+                <span style="color: white; font-size: 14px; font-weight: 500;" id="video-play-status" data-localize="vlog_playing">Vlog Video Playing...</span>
+                <span style="color: var(--text-secondary); font-size: 12px; margin-top: 10px;" id="video-play-timer">0:00 / 0:15</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: EXPLORE TAB (Vlog & Blog Feed) -->
+      <section id="explore-tab" class="tab-content">
+        <div class="explore-layout">
+          <!-- Left Column: Simulated Vlog Stream (Vertical Tiktok format) -->
+          <div class="vlog-section">
+            <div class="vlog-swiper" id="vlog-swiper-container">
+              <!-- Vlog slides will be generated dynamically -->
+            </div>
+            
+            <!-- Vlog Navigation Arrows -->
+            <button class="btn-circle" id="prev-vlog-btn" style="position: absolute; top: 20px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;"><i class="fa-solid fa-chevron-up"></i></button>
+            <button class="btn-circle" id="next-vlog-btn" style="position: absolute; top: 66px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;"><i class="fa-solid fa-chevron-down"></i></button>
+          </div>
+
+          <!-- Right Column: Blog Grid (Pinterest Layout) -->
+          <div class="blog-section">
+            <div class="section-title-bar">
+              <h2 data-localize="blog_feed_title"><i class="fa-solid fa-book-open"></i> Travel Logs & Stories</h2>
+              <!-- Simple search/filter -->
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="blog-search" placeholder="Search logs..." style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 13px;" data-localize-placeholder="search_placeholder">
+              </div>
+            </div>
+            
+            <!-- Category Filter Pills -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 8px;" id="blog-filters">
+              <button class="btn-rect" style="padding: 6px 14px; font-size: 12px;" data-filter="all" data-localize="filter_all">All</button>
+              <button class="btn-rect secondary" style="padding: 6px 14px; font-size: 12px;" data-filter="korea" data-localize="filter_korea">South Korea</button>
+              <button class="btn-rect secondary" style="padding: 6px 14px; font-size: 12px;" data-filter="japan" data-localize="filter_japan">Japan</button>
+              <button class="btn-rect secondary" style="padding: 6px 14px; font-size: 12px;" data-filter="europe" data-localize="filter_europe">Europe</button>
+            </div>
+
+            <!-- Blog Grid Items -->
+            <div class="blog-grid" id="blog-grid-container">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: REWARDS & EVENTS TAB -->
+      <section id="rewards-tab" class="tab-content">
+        <div class="rewards-layout">
+          <!-- Left Column: Coupon Minigames -->
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+            
+            <!-- Scratch Card Coupon Card -->
+            <div class="coupon-game-card glass-panel">
+              <h3 data-localize="scratch_title"><i class="fa-solid fa-ticket"></i> Scratch Off Coupon</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="scratch_desc">Scratch the silver card to unlock your travel discount!</p>
+              
+              <div class="scratch-card-container">
+                <!-- Underlay (Revealed content) -->
+                <div class="scratch-card-underlay">
+                  <span class="coupon-tag" id="scratch-coupon-tag">SEOUL ADVENTURE</span>
+                  <span class="coupon-value" id="scratch-coupon-value">50% OFF</span>
+                  <span class="coupon-desc" id="scratch-coupon-desc">Traditional Hanok Restaurant</span>
+                </div>
+                <!-- Overlay (Scratch layer) -->
+                <canvas id="scratch-canvas" class="scratch-card-overlay"></canvas>
+              </div>
+              
+              <button class="btn-rect" id="reset-scratch-btn"><i class="fa-solid fa-rotate-right"></i> <span data-localize="scratch_reset">Try New Scratch (Cost: 50 pts)</span></button>
+            </div>
+
+            <!-- Spin the Wheel Card -->
+            <div class="coupon-game-card glass-panel">
+              <h3 data-localize="spin_title"><i class="fa-solid fa-circle-notch"></i> Daily Travel Spin</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="spin_desc">Spin the wheel to win coupons, travel points, or gifts!</p>
+              
+              <div class="wheel-container">
+                <div class="wheel-pointer"></div>
+                <canvas id="wheel-canvas" width="280" height="280"></canvas>
+                <button class="wheel-spin-btn" id="spin-btn">SPIN</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Local Events & Quests Calendar -->
+          <div class="events-column">
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 16px;" data-localize="events_calendar_title"><i class="fa-solid fa-calendar-days"></i> Global Travel Events & Quests</h3>
+              <div style="display: flex; flex-direction: column; gap: 16px;" id="events-list-container">
+                <!-- Dynamic Events List -->
+              </div>
+            </div>
+            
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 12px;" data-localize="my_coupons_title"><i class="fa-solid fa-box-archive"></i> My Coupon Wallet</h3>
+              <div id="coupon-wallet" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Owned coupons listing -->
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;" id="empty-wallet-msg" data-localize="empty_wallet">
+                  No coupons claimed yet. Scratch cards or spin the wheel to win!
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: CREATOR STUDIO TAB -->
+      <section id="creator-tab" class="tab-content">
+        <div class="creator-layout">
+          <!-- Left Column: Guide Node Builder -->
+          <div class="studio-panel">
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 8px;" data-localize="builder_title"><i class="fa-solid fa-route"></i> Map Tour Guide Builder</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="builder_desc">Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_tour_name">Tour Guide Name</label>
+                  <input type="text" id="new-tour-name" value="My Awesome Walking Tour" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: var(--radius-sm);">
+                </div>
+                
+                <div>
+                  <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_select_coords">Selected Map Pins</label>
+                  <div id="creator-coordinates-list" style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px; min-height: 100px; max-height: 180px; overflow-y: auto; font-size: 12px;">
+                    <div style="color: var(--text-muted); text-align: center; margin-top: 30px;" id="no-pins-msg" data-localize="no_pins_placeholder">Go to Map Tab and click on the map to place pins!</div>
+                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 10px;">
+                  <button class="btn-rect" style="flex: 1;" id="save-tour-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-localize="save_tour">Publish Custom Guide</span></button>
+                  <button class="btn-rect secondary" id="clear-pins-btn"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_pins">Reset Pins</span></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Audio Recorder Simulation -->
+            <div class="voice-recording-card glass-panel">
+              <h3 data-localize="recorder_title"><i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder</h3>
+              <p style="font-size: 12px;" data-localize="recorder_desc">Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.</p>
+              
+              <div class="record-btn-container">
+                <button class="record-btn" id="record-audio-btn"><i class="fa-solid fa-microphone"></i></button>
+                <span id="record-status-text" style="font-size: 13px; font-weight: 600;" data-localize="recorder_ready">Click Mic to Start Recording</span>
+                <span id="record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
+              </div>
+              
+              <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px;">
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="start" data-localize="script_start">"Starting Tour!"</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="turn" data-localize="script_turn">"Go Left Here..."</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="eat" data-localize="script_eat">"Best Bistro is here!"</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="morning" data-localize="script_morning">"Good Morning!"</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Voice Market -->
+          <div class="studio-panel">
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;" data-localize="market_title"><i class="fa-solid fa-cart-shopping"></i> Voice Sample Market</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="market_desc">Don't want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.</p>
+              
+              <div class="voice-market-grid" id="voice-market-container">
+                <!-- Voice Market Cards dynamically generated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: ADVENTURE MODE TAB (Gamified GPS Quest Console) -->
+      <section id="adventure-tab" class="tab-content">
+        <div class="adventure-layout">
+          <!-- Left Column: Quest details & current milestones -->
+          <div class="adventure-console">
+            <div class="quest-banner" style="background-image: url('assets/images/quests/seoul-palace-mystery.jpg');">
+              <div class="quest-status-badge" data-localize="quest_active">Active Quest</div>
+              <div class="quest-banner-content">
+                <h2 style="font-size: 22px; color: white;" id="quest-main-title">Seoul Palaces Mystery</h2>
+                <p style="font-size: 13px; color: #ddd;" id="quest-main-subtitle">Outdoor Detective Game</p>
+              </div>
+            </div>
+
+            <!-- Steps Progress Checklist -->
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 16px;" data-localize="quest_steps_title"><i class="fa-solid fa-list-check"></i> Quest Milestones</h3>
+              <div class="quest-steps" id="quest-steps-list">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Interactive Clue Radar -->
+          <div class="adventure-console">
+            <div class="adventure-tracker-card glass-panel">
+              <h3 data-localize="radar_title"><i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="radar_desc">Simulate walking on the Map tab to get closer to the coordinate clues. When inside 10m, clues unlock!</p>
+              
+              <!-- Radar visualizer -->
+              <div class="radar-spinner">
+                <div class="radar-dist" id="radar-distance-value">84m</div>
+              </div>
+              
+              <div style="width: 100%; border-top: 1px solid var(--glass-border); padding-top: 16px;">
+                <div id="clue-unlock-box" style="display: none;">
+                  <h4 style="color: var(--accent-blue); font-size: 15px; margin-bottom: 8px;" data-localize="clue_unlocked_title"><i class="fa-solid fa-lock-open"></i> Clue Location Reached!</h4>
+                  <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; border: 1px dashed var(--accent-blue);" id="clue-text-display">
+                    "Find the stone lantern near the west pavilion..."
+                  </div>
+                  <!-- Mini puzzle input -->
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="puzzle-solution-input" placeholder="Enter password/answer..." style="flex:1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;" data-localize-placeholder="puzzle_placeholder">
+                    <button class="btn-rect" id="solve-puzzle-btn" style="padding: 8px 16px; font-size: 13px;" data-localize="solve">Solve</button>
+                  </div>
+                </div>
+                
+                <div id="clue-locked-box">
+                  <p style="font-size: 13px; color: var(--text-muted);" data-localize="radar_clue_hint">Proceed to the active map icon marked in Pink to trigger coordinates.</p>
+                  <button class="btn-rect" id="sim-teleport-clue-btn" style="margin-top: 12px; width: 100%; background: var(--grad-pink-purple);" data-localize="teleport_btn">
+                    <i class="fa-solid fa-bolt"></i> Teleport to Clue GPS Spot
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="bottom-nav">
+      <div class="nav-item active" data-tab="map-tab">
+        <i class="fa-solid fa-map"></i>
+        <span data-localize="nav_map">Map</span>
+      </div>
+      <div class="nav-item" data-tab="explore-tab">
+        <i class="fa-solid fa-compass"></i>
+        <span data-localize="nav_explore">Explore</span>
+      </div>
+      
+      <!-- Gamified highlight middle button -->
+      <div class="nav-item highlight-nav" data-tab="adventure-tab" title="Adventure Mode">
+        <i class="fa-solid fa-gamepad"></i>
+      </div>
+      
+      <div class="nav-item" data-tab="rewards-tab">
+        <i class="fa-solid fa-gift"></i>
+        <span data-localize="nav_rewards">Rewards</span>
+      </div>
+      <div class="nav-item" data-tab="creator-tab">
+        <i class="fa-solid fa-sliders"></i>
+        <span data-localize="nav_creator">Creator</span>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Onboarding Full-Screen Overlay (Redesign Addition) -->
+  <div id="onboarding-overlay" class="onboarding-backdrop">
+    <div class="onboarding-card glass-panel arch-card">
+      
+      <!-- SCREEN 1: LOGIN SIGNUP SELECTION -->
+      <div id="onboarding-screen-login" class="onboarding-screen active">
+        <div class="onboarding-step-row">
+          <span class="step-pill" data-localize="onboarding_step_login">1/2단계 · 시작하기</span>
+          <div class="step-dots" aria-hidden="true"><span class="active"></span><span></span></div>
+        </div>
+
+        <div class="onboarding-header">
+          <i class="fa-solid fa-earth-americas logo-icon"></i>
+          <h2 class="gradient-text" data-localize="onboarding_title">Travelog에 오신 걸 환영해요</h2>
+          <p data-localize="onboarding_subtitle">The global companion for passionate travelers</p>
+        </div>
+
+        <div class="onboarding-feature-row">
+          <span><i class="fa-solid fa-location-dot"></i> <b data-localize="onboarding_feature_guide">GPS 음성 가이드</b></span>
+          <span><i class="fa-solid fa-gift"></i> <b data-localize="onboarding_feature_reward">쿠폰과 퀘스트</b></span>
+          <span><i class="fa-solid fa-microphone-lines"></i> <b data-localize="onboarding_feature_creator">가이드 제작 스튜디오</b></span>
+        </div>
+        
+        <div class="login-button-container">
+          <!-- Google Login -->
+          <button class="login-btn-google" id="login-google-btn">
+            <img src="assets/icons/google-g-logo.svg" alt="Google Logo">
+            <span data-localize="login_google">Continue with Google</span>
+          </button>
+          
+          <!-- Naver Login -->
+          <button class="login-btn-naver" id="login-naver-btn">
+            <span class="naver-icon">N</span>
+            <span data-localize="login_naver">Continue with Naver</span>
+          </button>
+          
+          <!-- Email Login -->
+          <button class="login-btn-email" id="login-email-btn">
+            <i class="fa-solid fa-envelope"></i>
+            <span data-localize="login_email">Continue with Email</span>
+          </button>
+
+          <!-- Guest Login, common in travel/discovery apps for low-friction entry -->
+          <button class="login-btn-guest" id="login-guest-btn">
+            <i class="fa-solid fa-suitcase-rolling"></i>
+            <span data-localize="login_guest">게스트로 먼저 둘러보기</span>
+          </button>
+        </div>
+
+        <p class="onboarding-privacy-note" data-localize="onboarding_privacy_hint">현재 프로토타입에서는 실제 로그인 정보를 전송하지 않고 다음 설정 단계로 이동합니다.</p>
+      </div>
+
+      <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
+      <div id="onboarding-screen-profile" class="onboarding-screen">
+        <div class="onboarding-step-row">
+          <button id="onboarding-back-btn" class="onboarding-back-btn"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
+          <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
+          <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
+        </div>
+
+        <div class="onboarding-header">
+          <h2 class="gradient-text" data-localize="onboarding_profile_title">Set Up Your Profile</h2>
+          <p data-localize="onboarding_profile_subtitle">Create your travel identity to start exploring</p>
+        </div>
+        
+        <div class="profile-creation-container">
+          <!-- Interactive Avatar Setup -->
+          <div class="avatar-setup-section">
+            <div class="avatar-preview-wrapper">
+              <div id="avatar-preview-circle" class="avatar-preview">
+                <span id="avatar-preview-emoji">☀️</span>
+              </div>
+              <label for="onboarding-file-input" class="upload-badge" title="Upload Custom Photo">
+                <i class="fa-solid fa-camera"></i>
+              </label>
+              <!-- Invisible File Input -->
+              <input type="file" id="onboarding-file-input" accept="image/*" style="display: none;">
+            </div>
+            
+            <!-- Preset Selection -->
+            <div class="avatar-presets">
+              <button class="preset-btn active" data-preset="sun">☀️</button>
+              <button class="preset-btn" data-preset="wave">🌊</button>
+              <button class="preset-btn" data-preset="leaf">🍃</button>
+            </div>
+            
+            <span style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;" data-localize="avatar_hint">Choose preset or upload custom photo</span>
+          </div>
+          
+          <!-- Nickname & Duplicate Check Form -->
+          <div class="nickname-form-section">
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <input type="text" id="onboarding-nickname-input" placeholder="예: 여행고래" data-localize-placeholder="nickname_placeholder" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
+              <button class="btn-rect secondary" id="nickname-check-btn" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
+            </div>
+            
+            <!-- Feedback Messages -->
+            <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
+            
+            <button class="btn-rect" id="start-app-btn" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
+              <span data-localize="start_exploring">Start Exploring!</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+
+  <!-- Profile Manager Modal -->
+  <div id="profile-manager-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" role="dialog" aria-modal="true" aria-labelledby="profile-manager-title">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="profile_manage_badge">프로필 관리</span>
+          <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
+          <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
+        </div>
+        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="profile-manager-body">
+        <div class="profile-manager-preview-panel">
+          <div class="avatar-preview-wrapper profile-large-preview-wrapper">
+            <div id="profile-manager-avatar-preview" class="avatar-preview profile-large-preview">
+              <span id="profile-manager-avatar-emoji">☀️</span>
+            </div>
+            <label for="profile-manager-file-input" class="upload-badge profile-upload-badge" title="Upload Profile Image">
+              <i class="fa-solid fa-camera"></i>
+            </label>
+            <input type="file" id="profile-manager-file-input" accept="image/*" style="display: none;">
+          </div>
+          <button class="btn-rect" id="profile-manager-upload-btn" type="button">
+            <i class="fa-solid fa-image"></i>
+            <span data-localize="profile_use_my_photo">내 사진/이미지 선택</span>
+          </button>
+          <p class="profile-image-note" data-localize="profile_image_note">사진은 이 브라우저에만 저장되는 프로토타입용 데이터입니다.</p>
+        </div>
+
+        <div class="profile-manager-editor-panel">
+          <div class="profile-field-block">
+            <label data-localize="profile_nickname_label">닉네임</label>
+            <input type="text" id="profile-manager-nickname-input" data-localize-placeholder="nickname_placeholder" placeholder="예: 여행고래">
+            <div id="profile-manager-feedback" class="feedback-badge" style="display:none;"></div>
+          </div>
+
+          <div class="profile-field-block">
+            <label data-localize="profile_temp_image_title">임시 이미지 선택</label>
+            <div id="profile-sample-avatar-grid" class="profile-sample-avatar-grid"></div>
+          </div>
+
+          <div class="profile-field-block">
+            <label data-localize="profile_emoji_title">간단 아이콘 선택</label>
+            <div class="avatar-presets profile-emoji-presets">
+              <button class="preset-btn profile-preset-btn" data-profile-preset="sun">☀️</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="wave">🌊</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="leaf">🍃</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="camera">📷</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="compass">🧭</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="mountain">⛰️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-manager-actions">
+        <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
+        </button>
+        <div class="profile-action-right">
+          <button id="profile-manager-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
+          <button id="profile-manager-save-btn" class="btn-rect" type="button">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span data-localize="profile_save">저장하기</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Javascript Logic Files -->
+  <script src="map.js" defer></script>
+  <script src="explore.js" defer></script>
+  <script src="rewards.js" defer></script>
+  <script src="creator.js" defer></script>
+  <script src="adventure.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
