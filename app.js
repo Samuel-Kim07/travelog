@@ -114,6 +114,16 @@ const LocalizationDictionary = {
   profile_save: { en: 'Save Profile', ko: '저장하기', ja: '保存する' },
   profile_saved_toast: { en: 'Profile updated!', ko: '프로필이 저장되었습니다!', ja: 'プロフィールを保存しました！' },
   profile_open_toast: { en: 'Opening profile manager...', ko: '프로필 관리 화면을 엽니다.', ja: 'プロフィール管理を開きます。' },
+
+  // Real GPS & location memo
+  gps_waiting: { en: 'Waiting for GPS...', ko: 'GPS 대기 중...', ja: 'GPS待機中...' },
+  gps_locating: { en: 'Finding my location...', ko: '내 위치를 찾는 중...', ja: '現在地を取得中...' },
+  gps_my_location: { en: 'My current location', ko: '내 현재 위치', ja: '現在地' },
+  memo_modal_title: { en: 'Leave a Memo Here', ko: '이 위치에 메모 남기기', ja: 'この場所にメモを残す' },
+  memo_modal_desc: { en: 'Save a short note at your current GPS location.', ko: '현재 GPS 위치에 짧은 텍스트 메모를 저장합니다.', ja: '現在のGPS位置に短いテキストメモを保存します。' },
+  memo_text_placeholder: { en: 'Write a memo for this place...', ko: '이 장소에 남길 메모를 적어주세요...', ja: 'この場所に残すメモを書いてください...' },
+  memo_cancel: { en: 'Cancel', ko: '취소', ja: 'キャンセル' },
+  memo_save: { en: 'Save Memo', ko: '메모 저장', ja: 'メモを保存' },
   nav_map: { en: 'Map', ko: '지도', ja: '地図' },
   nav_explore: { en: 'Explore', ko: '피드', ja: 'フィード' },
   nav_rewards: { en: 'Rewards', ko: '쿠폰&이벤트', ja: '特典＆イベント' },
