@@ -96,16 +96,48 @@
           </div>
         </div>
 
-        <!-- Map HUD Right Controls: GPS Simulation -->
+        <!-- Map HUD Right Controls: GPS, Memo & Simulation -->
         <div class="gps-controls">
-          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk">
+          <button class="btn-circle" id="real-gps-btn" title="Use My Current GPS Location" aria-label="Use My Current GPS Location">
+            <i class="fa-solid fa-location-crosshairs"></i>
+          </button>
+          <button class="btn-circle" id="add-location-memo-btn" title="Leave Memo at My Location" aria-label="Leave Memo at My Location">
+            <i class="fa-solid fa-note-sticky"></i>
+          </button>
+          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
             <i class="fa-solid fa-person-walking"></i>
           </button>
-          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map">
+          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
             <i class="fa-solid fa-crosshairs"></i>
           </button>
-          <div id="simulation-status-pill" class="glass-panel" style="display: none; padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--accent-blue); text-align: center;">
+          <div id="gps-location-pill" class="glass-panel map-status-pill" style="display: none;">
+            <i class="fa-solid fa-satellite-dish"></i>
+            <span id="gps-location-text" data-localize="gps_waiting">Waiting for GPS...</span>
+          </div>
+          <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
+          </div>
+        </div>
+
+        <!-- Location Memo Modal -->
+        <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
+          <div class="location-memo-card glass-panel">
+            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="memo-modal-header">
+              <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
+              <div>
+                <h3 data-localize="memo_modal_title">Leave a Memo Here</h3>
+                <p data-localize="memo_modal_desc">Save a short note at your current GPS location.</p>
+              </div>
+            </div>
+            <div id="memo-location-preview" class="memo-location-preview">37.00000, 127.00000</div>
+            <textarea id="location-memo-text" maxlength="220" data-localize-placeholder="memo_text_placeholder" placeholder="Write a memo for this place..."></textarea>
+            <div class="memo-modal-actions">
+              <button class="btn-rect secondary" id="cancel-location-memo-btn" data-localize="memo_cancel">Cancel</button>
+              <button class="btn-rect" id="save-location-memo-btn" data-localize="memo_save">Save Memo</button>
+            </div>
           </div>
         </div>
 
