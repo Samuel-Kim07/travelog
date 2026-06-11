@@ -13,8 +13,10 @@ const TravelogMapModule = (() => {
 
   let map;
   let markersLayer;
+  let memoMarkersLayer;
   let routePolyline;
   let userMarker;
+  let userAccuracyCircle;
   
   let isSimulating = false;
   let simIntervalId = null;
@@ -24,6 +26,11 @@ const TravelogMapModule = (() => {
   // Track triggered places in this walk session
   const triggeredNodes = new Set();
   let didInit = false;
+  let hasRealGpsLocation = false;
+  let latestGpsFix = null;
+  let memoDraftLocation = null;
+  let userMemoItems = [];
+  const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
   // Custom marker icons using FontAwesome & CSS
   function createHtmlIcon(iconClass, colorClass) {
@@ -33,6 +40,43 @@ const TravelogMapModule = (() => {
       iconSize: [36, 36],
       iconAnchor: [18, 18]
     });
+  }
+
+  function createCurrentLocationIcon() {
+    return L.divIcon({
+      html: `<div class="pin-current-location"></div>`,
+      className: 'custom-player-marker',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function formatDateTime(timestamp) {
+    try {
+      return new Date(timestamp).toLocaleString();
+    } catch (err) {
+      return '';
+    }
+  }
+
+  function getCurrentLatLng() {
+    if (latestGpsFix) {
+      return { lat: latestGpsFix.lat, lng: latestGpsFix.lng, accuracy: latestGpsFix.accuracy || null };
+    }
+    if (userMarker) {
+      const loc = userMarker.getLatLng();
+      return { lat: loc.lat, lng: loc.lng, accuracy: null };
+    }
+    return { lat: 37.5750, lng: 126.9768, accuracy: null };
   }
 
   // Predefined Tour Spots (Minho's Gyeongbokgung Tour)
@@ -290,15 +334,10 @@ const TravelogMapModule = (() => {
 
     // 3. Add Layers
     markersLayer = L.layerGroup().addTo(map);
+    memoMarkersLayer = L.layerGroup().addTo(map);
     
-    // Create simulated user marker starting at Gwanghwamun Gate
-    const playerIcon = L.divIcon({
-      html: `<div class="pin-player" style="width:24px; height:24px; border-radius:50%;"></div>`,
-      className: 'custom-player-marker',
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
-    });
-    userMarker = L.marker([37.5750, 126.9768], { icon: playerIcon }).addTo(map);
+    // Create user marker. It starts near Gwanghwamun until the phone GPS updates it.
+    userMarker = L.marker([37.5750, 126.9768], { icon: createCurrentLocationIcon() }).addTo(map);
 
     // 4. Bind map click event for Creator Studio Node Placement
     map.on('click', (e) => {
@@ -310,22 +349,50 @@ const TravelogMapModule = (() => {
     });
 
     // 5. Setup Controls
-    document.getElementById('zoom-to-user-btn').addEventListener('click', () => {
-      map.setView(userMarker.getLatLng(), 16);
-    });
+    const zoomToUserBtn = document.getElementById('zoom-to-user-btn');
+    if (zoomToUserBtn) {
+      zoomToUserBtn.addEventListener('click', () => {
+        const loc = getCurrentLatLng();
+        map.setView([loc.lat, loc.lng], 17);
+      });
+    }
 
-    document.getElementById('gps-simulation-btn').addEventListener('click', toggleGPSSimulation);
+    const realGpsBtn = document.getElementById('real-gps-btn');
+    if (realGpsBtn) {
+      realGpsBtn.addEventListener('click', () => requestCurrentLocation());
+    }
+
+    const memoBtn = document.getElementById('add-location-memo-btn');
+    if (memoBtn) {
+      memoBtn.addEventListener('click', handleMemoButtonClick);
+    }
+
+    const gpsSimulationBtn = document.getElementById('gps-simulation-btn');
+    if (gpsSimulationBtn) {
+      gpsSimulationBtn.addEventListener('click', toggleGPSSimulation);
+    }
+
+    initMemoModalEvents();
     
     // Floating HUD Button actions
-    document.getElementById('play-guide-intro-btn').addEventListener('click', () => {
-      triggerVideoOverlay('Gwanghwamun Gate Intro', 'Minho (Seoul Local)');
-    });
-    document.getElementById('hear-greeting-btn').addEventListener('click', () => {
-      triggerAudioOverlay('Greeting from Minho', 'Minho (Seoul Local)');
-    });
+    const introBtn = document.getElementById('play-guide-intro-btn');
+    if (introBtn) {
+      introBtn.addEventListener('click', () => {
+        triggerVideoOverlay('Gwanghwamun Gate Intro', 'Minho (Seoul Local)');
+      });
+    }
+
+    const greetingBtn = document.getElementById('hear-greeting-btn');
+    if (greetingBtn) {
+      greetingBtn.addEventListener('click', () => {
+        triggerAudioOverlay('Greeting from Minho', 'Minho (Seoul Local)');
+      });
+    }
 
     // Draw active tour markers and lines
     renderTour();
+    loadUserMemos();
+    renderUserMemoMarkers();
   }
 
   function renderTour() {
@@ -391,6 +458,225 @@ const TravelogMapModule = (() => {
       `;
       listEl.appendChild(row);
     });
+  }
+
+  // ==========================================
+  // Real GPS & Text Memo Logic
+  // ==========================================
+  function updateGpsStatus(message, show = true) {
+    const pill = document.getElementById('gps-location-pill');
+    const text = document.getElementById('gps-location-text');
+    if (!pill || !text) return;
+    text.textContent = message;
+    pill.style.display = show ? 'block' : 'none';
+  }
+
+  function applyUserLocation(lat, lng, accuracy = null, shouldPan = true) {
+    if (!map || !userMarker) return;
+
+    latestGpsFix = { lat, lng, accuracy, updatedAt: Date.now() };
+    hasRealGpsLocation = true;
+    userMarker.setLatLng([lat, lng]);
+
+    if (accuracy && accuracy > 0) {
+      if (!userAccuracyCircle) {
+        userAccuracyCircle = L.circle([lat, lng], {
+          radius: accuracy,
+          color: '#70A2B7',
+          weight: 1,
+          fillColor: '#70A2B7',
+          fillOpacity: 0.12
+        }).addTo(map);
+      } else {
+        userAccuracyCircle.setLatLng([lat, lng]);
+        userAccuracyCircle.setRadius(accuracy);
+      }
+    }
+
+    const accuracyText = accuracy ? ` ±${Math.round(accuracy)}m` : '';
+    updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracyText}`);
+
+    if (shouldPan) {
+      map.setView([lat, lng], Math.max(map.getZoom(), 17));
+    }
+
+    checkProximityTrigger(lat, lng);
+    if (window.TravelogAdventureModule && typeof window.TravelogAdventureModule.updateDistanceToClue === 'function') {
+      window.TravelogAdventureModule.updateDistanceToClue(lat, lng);
+    }
+  }
+
+  function getGeolocationErrorMessage(error) {
+    if (!error) return t('위치를 가져오지 못했습니다.', 'Could not get your location.', '位置情報を取得できませんでした。');
+    if (error.code === 1) return t('위치 권한이 거부되었습니다. 브라우저 위치 권한을 허용해 주세요.', 'Location permission was denied. Please allow location access in your browser.', '位置情報の許可が拒否されました。ブラウザで位置情報を許可してください。');
+    if (error.code === 2) return t('현재 위치를 확인할 수 없습니다. GPS 또는 네트워크 상태를 확인해 주세요.', 'Your location is unavailable. Check GPS or network status.', '現在地を確認できません。GPSまたはネットワーク状態を確認してください。');
+    if (error.code === 3) return t('위치 확인 시간이 초과되었습니다. 다시 시도해 주세요.', 'Location request timed out. Please try again.', '位置情報の取得がタイムアウトしました。もう一度お試しください。');
+    return t('위치를 가져오지 못했습니다.', 'Could not get your location.', '位置情報を取得できませんでした。');
+  }
+
+  function requestCurrentLocation(afterSuccess) {
+    if (!navigator.geolocation) {
+      const msg = t('이 브라우저는 GPS 위치 기능을 지원하지 않습니다.', 'This browser does not support GPS geolocation.', 'このブラウザはGPS位置情報に対応していません。');
+      updateGpsStatus(msg);
+      window.TravelogApp.showToast(msg);
+      return;
+    }
+
+    updateGpsStatus(t('GPS 권한을 요청하고 있습니다...', 'Requesting GPS permission...', 'GPS権限をリクエスト中...'));
+    window.TravelogApp.showToast(t('휴대폰 위치 권한을 허용해 주세요.', 'Please allow location permission on your phone.', 'スマートフォンの位置情報を許可してください。'));
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        applyUserLocation(latitude, longitude, accuracy, true);
+        window.TravelogApp.showToast(t('내 위치를 지도에 표시했습니다.', 'Your location is now on the map.', '現在地を地図に表示しました。'));
+        if (typeof afterSuccess === 'function') {
+          afterSuccess({ lat: latitude, lng: longitude, accuracy });
+        }
+      },
+      (error) => {
+        const msg = getGeolocationErrorMessage(error);
+        updateGpsStatus(msg);
+        window.TravelogApp.showToast(msg);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 10000
+      }
+    );
+  }
+
+  function handleMemoButtonClick() {
+    if (!hasRealGpsLocation) {
+      requestCurrentLocation((loc) => openMemoModal(loc));
+      return;
+    }
+    openMemoModal(getCurrentLatLng());
+  }
+
+  function initMemoModalEvents() {
+    const modal = document.getElementById('location-memo-modal');
+    const closeBtn = document.getElementById('close-location-memo-modal-btn');
+    const cancelBtn = document.getElementById('cancel-location-memo-btn');
+    const saveBtn = document.getElementById('save-location-memo-btn');
+
+    if (!modal || modal.dataset.memoBound === 'true') return;
+    modal.dataset.memoBound = 'true';
+
+    if (closeBtn) closeBtn.addEventListener('click', closeMemoModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeMemoModal);
+    if (saveBtn) saveBtn.addEventListener('click', saveLocationMemo);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeMemoModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        closeMemoModal();
+      }
+    });
+  }
+
+  function openMemoModal(location) {
+    const modal = document.getElementById('location-memo-modal');
+    const textArea = document.getElementById('location-memo-text');
+    const preview = document.getElementById('memo-location-preview');
+    if (!modal || !textArea || !preview) return;
+
+    memoDraftLocation = location || getCurrentLatLng();
+    preview.textContent = `${t('좌표', 'Coords', '座標')}: ${memoDraftLocation.lat.toFixed(6)}, ${memoDraftLocation.lng.toFixed(6)}`;
+    textArea.value = '';
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    setTimeout(() => textArea.focus(), 80);
+  }
+
+  function closeMemoModal() {
+    const modal = document.getElementById('location-memo-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    memoDraftLocation = null;
+  }
+
+  function loadUserMemos() {
+    try {
+      const raw = localStorage.getItem(USER_MEMO_STORAGE_KEY);
+      userMemoItems = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(userMemoItems)) userMemoItems = [];
+    } catch (err) {
+      console.warn('[Travelog Map] Failed to load memos:', err);
+      userMemoItems = [];
+    }
+  }
+
+  function saveUserMemos() {
+    try {
+      localStorage.setItem(USER_MEMO_STORAGE_KEY, JSON.stringify(userMemoItems));
+    } catch (err) {
+      console.warn('[Travelog Map] Failed to save memos:', err);
+      window.TravelogApp.showToast(t('메모 저장 공간이 부족합니다.', 'Not enough storage for memos.', 'メモの保存容量が不足しています。'));
+    }
+  }
+
+  function saveLocationMemo() {
+    const textArea = document.getElementById('location-memo-text');
+    if (!textArea || !memoDraftLocation) return;
+
+    const text = textArea.value.trim();
+    if (!text) {
+      window.TravelogApp.showToast(t('메모 내용을 입력해 주세요.', 'Please write a memo first.', 'メモ内容を入力してください。'));
+      textArea.focus();
+      return;
+    }
+
+    const memo = {
+      id: `memo-${Date.now()}`,
+      text,
+      lat: memoDraftLocation.lat,
+      lng: memoDraftLocation.lng,
+      accuracy: memoDraftLocation.accuracy || null,
+      createdAt: Date.now()
+    };
+
+    userMemoItems.unshift(memo);
+    saveUserMemos();
+    renderUserMemoMarkers();
+    closeMemoModal();
+
+    if (map) {
+      map.setView([memo.lat, memo.lng], Math.max(map.getZoom(), 17));
+    }
+    window.TravelogApp.showToast(t('현재 위치에 메모를 저장했습니다.', 'Memo saved at your current location.', '現在地にメモを保存しました。'));
+  }
+
+  function renderUserMemoMarkers() {
+    if (!memoMarkersLayer || typeof L === 'undefined') return;
+    memoMarkersLayer.clearLayers();
+
+    userMemoItems.forEach((memo) => {
+      const memoIcon = createHtmlIcon('fa-solid fa-note-sticky', 'pin-memo');
+      const marker = L.marker([memo.lat, memo.lng], { icon: memoIcon });
+      const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
+      marker.bindPopup(`
+        <div class="memo-popup">
+          <h4>${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
+          <p>${escapeHtml(memo.text)}</p>
+          <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
+          <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
+        </div>
+      `);
+      memoMarkersLayer.addLayer(marker);
+    });
+  }
+
+  function deleteMemo(id) {
+    userMemoItems = userMemoItems.filter(memo => memo.id !== id);
+    saveUserMemos();
+    renderUserMemoMarkers();
+    window.TravelogApp.showToast(t('메모를 삭제했습니다.', 'Memo deleted.', 'メモを削除しました。'));
   }
 
   // ==========================================
@@ -687,9 +973,15 @@ const TravelogMapModule = (() => {
     onLanguageChange: (lang) => {
       if (map) {
         renderTour();
+        renderUserMemoMarkers();
+        if (latestGpsFix) {
+          updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${latestGpsFix.accuracy ? ` ±${Math.round(latestGpsFix.accuracy)}m` : ''}`);
+        }
       }
     },
     clearCreatorPins: clearCreatorPins,
+    requestCurrentLocation: requestCurrentLocation,
+    deleteMemo: deleteMemo,
     teleportUser: (lat, lng) => {
       if (userMarker) {
         userMarker.setLatLng([lat, lng]);
@@ -702,11 +994,8 @@ const TravelogMapModule = (() => {
     },
     getDistanceInMeters: getDistanceInMeters,
     getUserLocation: () => {
-      if (userMarker) {
-        const loc = userMarker.getLatLng();
-        return { lat: loc.lat, lng: loc.lng };
-      }
-      return { lat: 37.5750, lng: 126.9768 };
+      const loc = getCurrentLatLng();
+      return { lat: loc.lat, lng: loc.lng };
     },
     showFallbackMap: () => renderFallbackMap('수동으로 대체 지도를 표시했습니다.'),
     getDebugStatus: () => ({
