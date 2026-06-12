@@ -356,6 +356,54 @@
                 <!-- Voice Market Cards dynamically generated -->
               </div>
             </div>
+
+            <div class="glass-panel github-storage-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
+
+              <div class="storage-config-box">
+                <div class="storage-row">
+                  <span data-localize="media_storage_repo">Repository</span>
+                  <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_audio_path">Audio path</span>
+                  <code id="github-audio-path">assets/icons/Audio</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_video_path">Video path</span>
+                  <code id="github-video-path">assets/icons/Video</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_token_status">Token status</span>
+                  <span id="github-token-status" class="storage-status-pill">No token</span>
+                </div>
+              </div>
+
+              <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
+              <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
+              <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
+              <div class="storage-action-row">
+                <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
+                <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
+                <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
+              </div>
+
+              <div class="media-upload-test-grid">
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_audio_file">Audio file test</label>
+                  <input type="file" id="media-audio-file" accept="audio/*">
+                  <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
+                </div>
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_video_file">Video file test</label>
+                  <input type="file" id="media-video-file" accept="video/*">
+                  <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
+                </div>
+              </div>
+
+              <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -636,6 +684,7 @@
   <script src="map.js" defer></script>
   <script src="explore.js" defer></script>
   <script src="rewards.js" defer></script>
+  <script src="mediaStorage.js" defer></script>
   <script src="creator.js" defer></script>
   <script src="adventure.js" defer></script>
   <script src="app.js" defer></script>
