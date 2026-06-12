@@ -96,3 +96,12 @@ Important
 For prototype testing, a GitHub token is stored only in the browser localStorage.
 Do not commit your token into GitHub files.
 For production, replace direct browser token upload with a server-side or GitHub App flow.
+
+
+MINHO TEST MEDIA WIRED IN APP
+- Minho intro video: assets/icons/Video/t_log_video.mp4
+- Minho guide audio: assets/icons/Audio/Test_log.m4a
+
+Use the GitHub Pages relative path in the app, not the github.com/blob page URL.
+The blob page is for viewing files in GitHub; the relative path is what audio/video tags can play.
+
