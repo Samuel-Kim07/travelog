@@ -71,6 +71,21 @@ const LocalizationDictionary = {
   script_morning: { en: '"Good Morning!"', ko: '"일어날 시간이에요~"', ja: '"おはようございます！"' },
   market_title: { en: '<i class="fa-solid fa-cart-shopping"></i> Voice Sample Market', ko: '<i class="fa-solid fa-cart-shopping"></i> 가이드 보이스 마켓', ja: '<i class="fa-solid fa-cart-shopping"></i> ガイドボイスマーケット' },
   market_desc: { en: 'Don\'t want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.', ko: '목소리 녹음이 어렵다면 마켓의 다국어 보이스 팩을 구매하여 가이드 북을 완성해보세요!', ja: '自分の声を録音しにくい場合は、多言語ボイスパックでガイドを完成できます。' },
+  media_storage_title: { en: '<i class="fa-brands fa-github"></i> GitHub Media Storage', ko: '<i class="fa-brands fa-github"></i> GitHub 미디어 저장소', ja: '<i class="fa-brands fa-github"></i> GitHubメディア保存先' },
+  media_storage_desc: { en: 'Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.', ko: '생성된 음성/영상 소스를 ZIP이 아닌 재생 가능한 압축 미디어 파일로 GitHub 저장소에 직접 저장합니다.', ja: '生成された音声・動画ソースをZIPではなく、再生可能な圧縮メディアファイルとしてGitHubに直接保存します。' },
+  media_storage_repo: { en: 'Repository', ko: '저장소', ja: 'リポジトリ' },
+  media_storage_audio_path: { en: 'Audio path', ko: '음성 저장 경로', ja: '音声保存先' },
+  media_storage_video_path: { en: 'Video path', ko: '영상 저장 경로', ja: '動画保存先' },
+  media_storage_token_status: { en: 'Token status', ko: '토큰 상태', ja: 'トークン状態' },
+  media_storage_token_label: { en: 'GitHub token for test upload', ko: '테스트 업로드용 GitHub 토큰', ja: 'テストアップロード用GitHubトークン' },
+  media_storage_warning: { en: 'For prototype testing only. Do not commit your token into GitHub files.', ko: '프로토타입 테스트용입니다. 토큰을 GitHub 파일에 직접 올리면 안 됩니다.', ja: 'プロトタイプテスト用です。トークンをGitHubファイルに直接コミットしないでください。' },
+  media_storage_save_token: { en: 'Save Token', ko: '토큰 저장', ja: 'トークン保存' },
+  media_storage_clear_token: { en: 'Clear', ko: '삭제', ja: '削除' },
+  media_storage_test: { en: 'Test', ko: '연결 테스트', ja: '接続テスト' },
+  media_storage_audio_file: { en: 'Audio file test', ko: '음성 파일 테스트', ja: '音声ファイルテスト' },
+  media_storage_video_file: { en: 'Video file test', ko: '영상 파일 테스트', ja: '動画ファイルテスト' },
+  media_storage_upload_audio: { en: 'Upload Audio Source', ko: '음성 소스 직접 업로드', ja: '音声ソース直接アップロード' },
+  media_storage_upload_video: { en: 'Upload Video Source', ko: '영상 소스 직접 업로드', ja: '動画ソース直接アップロード' },
   quest_active: { en: 'Active Quest', ko: '진행 중인 퀘스트', ja: '進行中のクエスト' },
   quest_steps_title: { en: '<i class="fa-solid fa-list-check"></i> Quest Milestones', ko: '<i class="fa-solid fa-list-check"></i> 퀘스트 미션 단계', ja: '<i class="fa-solid fa-list-check"></i> クエスト進行ステップ' },
   radar_title: { en: '<i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar', ko: '<i class="fa-solid fa-satellite-dish"></i> GPS 근접 레이더', ja: '<i class="fa-solid fa-satellite-dish"></i> GPS近接レーダー' },
@@ -151,6 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.init === 'function') {
     window.TravelogRewardsModule.init();
+  }
+  if (window.TravelogMediaStorageModule && typeof window.TravelogMediaStorageModule.init === 'function') {
+    window.TravelogMediaStorageModule.init();
   }
   if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.init === 'function') {
     window.TravelogCreatorModule.init();
@@ -269,6 +287,7 @@ function triggerModuleLanguageUpdate() {
     window.TravelogMapModule,
     window.TravelogExploreModule,
     window.TravelogRewardsModule,
+    window.TravelogMediaStorageModule,
     window.TravelogCreatorModule,
     window.TravelogAdventureModule
   ];
