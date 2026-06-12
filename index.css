@@ -2618,3 +2618,201 @@ nav.bottom-nav {
     justify-content: center;
   }
 }
+
+/* ==========================================
+   GitHub Media Storage Panel
+   ========================================== */
+.github-storage-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.storage-config-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+.storage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.storage-row span:first-child {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.storage-row strong,
+.storage-row code {
+  color: var(--text-primary);
+  font-size: 11px;
+  text-align: right;
+  word-break: break-all;
+}
+.storage-status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(232, 180, 184, 0.16);
+  color: #A34E54;
+  font-size: 11px;
+  font-weight: 800;
+}
+.storage-status-pill.connected {
+  background: rgba(175, 212, 153, 0.18);
+  color: #557E3F;
+}
+.storage-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+.storage-input {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.storage-warning {
+  font-size: 11px;
+  color: #A34E54;
+  background: rgba(232, 180, 184, 0.12);
+  border: 1px solid rgba(232, 180, 184, 0.2);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+}
+.storage-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.media-upload-test-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.media-upload-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.5);
+}
+.media-upload-card label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+.media-upload-card input[type="file"] {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.github-upload-log {
+  min-height: 86px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: rgba(43, 58, 66, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.upload-log-row {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.6);
+}
+.upload-log-row.success {
+  color: #557E3F;
+  background: rgba(175, 212, 153, 0.16);
+}
+.upload-log-row.error {
+  color: #A34E54;
+  background: rgba(232, 180, 184, 0.16);
+}
+
+@media (max-width: 600px) {
+  .media-upload-test-grid {
+    grid-template-columns: 1fr;
+  }
+  .storage-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .storage-row strong,
+  .storage-row code {
+    text-align: left;
+  }
+}
+
+
+/* ==========================================
+   Real Guide Media Playback
+   ========================================== */
+.guide-audio-element {
+  width: 100%;
+  margin: 6px 0 10px;
+  border-radius: var(--radius-sm);
+}
+
+.guide-video-wrapper {
+  background: #000;
+}
+
+.guide-video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: #000;
+}
+
+.guide-video-info-panel {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: white;
+  pointer-events: none;
+}
+
+.guide-video-info-panel h4 {
+  color: white;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.guide-video-info-panel p {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.guide-video-info-panel span {
+  color: var(--color-sun);
+  font-size: 11px;
+  font-weight: 700;
+}
