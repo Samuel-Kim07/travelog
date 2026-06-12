@@ -149,6 +149,9 @@
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
+          <audio id="guide-audio-element" class="guide-audio-element" controls preload="metadata">
+            <source src="assets/icons/Audio/Test_log.m4a" type="audio/mp4">
+          </audio>
           
           <!-- Animated audio waves -->
           <div class="player-wave-container" id="waveform-visualizer">
@@ -173,24 +176,14 @@
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
           <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
-          <div class="video-wrapper">
-            <!-- Simulated Video (Canvas + Audio + Interactive Graphics) -->
-            <div class="simulated-video" id="simulated-video-screen">
-              <div style="position: absolute; bottom: 20px; left: 20px; z-index: 10; color: white;">
-                <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
-                <p id="video-overlay-author" style="font-size: 12px; color: var(--accent-blue); font-weight: 600;">Minho's Historical Walk</p>
-              </div>
-              <div class="player-wave-container" style="position: absolute; top: 10px; right: 10px; width: 100px; height: 30px;">
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-              </div>
-              <!-- Graphic Simulator -->
-              <div id="video-canvas-anim" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; background: radial-gradient(circle, #2b1055, #000000);">
-                <i class="fa-solid fa-video" style="font-size: 48px; color: var(--accent-pink); margin-bottom: 20px; animation: pulse-pin 1.5s infinite;"></i>
-                <span style="color: white; font-size: 14px; font-weight: 500;" id="video-play-status" data-localize="vlog_playing">Vlog Video Playing...</span>
-                <span style="color: var(--text-secondary); font-size: 12px; margin-top: 10px;" id="video-play-timer">0:00 / 0:15</span>
-              </div>
+          <div class="video-wrapper guide-video-wrapper">
+            <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/blogs/seoul-history-food.jpg">
+              <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
+            </video>
+            <div class="guide-video-info-panel">
+              <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
+              <p id="video-overlay-author">Minho's Historical Walk</p>
+              <span id="video-play-timer">0:00 / --:--</span>
             </div>
           </div>
         </div>
