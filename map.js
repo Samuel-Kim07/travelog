@@ -32,6 +32,20 @@ const TravelogMapModule = (() => {
   let userMemoItems = [];
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
+  // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
+  // Use relative paths, not github.com/blob URLs, so <audio>/<video> can play directly in the app.
+  const GUIDE_MEDIA_SOURCES = {
+    minho: {
+      audio: 'assets/icons/Audio/Test_log.m4a',
+      video: 'assets/icons/Video/t_log_video.mp4'
+    }
+  };
+
+  function getMinhoMedia(kind) {
+    return GUIDE_MEDIA_SOURCES.minho[kind];
+  }
+
+
   // Custom marker icons using FontAwesome & CSS
   function createHtmlIcon(iconClass, colorClass) {
     return L.divIcon({
@@ -814,15 +828,34 @@ const TravelogMapModule = (() => {
   // Audio Overlay Controller
   // ==========================================
   let isAudioPlaying = false;
-  let audioTimerInterval = null;
 
-  function triggerAudioOverlay(title, speaker) {
+  function getGuideAudioElement() {
+    return document.getElementById('guide-audio-element');
+  }
+
+  function triggerAudioOverlay(title, speaker, audioSrc = getMinhoMedia('audio')) {
     const overlay = document.getElementById('audio-overlay');
+    const audioEl = getGuideAudioElement();
     document.getElementById('audio-title').textContent = title;
     document.getElementById('audio-speaker').textContent = `By ${speaker}`;
     overlay.classList.add('active');
 
-    // Reset controls state
+    if (audioEl && audioSrc) {
+      if (!audioEl.src || !audioEl.src.endsWith(audioSrc)) {
+        audioEl.src = audioSrc;
+        audioEl.load();
+      }
+      const playPromise = audioEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          isAudioPlaying = false;
+          updateAudioPlayButtonIcon();
+          stopAudioWaveAnimation();
+          window.TravelogApp?.showToast(t('모바일 브라우저 정책상 재생 버튼을 눌러 음성을 시작해 주세요.', 'Tap play to start audio on mobile.', 'モバイルでは再生ボタンを押して音声を開始してください。'));
+        });
+      }
+    }
+
     isAudioPlaying = true;
     updateAudioPlayButtonIcon();
     startAudioWaveAnimation();
@@ -830,22 +863,56 @@ const TravelogMapModule = (() => {
 
   // Bind audio controls
   document.getElementById('close-audio-btn').addEventListener('click', () => {
+    const audioEl = getGuideAudioElement();
+    if (audioEl) audioEl.pause();
+    isAudioPlaying = false;
     document.getElementById('audio-overlay').classList.remove('active');
+    updateAudioPlayButtonIcon();
     stopAudioWaveAnimation();
   });
 
   document.getElementById('play-audio-btn').addEventListener('click', () => {
-    isAudioPlaying = !isAudioPlaying;
-    updateAudioPlayButtonIcon();
-    if (isAudioPlaying) {
-      startAudioWaveAnimation();
+    const audioEl = getGuideAudioElement();
+    if (!audioEl) return;
+
+    if (audioEl.paused) {
+      audioEl.play().then(() => {
+        isAudioPlaying = true;
+        updateAudioPlayButtonIcon();
+        startAudioWaveAnimation();
+      }).catch(() => {
+        window.TravelogApp?.showToast(t('음성 파일을 재생할 수 없습니다. 파일 경로를 확인해 주세요.', 'Audio could not be played. Check the file path.', '音声ファイルを再生できません。ファイルパスを確認してください。'));
+      });
     } else {
+      audioEl.pause();
+      isAudioPlaying = false;
+      updateAudioPlayButtonIcon();
       stopAudioWaveAnimation();
     }
   });
 
+  const guideAudioElement = getGuideAudioElement();
+  if (guideAudioElement) {
+    guideAudioElement.addEventListener('play', () => {
+      isAudioPlaying = true;
+      updateAudioPlayButtonIcon();
+      startAudioWaveAnimation();
+    });
+    guideAudioElement.addEventListener('pause', () => {
+      isAudioPlaying = false;
+      updateAudioPlayButtonIcon();
+      stopAudioWaveAnimation();
+    });
+    guideAudioElement.addEventListener('ended', () => {
+      isAudioPlaying = false;
+      updateAudioPlayButtonIcon();
+      stopAudioWaveAnimation();
+    });
+  }
+
   function updateAudioPlayButtonIcon() {
     const btn = document.getElementById('play-audio-btn');
+    if (!btn) return;
     btn.innerHTML = isAudioPlaying ? `<i class="fa-solid fa-pause"></i>` : `<i class="fa-solid fa-play"></i>`;
   }
 
@@ -865,41 +932,64 @@ const TravelogMapModule = (() => {
   }
 
   // ==========================================
-  // Video Overlay Controller (Vlogs)
+  // Video Overlay Controller (Guide Video)
   // ==========================================
-  let videoPlayInterval = null;
-  let videoSeconds = 0;
+  function formatMediaTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+  }
 
-  function triggerVideoOverlay(title, author) {
+  function getGuideVideoElement() {
+    return document.getElementById('guide-video-element');
+  }
+
+  function triggerVideoOverlay(title, author, videoSrc = getMinhoMedia('video')) {
     const modal = document.getElementById('video-overlay');
+    const videoEl = getGuideVideoElement();
+    const timerText = document.getElementById('video-play-timer');
+
     document.getElementById('video-overlay-title').textContent = title;
     document.getElementById('video-overlay-author').textContent = author;
     modal.classList.add('active');
 
-    // Simulate video playing timeline
-    videoSeconds = 0;
-    const timerText = document.getElementById('video-play-timer');
-    timerText.textContent = `0:00 / 0:15`;
-
-    clearInterval(videoPlayInterval);
-    videoPlayInterval = setInterval(() => {
-      videoSeconds++;
-      if (videoSeconds > 15) {
-        clearInterval(videoPlayInterval);
-        closeVideoOverlay();
-      } else {
-        const displaySec = videoSeconds < 10 ? `0${videoSeconds}` : videoSeconds;
-        timerText.textContent = `0:${displaySec} / 0:15`;
+    if (videoEl && videoSrc) {
+      if (!videoEl.src || !videoEl.src.endsWith(videoSrc)) {
+        videoEl.src = videoSrc;
+        videoEl.load();
       }
-    }, 1000);
+      if (timerText) timerText.textContent = '0:00 / --:--';
+      const playPromise = videoEl.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          window.TravelogApp?.showToast(t('모바일에서는 영상의 재생 버튼을 눌러 시작해 주세요.', 'Tap the video play button to start on mobile.', 'モバイルでは動画の再生ボタンを押して開始してください。'));
+        });
+      }
+    }
   }
 
   function closeVideoOverlay() {
-    clearInterval(videoPlayInterval);
+    const videoEl = getGuideVideoElement();
+    if (videoEl) videoEl.pause();
     document.getElementById('video-overlay').classList.remove('active');
   }
 
   document.getElementById('close-video-modal-btn').addEventListener('click', closeVideoOverlay);
+
+  const guideVideoElement = getGuideVideoElement();
+  if (guideVideoElement) {
+    guideVideoElement.addEventListener('timeupdate', () => {
+      const timerText = document.getElementById('video-play-timer');
+      if (!timerText) return;
+      timerText.textContent = `${formatMediaTime(guideVideoElement.currentTime)} / ${formatMediaTime(guideVideoElement.duration)}`;
+    });
+    guideVideoElement.addEventListener('loadedmetadata', () => {
+      const timerText = document.getElementById('video-play-timer');
+      if (!timerText) return;
+      timerText.textContent = `0:00 / ${formatMediaTime(guideVideoElement.duration)}`;
+    });
+  }
 
   // ==========================================
   // Creator Custom Pins Placement
