@@ -103,9 +103,9 @@ const TravelogMapModule = (() => {
     }
   }
 
-  function setMapControlContent(button, iconHtml, labelText) {
+  function setMapControlContent(button, iconText, labelText) {
     if (!button) return;
-    button.innerHTML = `${iconHtml}<span>${labelText}</span>`;
+    button.innerHTML = `<span class="map-control-icon" aria-hidden="true">${iconText}</span><span>${labelText}</span>`;
   }
 
   function updateMapOverview() {
@@ -129,7 +129,7 @@ const TravelogMapModule = (() => {
     if (realGpsBtn) {
       setMapControlContent(
         realGpsBtn,
-        isRealtimeTracking ? '<i class="fa-solid fa-location-arrow fa-beat"></i>' : '<i class="fa-solid fa-location-crosshairs"></i>',
+        isRealtimeTracking ? '➤' : '⌖',
         isRealtimeTracking ? t('추적 중', 'Tracking', '追跡中') : t('실시간 GPS', 'Live GPS', 'リアルGPS')
       );
     }
@@ -138,7 +138,7 @@ const TravelogMapModule = (() => {
     if (simBtn) {
       setMapControlContent(
         simBtn,
-        isSimulating ? '<i class="fa-solid fa-circle-pause"></i>' : '<i class="fa-solid fa-person-walking"></i>',
+        isSimulating ? 'Ⅱ' : '↟',
         isSimulating ? t('테스트 중', 'Testing', 'テスト中') : t('걷기 테스트', 'Walk Test', '歩行テスト')
       );
     }
@@ -550,7 +550,7 @@ const TravelogMapModule = (() => {
     );
     setMapControlContent(
       btn,
-      active ? '<i class="fa-solid fa-location-arrow fa-beat"></i>' : '<i class="fa-solid fa-location-crosshairs"></i>',
+      active ? '➤' : '⌖',
       active ? t('추적 중', 'Tracking', '追跡中') : t('실시간 GPS', 'Live GPS', 'リアルGPS')
     );
     updateMapOverview();
@@ -866,7 +866,7 @@ const TravelogMapModule = (() => {
       // Pause/Stop simulation
       clearInterval(simIntervalId);
       isSimulating = false;
-      setMapControlContent(btn, '<i class="fa-solid fa-person-walking"></i>', t('걷기 테스트', 'Walk Test', '歩行テスト'));
+      setMapControlContent(btn, '↟', t('걷기 테스트', 'Walk Test', '歩行テスト'));
       btn.style.background = '';
       statusPill.style.display = 'none';
       window.TravelogApp.showToast(t('시뮬레이션이 종료되었습니다.', 'Simulation stopped.', 'シミュレーションを終了しました。'));
@@ -876,7 +876,7 @@ const TravelogMapModule = (() => {
         stopRealtimeLocationTracking(false);
       }
       isSimulating = true;
-      setMapControlContent(btn, '<i class="fa-solid fa-circle-pause"></i>', t('테스트 중', 'Testing', 'テスト中'));
+      setMapControlContent(btn, 'Ⅱ', t('테스트 중', 'Testing', 'テスト中'));
       btn.style.background = 'var(--accent-pink)';
       statusPill.style.display = 'block';
       triggeredNodes.clear();
