@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Travelog CI Symbol">
+  <defs>
+    <linearGradient id="pin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E28743"/><stop offset="1" stop-color="#E91E63"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#F7FAF8"/>
+  <path d="M256 58c-84 0-152 66-152 148 0 112 152 248 152 248s152-136 152-248c0-82-68-148-152-148z" fill="url(#pin)"/>
+  <circle cx="256" cy="204" r="64" fill="#fff" opacity="0.92"/>
+  <path d="M192 214h128l-24 74H216z" fill="#002855" opacity="0.92"/>
+  <path d="M216 214c8-34 28-52 56-52s48 18 56 52" fill="none" stroke="#002855" stroke-width="20" stroke-linecap="round"/>
+  <text x="256" y="414" text-anchor="middle" font-size="52" font-weight="900" fill="#002855" font-family="Outfit, sans-serif">T</text>
+</svg>

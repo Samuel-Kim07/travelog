@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-label="Seoul Palaces Mystery">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#002855"/>
+      <stop offset="0.58" stop-color="#70A2B7"/>
+      <stop offset="1" stop-color="#AFD499"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#002855" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="800" fill="url(#bg)"/>
+  <circle cx="1312" cy="112" r="96" fill="#F2E58A" opacity="0.85"/>
+  <circle cx="240" cy="160" r="144" fill="#FFFFFF" opacity="0.16"/>
+  <circle cx="1472" cy="576" r="200" fill="#FFFFFF" opacity="0.14"/>
+  <path d="M0 576 C 352 480, 704 672, 1088 560 C 1328 488, 1472 528, 1600 464 L 1600 800 L 0 800 Z" fill="#002855" opacity="0.20"/>
+  <path d="M0 656 C 448 560, 896 736, 1600 624 L 1600 800 L 0 800 Z" fill="#002855" opacity="0.30"/>
+  <g filter="url(#shadow)">
+    <rect x="128" y="80" width="1344" height="208" rx="28" fill="#FFFFFF" opacity="0.82"/>
+    <text x="240" y="164" font-size="60" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">🕵️</text>
+    <text x="448" y="152" font-size="34" font-weight="800" fill="#002855" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">Seoul Palaces Mystery</text>
+    <text x="448" y="212" font-size="22" font-weight="600" fill="#4F626C" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">Outdoor Detective Game</text>
+  </g>
+  <text x="128" y="752" font-size="26" font-weight="800" fill="#FFFFFF" opacity="0.92" font-family="Outfit, sans-serif">Travelog</text>
+</svg>

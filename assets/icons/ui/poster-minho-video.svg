@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="Minho Guide">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#70A2B7"/>
+      <stop offset="0.58" stop-color="#A8DFEC"/>
+      <stop offset="1" stop-color="#F2E58A"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#002855" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+  <circle cx="984" cy="126" r="108" fill="#F2E58A" opacity="0.85"/>
+  <circle cx="180" cy="180" r="162" fill="#FFFFFF" opacity="0.16"/>
+  <circle cx="1104" cy="648" r="225" fill="#FFFFFF" opacity="0.14"/>
+  <path d="M0 648 C 264 540, 528 756, 816 630 C 996 549, 1104 594, 1200 522 L 1200 900 L 0 900 Z" fill="#002855" opacity="0.20"/>
+  <path d="M0 738 C 336 630, 672 828, 1200 702 L 1200 900 L 0 900 Z" fill="#002855" opacity="0.30"/>
+  <g filter="url(#shadow)">
+    <rect x="96" y="90" width="1008" height="234" rx="28" fill="#FFFFFF" opacity="0.82"/>
+    <text x="180" y="184" font-size="68" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">🎬</text>
+    <text x="336" y="171" font-size="39" font-weight="800" fill="#002855" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">Minho Guide</text>
+    <text x="336" y="238" font-size="25" font-weight="600" fill="#4F626C" font-family="Noto Sans KR, Noto Sans JP, Outfit, sans-serif">Gyeongbokgung Intro</text>
+  </g>
+  <text x="96" y="846" font-size="29" font-weight="800" fill="#FFFFFF" opacity="0.92" font-family="Outfit, sans-serif">Travelog</text>
+</svg>
