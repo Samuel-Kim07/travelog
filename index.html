@@ -513,25 +513,25 @@
         
         <div class="login-button-container">
           <!-- Google Login -->
-          <button class="login-btn-google" id="login-google-btn">
+          <button type="button" class="login-btn-google" id="login-google-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Google')">
             <img src="assets/icons/google-g-logo.svg" alt="Google Logo">
             <span data-localize="login_google">Continue with Google</span>
           </button>
           
           <!-- Naver Login -->
-          <button class="login-btn-naver" id="login-naver-btn">
+          <button type="button" class="login-btn-naver" id="login-naver-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Naver')">
             <span class="naver-icon">N</span>
             <span data-localize="login_naver">Continue with Naver</span>
           </button>
           
           <!-- Email Login -->
-          <button class="login-btn-email" id="login-email-btn">
+          <button type="button" class="login-btn-email" id="login-email-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Email')">
             <i class="fa-solid fa-envelope"></i>
             <span data-localize="login_email">Continue with Email</span>
           </button>
 
           <!-- Guest Login, common in travel/discovery apps for low-friction entry -->
-          <button class="login-btn-guest" id="login-guest-btn">
+          <button type="button" class="login-btn-guest" id="login-guest-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Guest')">
             <i class="fa-solid fa-suitcase-rolling"></i>
             <span data-localize="login_guest">게스트로 먼저 둘러보기</span>
           </button>
@@ -543,7 +543,7 @@
       <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
       <div id="onboarding-screen-profile" class="onboarding-screen">
         <div class="onboarding-step-row">
-          <button id="onboarding-back-btn" class="onboarding-back-btn"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
+          <button type="button" id="onboarding-back-btn" class="onboarding-back-btn" onclick="window.TravelogShowOnboardingScreen && window.TravelogShowOnboardingScreen('login')"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
           <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
           <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
         </div>
@@ -582,13 +582,13 @@
             <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
               <input type="text" id="onboarding-nickname-input" placeholder="예: 여행고래" data-localize-placeholder="nickname_placeholder" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
-              <button class="btn-rect secondary" id="nickname-check-btn" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
+              <button type="button" class="btn-rect secondary" id="nickname-check-btn" onclick="window.TravelogVerifyNickname && window.TravelogVerifyNickname()" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
             </div>
             
             <!-- Feedback Messages -->
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
             
-            <button class="btn-rect" id="start-app-btn" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
+            <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
               <span data-localize="start_exploring">Start Exploring!</span>
             </button>
           </div>
