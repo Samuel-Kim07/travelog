@@ -2816,3 +2816,20 @@ nav.bottom-nav {
   font-size: 11px;
   font-weight: 700;
 }
+
+/* Live GPS tracking state */
+#real-gps-btn.tracking-active {
+  background: var(--color-ocean);
+  border-color: var(--color-ocean);
+  color: #FFFFFF;
+  box-shadow: 0 0 0 5px rgba(112, 162, 183, 0.18), 0 8px 24px rgba(112, 162, 183, 0.35);
+}
+
+#real-gps-btn.tracking-active:hover {
+  background: #5f92a6;
+  border-color: #5f92a6;
+}
+
+#real-gps-btn.tracking-active + #add-location-memo-btn {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
