@@ -73,7 +73,6 @@ Travelog 이미지 소스 폴더 안내
 - FontAwesome 아이콘과 Google Fonts도 CDN을 사용합니다. 인터넷이 없으면 아이콘/폰트가 깨질 수 있습니다.
 
 ===========================
-
 Travelog Asset Folder Guide
 ===========================
 
@@ -104,4 +103,28 @@ MINHO TEST MEDIA WIRED IN APP
 
 Use the GitHub Pages relative path in the app, not the github.com/blob page URL.
 The blob page is for viewing files in GitHub; the relative path is what audio/video tags can play.
+
+
+[UI 이미지 소스 위치]
+이번 수정부터 테스트용 UI 이미지는 아래 경로를 우선 사용합니다.
+
+assets/icons/google-g-logo.svg
+assets/icons/ui/avatar-yuna-travels.svg
+assets/icons/ui/avatar-hiro-gamer.svg
+assets/icons/ui/avatar-chloe-parisienne.svg
+assets/icons/ui/avatar-minho-guide.svg
+assets/icons/ui/avatar-yuki-guide.svg
+assets/icons/ui/avatar-stefan-guide.svg
+assets/icons/ui/vlog-seoul-hanok-tea-cafe.svg
+assets/icons/ui/vlog-shibuya-night-walk.svg
+assets/icons/ui/vlog-paris-seine-sunset.svg
+assets/icons/ui/blog-seoul-history-food.svg
+assets/icons/ui/blog-kyoto-temple-bamboo.svg
+assets/icons/ui/blog-switzerland-interlaken.svg
+assets/icons/ui/quest-seoul-palace-mystery.svg
+assets/icons/ui/poster-minho-video.svg
+assets/icons/ui/travelog-ci-symbol.svg
+
+위 파일들은 모두 GitHub Pages에서 바로 표시 가능한 SVG 이미지입니다.
+
 
