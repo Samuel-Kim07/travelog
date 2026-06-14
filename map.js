@@ -28,6 +28,9 @@ const TravelogMapModule = (() => {
   let didInit = false;
   let hasRealGpsLocation = false;
   let latestGpsFix = null;
+  let realtimeWatchId = null;
+  let isRealtimeTracking = false;
+  let lastTrackingToastAt = 0;
   let memoDraftLocation = null;
   let userMemoItems = [];
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
@@ -91,6 +94,54 @@ const TravelogMapModule = (() => {
       return { lat: loc.lat, lng: loc.lng, accuracy: null };
     }
     return { lat: 37.5750, lng: 126.9768, accuracy: null };
+  }
+
+  function updateMapText(id, text) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = text;
+    }
+  }
+
+  function setMapControlContent(button, iconHtml, labelText) {
+    if (!button) return;
+    button.innerHTML = `${iconHtml}<span>${labelText}</span>`;
+  }
+
+  function updateMapOverview() {
+    const nodes = getTourNodes();
+    updateMapText('map-stop-count', String(nodes.length));
+    updateMapText('map-memo-count', String(userMemoItems.length));
+    updateMapText('map-gps-mode', isRealtimeTracking ? 'ON' : (hasRealGpsLocation ? 'FIX' : 'OFF'));
+
+    if (latestGpsFix) {
+      updateMapText('map-current-coords', `${t('내 위치', 'My location', '現在地')}: ${latestGpsFix.lat.toFixed(6)}, ${latestGpsFix.lng.toFixed(6)}`);
+      const accuracyText = latestGpsFix.accuracy
+        ? `${t('정확도', 'Accuracy', '精度')}: ±${Math.round(latestGpsFix.accuracy)}m`
+        : t('정확도 정보 없음', 'No accuracy data', '精度情報なし');
+      updateMapText('map-accuracy-text', accuracyText);
+    } else {
+      updateMapText('map-current-coords', t('GPS를 켜면 좌표가 표시됩니다.', 'Turn on GPS to show your coordinates.', 'GPSをオンにすると座標が表示されます。'));
+      updateMapText('map-accuracy-text', t('위치 정확도가 여기에 표시됩니다.', 'Location accuracy will appear here.', '位置精度がここに表示されます。'));
+    }
+
+    const realGpsBtn = document.getElementById('real-gps-btn');
+    if (realGpsBtn) {
+      setMapControlContent(
+        realGpsBtn,
+        isRealtimeTracking ? '<i class="fa-solid fa-location-arrow fa-beat"></i>' : '<i class="fa-solid fa-location-crosshairs"></i>',
+        isRealtimeTracking ? t('추적 중', 'Tracking', '追跡中') : t('실시간 GPS', 'Live GPS', 'リアルGPS')
+      );
+    }
+
+    const simBtn = document.getElementById('gps-simulation-btn');
+    if (simBtn) {
+      setMapControlContent(
+        simBtn,
+        isSimulating ? '<i class="fa-solid fa-circle-pause"></i>' : '<i class="fa-solid fa-person-walking"></i>',
+        isSimulating ? t('테스트 중', 'Testing', 'テスト中') : t('걷기 테스트', 'Walk Test', '歩行テスト')
+      );
+    }
   }
 
   // Predefined Tour Spots (Minho's Gyeongbokgung Tour)
@@ -373,7 +424,8 @@ const TravelogMapModule = (() => {
 
     const realGpsBtn = document.getElementById('real-gps-btn');
     if (realGpsBtn) {
-      realGpsBtn.addEventListener('click', () => requestCurrentLocation());
+      setRealtimeTrackingButtonState(false);
+      realGpsBtn.addEventListener('click', () => toggleRealtimeLocationTracking());
     }
 
     const memoBtn = document.getElementById('add-location-memo-btn');
@@ -403,10 +455,13 @@ const TravelogMapModule = (() => {
       });
     }
 
+    window.addEventListener('pagehide', () => stopRealtimeLocationTracking(false));
+
     // Draw active tour markers and lines
     renderTour();
     loadUserMemos();
     renderUserMemoMarkers();
+    updateMapOverview();
   }
 
   function renderTour() {
@@ -455,23 +510,20 @@ const TravelogMapModule = (() => {
 
     // Render list in Tour Stops HUD
     const listEl = document.getElementById('tour-stops-list');
-    listEl.innerHTML = '';
-    nodes.forEach((node, index) => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(112, 162, 183, 0.12);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      `;
-      row.innerHTML = `
-        <span style="background:var(--bg-tertiary); border-radius:50%; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">${index+1}</span>
-        <span style="flex:1;">${node.name}</span>
-        <i class="${node.icon}" style="font-size:12px; color:var(--text-muted);"></i>
-      `;
-      listEl.appendChild(row);
-    });
+    if (listEl) {
+      listEl.innerHTML = '';
+      nodes.forEach((node, index) => {
+        const row = document.createElement('div');
+        row.className = 'tour-stop-row';
+        row.innerHTML = `
+          <span class="tour-stop-index">${index + 1}</span>
+          <span class="tour-stop-name">${node.name}</span>
+          <i class="${node.icon}" aria-hidden="true"></i>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+    updateMapOverview();
   }
 
   // ==========================================
@@ -483,6 +535,37 @@ const TravelogMapModule = (() => {
     if (!pill || !text) return;
     text.textContent = message;
     pill.style.display = show ? 'block' : 'none';
+    updateMapOverview();
+  }
+
+  function setRealtimeTrackingButtonState(active) {
+    const btn = document.getElementById('real-gps-btn');
+    if (!btn) return;
+
+    btn.classList.toggle('tracking-active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.setAttribute('title', active
+      ? t('실시간 위치 추적 중지', 'Stop live location tracking', 'リアルタイム位置追跡を停止')
+      : t('실시간 내 위치 추적 시작', 'Start live location tracking', 'リアルタイム現在地追跡を開始')
+    );
+    setMapControlContent(
+      btn,
+      active ? '<i class="fa-solid fa-location-arrow fa-beat"></i>' : '<i class="fa-solid fa-location-crosshairs"></i>',
+      active ? t('추적 중', 'Tracking', '追跡中') : t('실시간 GPS', 'Live GPS', 'リアルGPS')
+    );
+    updateMapOverview();
+  }
+
+  function updateRealtimeTrackingStatus() {
+    if (!isRealtimeTracking) return;
+
+    if (latestGpsFix) {
+      const ageSeconds = Math.max(0, Math.round((Date.now() - latestGpsFix.updatedAt) / 1000));
+      const accuracyText = latestGpsFix.accuracy ? ` · ±${Math.round(latestGpsFix.accuracy)}m` : '';
+      updateGpsStatus(`${t('실시간 추적 중', 'Live tracking', 'リアルタイム追跡中')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${accuracyText} · ${ageSeconds}${t('초 전', 's ago', '秒前')}`);
+    } else {
+      updateGpsStatus(t('실시간 GPS 신호를 기다리는 중...', 'Waiting for live GPS signal...', 'リアルタイムGPS信号を待機中...'));
+    }
   }
 
   function applyUserLocation(lat, lng, accuracy = null, shouldPan = true) {
@@ -509,6 +592,7 @@ const TravelogMapModule = (() => {
 
     const accuracyText = accuracy ? ` ±${Math.round(accuracy)}m` : '';
     updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracyText}`);
+    updateMapOverview();
 
     if (shouldPan) {
       map.setView([lat, lng], Math.max(map.getZoom(), 17));
@@ -528,7 +612,7 @@ const TravelogMapModule = (() => {
     return t('위치를 가져오지 못했습니다.', 'Could not get your location.', '位置情報を取得できませんでした。');
   }
 
-  function requestCurrentLocation(afterSuccess) {
+  function requestCurrentLocation(afterSuccess, shouldPan = true) {
     if (!navigator.geolocation) {
       const msg = t('이 브라우저는 GPS 위치 기능을 지원하지 않습니다.', 'This browser does not support GPS geolocation.', 'このブラウザはGPS位置情報に対応していません。');
       updateGpsStatus(msg);
@@ -537,13 +621,11 @@ const TravelogMapModule = (() => {
     }
 
     updateGpsStatus(t('GPS 권한을 요청하고 있습니다...', 'Requesting GPS permission...', 'GPS権限をリクエスト中...'));
-    window.TravelogApp.showToast(t('휴대폰 위치 권한을 허용해 주세요.', 'Please allow location permission on your phone.', 'スマートフォンの位置情報を許可してください。'));
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude, accuracy } = position.coords;
-        applyUserLocation(latitude, longitude, accuracy, true);
-        window.TravelogApp.showToast(t('내 위치를 지도에 표시했습니다.', 'Your location is now on the map.', '現在地を地図に表示しました。'));
+        applyUserLocation(latitude, longitude, accuracy, shouldPan);
         if (typeof afterSuccess === 'function') {
           afterSuccess({ lat: latitude, lng: longitude, accuracy });
         }
@@ -556,9 +638,88 @@ const TravelogMapModule = (() => {
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 10000
+        maximumAge: 5000
       }
     );
+  }
+
+  function startRealtimeLocationTracking() {
+    if (!navigator.geolocation) {
+      const msg = t('이 브라우저는 GPS 위치 기능을 지원하지 않습니다.', 'This browser does not support GPS geolocation.', 'このブラウザはGPS位置情報に対応していません。');
+      updateGpsStatus(msg);
+      window.TravelogApp.showToast(msg);
+      return;
+    }
+
+    if (isSimulating) {
+      toggleGPSSimulation();
+    }
+
+    if (isRealtimeTracking) {
+      updateRealtimeTrackingStatus();
+      return;
+    }
+
+    isRealtimeTracking = true;
+    setRealtimeTrackingButtonState(true);
+    updateGpsStatus(t('실시간 GPS 추적을 시작합니다...', 'Starting live GPS tracking...', 'リアルタイムGPS追跡を開始します...'));
+    window.TravelogApp.showToast(t('이제 이동하면 내 위치 마커가 계속 따라갑니다.', 'Your marker will now keep following your movement.', '移動すると現在地マーカーが継続して追従します。'));
+
+    realtimeWatchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        applyUserLocation(latitude, longitude, accuracy, true);
+        updateRealtimeTrackingStatus();
+
+        // 너무 자주 토스트가 뜨지 않도록 첫 안정화 알림만 제한적으로 표시합니다.
+        const now = Date.now();
+        if (now - lastTrackingToastAt > 30000) {
+          lastTrackingToastAt = now;
+          if (!latestGpsFix || now - latestGpsFix.updatedAt < 3000) {
+            // 상태 pill이 실시간 좌표를 계속 보여주므로 토스트는 최소화합니다.
+          }
+        }
+      },
+      (error) => {
+        const msg = getGeolocationErrorMessage(error);
+        updateGpsStatus(msg);
+        window.TravelogApp.showToast(msg);
+        stopRealtimeLocationTracking(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 3000
+      }
+    );
+  }
+
+  function stopRealtimeLocationTracking(showToast = true) {
+    if (realtimeWatchId !== null && navigator.geolocation) {
+      navigator.geolocation.clearWatch(realtimeWatchId);
+    }
+    realtimeWatchId = null;
+    isRealtimeTracking = false;
+    setRealtimeTrackingButtonState(false);
+
+    if (latestGpsFix) {
+      const accuracyText = latestGpsFix.accuracy ? ` ±${Math.round(latestGpsFix.accuracy)}m` : '';
+      updateGpsStatus(`${t('마지막 위치', 'Last location', '最後の位置')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${accuracyText}`);
+    } else {
+      updateGpsStatus(t('GPS 추적이 꺼졌습니다.', 'GPS tracking is off.', 'GPS追跡はオフです。'));
+    }
+
+    if (showToast) {
+      window.TravelogApp.showToast(t('실시간 위치 추적을 중지했습니다.', 'Live location tracking stopped.', 'リアルタイム位置追跡を停止しました。'));
+    }
+  }
+
+  function toggleRealtimeLocationTracking() {
+    if (isRealtimeTracking) {
+      stopRealtimeLocationTracking(true);
+    } else {
+      startRealtimeLocationTracking();
+    }
   }
 
   function handleMemoButtonClick() {
@@ -667,6 +828,7 @@ const TravelogMapModule = (() => {
   }
 
   function renderUserMemoMarkers() {
+    updateMapOverview();
     if (!memoMarkersLayer || typeof L === 'undefined') return;
     memoMarkersLayer.clearLayers();
 
@@ -704,14 +866,17 @@ const TravelogMapModule = (() => {
       // Pause/Stop simulation
       clearInterval(simIntervalId);
       isSimulating = false;
-      btn.innerHTML = `<i class="fa-solid fa-person-walking"></i>`;
+      setMapControlContent(btn, '<i class="fa-solid fa-person-walking"></i>', t('걷기 테스트', 'Walk Test', '歩行テスト'));
       btn.style.background = '';
       statusPill.style.display = 'none';
       window.TravelogApp.showToast(t('시뮬레이션이 종료되었습니다.', 'Simulation stopped.', 'シミュレーションを終了しました。'));
     } else {
       // Start simulation
+      if (isRealtimeTracking) {
+        stopRealtimeLocationTracking(false);
+      }
       isSimulating = true;
-      btn.innerHTML = `<i class="fa-solid fa-circle-pause"></i>`;
+      setMapControlContent(btn, '<i class="fa-solid fa-circle-pause"></i>', t('테스트 중', 'Testing', 'テスト中'));
       btn.style.background = 'var(--accent-pink)';
       statusPill.style.display = 'block';
       triggeredNodes.clear();
@@ -1064,13 +1229,20 @@ const TravelogMapModule = (() => {
       if (map) {
         renderTour();
         renderUserMemoMarkers();
-        if (latestGpsFix) {
+        setRealtimeTrackingButtonState(isRealtimeTracking);
+        if (isRealtimeTracking) {
+          updateRealtimeTrackingStatus();
+        } else if (latestGpsFix) {
           updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${latestGpsFix.accuracy ? ` ±${Math.round(latestGpsFix.accuracy)}m` : ''}`);
         }
+        updateMapOverview();
       }
     },
     clearCreatorPins: clearCreatorPins,
     requestCurrentLocation: requestCurrentLocation,
+    startRealtimeLocationTracking: startRealtimeLocationTracking,
+    stopRealtimeLocationTracking: stopRealtimeLocationTracking,
+    toggleRealtimeLocationTracking: toggleRealtimeLocationTracking,
     deleteMemo: deleteMemo,
     teleportUser: (lat, lng) => {
       if (userMarker) {
@@ -1092,6 +1264,9 @@ const TravelogMapModule = (() => {
       hasLeaflet: typeof L !== 'undefined',
       hasMapObject: !!map,
       hasUserMarker: !!userMarker,
+      isRealtimeTracking: isRealtimeTracking,
+      realtimeWatchId: realtimeWatchId,
+      latestGpsFix: latestGpsFix,
       fallbackVisible: !!document.querySelector('.map-iframe-fallback-overlay')
     })
   };
