@@ -3409,3 +3409,120 @@ nav.bottom-nav {
     bottom: 206px;
   }
 }
+
+
+/* ==========================================
+   Mobile Map Controls Compact Right Rail Fix
+   - Keeps the map visible on small screens.
+   - Makes the control group background transparent.
+   ========================================== */
+.map-control-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+@media (max-width: 600px) {
+  #map-tab .gps-controls.glass-panel {
+    top: 104px !important;
+    right: 8px !important;
+    left: auto !important;
+    width: auto !important;
+    max-width: 58px !important;
+    padding: 0 !important;
+    gap: 8px !important;
+    align-items: flex-end !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none;
+  }
+
+  #map-tab .gps-controls.glass-panel::before,
+  #map-tab .gps-controls.glass-panel::after {
+    display: none !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle {
+    pointer-events: auto;
+    width: 50px !important;
+    height: 50px !important;
+    min-width: 50px !important;
+    border-radius: 999px !important;
+    padding: 0 !important;
+    background: rgba(255, 255, 255, 0.64) !important;
+    border: 1px solid rgba(112, 162, 183, 0.26) !important;
+    box-shadow: 0 6px 18px rgba(43, 58, 66, 0.13) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    color: var(--text-primary) !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle:hover,
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle:active,
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle.tracking-active {
+    background: rgba(112, 162, 183, 0.82) !important;
+    color: #fff !important;
+    transform: scale(1.04);
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-icon {
+    width: auto !important;
+    max-width: none !important;
+    font-size: 21px !important;
+    color: currentColor !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle > span:not(.map-control-icon) {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    clip: rect(0 0 0 0) !important;
+    white-space: nowrap !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-status-pill {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    right: 0 !important;
+    width: max-content !important;
+    max-width: 190px !important;
+    padding: 7px 10px !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.72) !important;
+    border: 1px solid rgba(112, 162, 183, 0.20) !important;
+    box-shadow: 0 8px 18px rgba(43, 58, 66, 0.10) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    font-size: 10px !important;
+    line-height: 1.25 !important;
+    text-align: right !important;
+    pointer-events: none !important;
+  }
+}
+
+@media (max-width: 430px) {
+  #map-tab .gps-controls.glass-panel {
+    top: 98px !important;
+    right: 6px !important;
+    max-width: 54px !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-btn.btn-circle {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+  }
+
+  #map-tab .gps-controls.glass-panel .map-control-icon {
+    font-size: 20px !important;
+  }
+}
