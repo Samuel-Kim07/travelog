@@ -1,1220 +1,1118 @@
 // ==========================================
-// Travelog Map Module
+// Travelog Global Application Controller & State
 // ==========================================
 
-const TravelogMapModule = (() => {
-  function t(ko, en, ja) {
-    return window.TravelogApp && typeof window.TravelogApp.t === 'function' ? window.TravelogApp.t(ko, en, ja) : ko;
-  }
+const TravelogState = {
+  language: 'ko', // 'ko', 'en', or 'ja'
+  points: 550,
+  ownedCoupons: [],
+  userProfile: {
+    isOnboarded: false,
+    authProvider: null,
+    nickname: '',
+    avatarType: 'emoji',
+    avatarValue: '☀️',
+    avatarPresetId: 'sun'
+  },
+  activeGuide: {
+    id: 'guide-minho',
+    nameEn: 'Minho (Seoul Local)',
+    nameKo: '민호 (서울 토박이)',
+    nameJa: 'ミンホ（ソウル地元ガイド）',
+    descEn: 'Gyeongbokgung Historical Tour',
+    descKo: '경복궁 역사/문화 가이드 투어',
+    descJa: '景福宮 歴史・文化ガイドツアー',
+    stops: [
+      { nameEn: "Gwanghwamun Gate", nameKo: "광화문", nameJa: "光化門", lat: 37.5760, lng: 126.9768, triggerRadius: 25 },
+      { nameEn: "Heungnyemun Court", nameKo: "흥례문 뜰", nameJa: "興礼門の庭", lat: 37.5772, lng: 126.9768, triggerRadius: 20 },
+      { nameEn: "Geongjeongjeon Main Hall", nameKo: "근정전", nameJa: "勤政殿", lat: 37.5786, lng: 126.9772, triggerRadius: 20 },
+      { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30 }
+    ]
+  },
+  customCreatedPins: []
+};
 
-  function pick(source, baseKey) {
-    return window.TravelogApp && typeof window.TravelogApp.pickLocalized === 'function' ? window.TravelogApp.pickLocalized(source, baseKey) : (source?.[`${baseKey}Ko`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ja`] || '');
-  }
+// UI Localization Dictionary
+const LocalizationDictionary = {
+  pts: { en: 'pts', ko: '포인트', ja: 'ポイント' },
+  active_guide_title: { en: '<i class="fa-solid fa-user-astronaut"></i> Active Guide', ko: '<i class="fa-solid fa-user-astronaut"></i> 현재 가이드', ja: '<i class="fa-solid fa-user-astronaut"></i> 現在のガイド' },
+  intro_video: { en: '<i class="fa-solid fa-circle-play"></i> Intro Video', ko: '<i class="fa-solid fa-circle-play"></i> 소개 영상', ja: '<i class="fa-solid fa-circle-play"></i> 紹介動画' },
+  greeting: { en: '<i class="fa-solid fa-volume-high"></i> Greeting', ko: '<i class="fa-solid fa-volume-high"></i> 인사말 듣기', ja: '<i class="fa-solid fa-volume-high"></i> あいさつ' },
+  route_guide_list: { en: '<i class="fa-solid fa-map-location-dot"></i> Tour Locations', ko: '<i class="fa-solid fa-map-location-dot"></i> 투어 코스 목록', ja: '<i class="fa-solid fa-map-location-dot"></i> ツアー地点一覧' },
+  walking: { en: '<i class="fa-solid fa-spinner fa-spin"></i> Walking...', ko: '<i class="fa-solid fa-spinner fa-spin"></i> 이동 중...', ja: '<i class="fa-solid fa-spinner fa-spin"></i> 移動中...' },
+  audio_guide: { en: 'Audio Guide Triggered', ko: '음성 안내 시작', ja: '音声ガイド開始' },
+  vlog_playing: { en: 'Vlog Video Playing...', ko: '브이로그 영상 재생 중...', ja: 'Vlog動画を再生中...' },
+  blog_feed_title: { en: '<i class="fa-solid fa-book-open"></i> Travel Logs & Stories', ko: '<i class="fa-solid fa-book-open"></i> 여행 블로그 & 스토리', ja: '<i class="fa-solid fa-book-open"></i> 旅ログ＆ストーリー' },
+  filter_all: { en: 'All', ko: '전체', ja: 'すべて' },
+  filter_korea: { en: 'South Korea', ko: '대한민국', ja: '韓国' },
+  filter_japan: { en: 'Japan', ko: '일본', ja: '日本' },
+  filter_europe: { en: 'Europe', ko: '유럽', ja: 'ヨーロッパ' },
+  scratch_title: { en: '<i class="fa-solid fa-ticket"></i> Scratch Off Coupon', ko: '<i class="fa-solid fa-ticket"></i> 할인 쿠폰 스크래치', ja: '<i class="fa-solid fa-ticket"></i> スクラッチクーポン' },
+  scratch_desc: { en: 'Scratch the silver card to unlock your travel discount!', ko: '은색 표면을 손가락/마우스로 문질러 여행 할인 쿠폰을 획득하세요!', ja: '銀色の面をこすって旅行割引クーポンを獲得しましょう！' },
+  scratch_reset: { en: '<i class="fa-solid fa-rotate-right"></i> Try New Scratch (Cost: 50 pts)', ko: '<i class="fa-solid fa-rotate-right"></i> 새 스크래치 도전 (50P 차감)', ja: '<i class="fa-solid fa-rotate-right"></i> 新しいスクラッチに挑戦（50P）' },
+  spin_title: { en: '<i class="fa-solid fa-circle-notch"></i> Daily Travel Spin', ko: '<i class="fa-solid fa-circle-notch"></i> 일일 룰렛 이벤트', ja: '<i class="fa-solid fa-circle-notch"></i> デイリートラベルルーレット' },
+  spin_desc: { en: 'Spin the wheel to win coupons, travel points, or gifts!', ko: '룰렛을 돌려 할인 쿠폰, 여행 포인트 및 특별 경품을 받으세요!', ja: 'ルーレットを回してクーポン、旅ポイント、特別ギフトを獲得しましょう！' },
+  events_calendar_title: { en: '<i class="fa-solid fa-calendar-days"></i> Global Travel Events & Quests', ko: '<i class="fa-solid fa-calendar-days"></i> 글로벌 이벤트 & 오프라인 퀘스트', ja: '<i class="fa-solid fa-calendar-days"></i> グローバルイベント＆オフラインクエスト' },
+  my_coupons_title: { en: '<i class="fa-solid fa-box-archive"></i> My Coupon Wallet', ko: '<i class="fa-solid fa-box-archive"></i> 내 쿠폰 지갑', ja: '<i class="fa-solid fa-box-archive"></i> マイクーポンウォレット' },
+  empty_wallet: { en: 'No coupons claimed yet. Scratch cards or spin the wheel to win!', ko: '보유한 쿠폰이 없습니다. 스크래치와 룰렛에서 획득해 보세요!', ja: 'まだクーポンがありません。スクラッチやルーレットで獲得しましょう！' },
+  builder_title: { en: '<i class="fa-solid fa-route"></i> Map Tour Guide Builder', ko: '<i class="fa-solid fa-route"></i> 지도 투어 가이드 빌더', ja: '<i class="fa-solid fa-route"></i> 地図ツアーガイドビルダー' },
+  builder_desc: { en: 'Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.', ko: '나만의 맞춤 가이드를 만드세요! 지도 탭을 클릭하여 핀을 생성한 뒤, 음성 파일을 녹음하거나 스크립트를 작성하여 가이드로 퍼블리싱해보세요.', ja: '自分だけのカスタムガイドを作りましょう！地図タブでピンを置き、音声や案内文を登録できます。' },
+  builder_tour_name: { en: 'Tour Guide Name', ko: '투어 가이드 이름', ja: 'ツアーガイド名' },
+  builder_select_coords: { en: 'Selected Map Pins', ko: '선택된 지도 핀 목록', ja: '選択した地図ピン' },
+  no_pins_placeholder: { en: 'Go to Map Tab and click on the map to place pins!', ko: '지도 탭으로 이동하여 원하는 위치를 클릭해 핀을 배치하세요!', ja: '地図タブで好きな場所をクリックしてピンを配置してください！' },
+  save_tour: { en: '<i class="fa-solid fa-floppy-disk"></i> Publish Custom Guide', ko: '<i class="fa-solid fa-floppy-disk"></i> 가이드 정식 등록하기', ja: '<i class="fa-solid fa-floppy-disk"></i> カスタムガイドを公開' },
+  clear_pins: { en: '<i class="fa-solid fa-trash-can"></i> Reset Pins', ko: '<i class="fa-solid fa-trash-can"></i> 선택 핀 초기화', ja: '<i class="fa-solid fa-trash-can"></i> ピンをリセット' },
+  recorder_title: { en: '<i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder', ko: '<i class="fa-solid fa-microphone-lines"></i> 가이드 음성 녹음 스튜디오', ja: '<i class="fa-solid fa-microphone-lines"></i> ガイド音声録音スタジオ' },
+  recorder_desc: { en: 'Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.', ko: '등록한 핀 위치에 도달했을 때 재생될 자세한 음성을 녹음하세요. 아래 템플릿 문구를 읽으시면 쉽습니다.', ja: '登録したピンの場所で再生される案内音声を録音できます。下のテンプレートを読むだけでも作れます。' },
+  recorder_ready: { en: 'Click Mic to Start Recording', ko: '마이크 버튼을 클릭하여 녹음 시작', ja: 'マイクをクリックして録音開始' },
+  script_start: { en: '"Starting Tour!"', ko: '"자~ 출발!"', ja: '"さあ、出発！"' },
+  script_turn: { en: '"Go Left Here..."', ko: '"이쪽으로 가세요."', ja: '"ここを左へ進んでください。"' },
+  script_eat: { en: '"Best Bistro is here!"', ko: '"여기서 특별 할인을 받으세요!"', ja: '"ここで特別割引を受けられます！"' },
+  script_morning: { en: '"Good Morning!"', ko: '"일어날 시간이에요~"', ja: '"おはようございます！"' },
+  market_title: { en: '<i class="fa-solid fa-cart-shopping"></i> Voice Sample Market', ko: '<i class="fa-solid fa-cart-shopping"></i> 가이드 보이스 마켓', ja: '<i class="fa-solid fa-cart-shopping"></i> ガイドボイスマーケット' },
+  market_desc: { en: 'Don\'t want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.', ko: '목소리 녹음이 어렵다면 마켓의 다국어 보이스 팩을 구매하여 가이드 북을 완성해보세요!', ja: '自分の声を録音しにくい場合は、多言語ボイスパックでガイドを完成できます。' },
+  media_storage_title: { en: '<i class="fa-brands fa-github"></i> GitHub Media Storage', ko: '<i class="fa-brands fa-github"></i> GitHub 미디어 저장소', ja: '<i class="fa-brands fa-github"></i> GitHubメディア保存先' },
+  media_storage_desc: { en: 'Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.', ko: '생성된 음성/영상 소스를 ZIP이 아닌 재생 가능한 압축 미디어 파일로 GitHub 저장소에 직접 저장합니다.', ja: '生成された音声・動画ソースをZIPではなく、再生可能な圧縮メディアファイルとしてGitHubに直接保存します。' },
+  media_storage_repo: { en: 'Repository', ko: '저장소', ja: 'リポジトリ' },
+  media_storage_audio_path: { en: 'Audio path', ko: '음성 저장 경로', ja: '音声保存先' },
+  media_storage_video_path: { en: 'Video path', ko: '영상 저장 경로', ja: '動画保存先' },
+  media_storage_token_status: { en: 'Token status', ko: '토큰 상태', ja: 'トークン状態' },
+  media_storage_token_label: { en: 'GitHub token for test upload', ko: '테스트 업로드용 GitHub 토큰', ja: 'テストアップロード用GitHubトークン' },
+  media_storage_warning: { en: 'For prototype testing only. Do not commit your token into GitHub files.', ko: '프로토타입 테스트용입니다. 토큰을 GitHub 파일에 직접 올리면 안 됩니다.', ja: 'プロトタイプテスト用です。トークンをGitHubファイルに直接コミットしないでください。' },
+  media_storage_save_token: { en: 'Save Token', ko: '토큰 저장', ja: 'トークン保存' },
+  media_storage_clear_token: { en: 'Clear', ko: '삭제', ja: '削除' },
+  media_storage_test: { en: 'Test', ko: '연결 테스트', ja: '接続テスト' },
+  media_storage_audio_file: { en: 'Audio file test', ko: '음성 파일 테스트', ja: '音声ファイルテスト' },
+  media_storage_video_file: { en: 'Video file test', ko: '영상 파일 테스트', ja: '動画ファイルテスト' },
+  media_storage_upload_audio: { en: 'Upload Audio Source', ko: '음성 소스 직접 업로드', ja: '音声ソース直接アップロード' },
+  media_storage_upload_video: { en: 'Upload Video Source', ko: '영상 소스 직접 업로드', ja: '動画ソース直接アップロード' },
+  quest_active: { en: 'Active Quest', ko: '진행 중인 퀘스트', ja: '進行中のクエスト' },
+  quest_steps_title: { en: '<i class="fa-solid fa-list-check"></i> Quest Milestones', ko: '<i class="fa-solid fa-list-check"></i> 퀘스트 미션 단계', ja: '<i class="fa-solid fa-list-check"></i> クエスト進行ステップ' },
+  radar_title: { en: '<i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar', ko: '<i class="fa-solid fa-satellite-dish"></i> GPS 근접 레이더', ja: '<i class="fa-solid fa-satellite-dish"></i> GPS近接レーダー' },
+  radar_desc: { en: 'Simulate walking on the Map tab to get closer to the coordinate clues. When inside 10m, clues unlock!', ko: '지도 탭에서 경로 이동 시뮬레이션을 시작하여 단서에 가까워지세요. 10m 내로 들어오면 봉인이 풀립니다!', ja: '地図タブで移動シミュレーションを行い、手がかりの座標に近づきましょう。10m以内で解除されます！' },
+  clue_unlocked_title: { en: '<i class="fa-solid fa-lock-open"></i> Clue Location Reached!', ko: '<i class="fa-solid fa-lock-open"></i> 단서 장소 도달 완료!', ja: '<i class="fa-solid fa-lock-open"></i> 手がかり地点に到着！' },
+  solve: { en: 'Solve', ko: '정답 확인', ja: '回答' },
+  radar_clue_hint: { en: 'Proceed to the active map icon marked in Pink to trigger coordinates.', ko: '지도상의 분홍색 퀘스트 마커로 다가가 음성 단서 알림을 받으세요.', ja: '地図上のピンク色のクエストマーカーに近づくと、音声の手がかりが表示されます。' },
+  teleport_btn: { en: '<i class="fa-solid fa-bolt"></i> Teleport to Clue GPS Spot', ko: '<i class="fa-solid fa-bolt"></i> 단서 위치로 바로 순간이동', ja: '<i class="fa-solid fa-bolt"></i> 手がかり地点へ移動' },
 
-  let map;
-  let markersLayer;
-  let memoMarkersLayer;
-  let routePolyline;
-  let userMarker;
-  let userAccuracyCircle;
+  // Onboarding & profile setup
+  onboarding_step_login: { en: 'Step 1 of 2 · Sign in', ko: '1/2단계 · 시작하기', ja: '1/2ステップ · はじめる' },
+  onboarding_step_profile: { en: 'Step 2 of 2 · Profile', ko: '2/2단계 · 프로필 만들기', ja: '2/2ステップ · プロフィール作成' },
+  onboarding_title: { en: 'Welcome to Travelog', ko: 'Travelog에 오신 걸 환영해요', ja: 'Travelogへようこそ' },
+  onboarding_subtitle: { en: 'Follow local guides, unlock map-based stories, and collect travel rewards.', ko: '지도 위 가이드, 여행 이야기, 쿠폰 보상을 한 번에 연결해요.', ja: 'ローカルガイド、地図上のストーリー、旅の特典をひとつにつなげます。' },
+  login_google: { en: 'Continue with Google', ko: 'Google로 계속하기', ja: 'Googleで続ける' },
+  login_naver: { en: 'Continue with Naver', ko: '네이버로 계속하기', ja: 'NAVERで続ける' },
+  login_email: { en: 'Continue with Email', ko: '이메일로 계속하기', ja: 'メールで続ける' },
+  login_guest: { en: 'Try as Guest', ko: '게스트로 먼저 둘러보기', ja: 'ゲストとして見る' },
+  onboarding_privacy_hint: { en: 'This prototype does not send login data. It only moves to the next setup step.', ko: '현재 프로토타입에서는 실제 로그인 정보를 전송하지 않고 다음 설정 단계로 이동합니다.', ja: 'このプロトタイプではログイン情報を送信せず、次の設定ステップへ進むだけです。' },
+  onboarding_feature_guide: { en: 'GPS audio guide', ko: 'GPS 음성 가이드', ja: 'GPS音声ガイド' },
+  onboarding_feature_reward: { en: 'Coupons & quests', ko: '쿠폰과 퀘스트', ja: 'クーポン＆クエスト' },
+  onboarding_feature_creator: { en: 'Creator studio', ko: '가이드 제작 스튜디오', ja: 'ガイド制作スタジオ' },
+  onboarding_profile_title: { en: 'Set Up Your Profile', ko: '프로필을 만들어주세요', ja: 'プロフィールを設定' },
+  onboarding_profile_subtitle: { en: 'Choose a nickname and avatar before exploring.', ko: '여행 기록에 사용할 닉네임과 아바타를 정해주세요.', ja: '旅ログで使うニックネームとアバターを選びましょう。' },
+  avatar_hint: { en: 'Choose preset or upload custom photo', ko: '기본 아이콘을 고르거나 사진을 올릴 수 있어요', ja: 'アイコンを選ぶか写真をアップロードできます' },
+  nickname_label: { en: 'Create Nickname', ko: '닉네임 만들기', ja: 'ニックネームを作成' },
+  nickname_placeholder: { en: 'e.g. wanderer', ko: '예: 여행고래', ja: '例：旅くじら' },
+  nickname_check: { en: 'Verify', ko: '확인', ja: '確認' },
+  start_exploring: { en: 'Start Exploring!', ko: 'Travelog 시작하기', ja: 'Travelogを始める' },
+  back_to_login: { en: 'Back', ko: '이전', ja: '戻る' },
+  profile_manage_badge: { en: 'Profile Manager', ko: '프로필 관리', ja: 'プロフィール管理' },
+  profile_manage_title: { en: 'Manage My Profile', ko: '내 프로필 관리', ja: 'マイプロフィール管理' },
+  profile_manage_desc: { en: 'Change your nickname, personal photo, uploaded image, or sample avatar anytime.', ko: '닉네임과 내 사진, 이미지, 임시 아바타를 언제든지 바꿀 수 있어요.', ja: 'ニックネーム、写真、画像、サンプルアバターをいつでも変更できます。' },
+  profile_use_my_photo: { en: 'Choose My Photo / Image', ko: '내 사진/이미지 선택', ja: '自分の写真・画像を選択' },
+  profile_image_note: { en: 'For this prototype, the image is saved only in this browser.', ko: '사진은 이 브라우저에만 저장되는 프로토타입용 데이터입니다.', ja: 'このプロトタイプでは画像はこのブラウザ内にのみ保存されます。' },
+  profile_nickname_label: { en: 'Nickname', ko: '닉네임', ja: 'ニックネーム' },
+  profile_temp_image_title: { en: 'Choose a Sample Avatar', ko: '임시 이미지 선택', ja: 'サンプル画像を選択' },
+  profile_emoji_title: { en: 'Choose a Simple Icon', ko: '간단 아이콘 선택', ja: 'シンプルアイコンを選択' },
+  profile_reset_onboarding: { en: 'Restart Setup', ko: '처음 설정 다시하기', ja: '初期設定をやり直す' },
+  profile_cancel: { en: 'Cancel', ko: '취소', ja: 'キャンセル' },
+  profile_save: { en: 'Save Profile', ko: '저장하기', ja: '保存する' },
+  profile_saved_toast: { en: 'Profile updated!', ko: '프로필이 저장되었습니다!', ja: 'プロフィールを保存しました！' },
+  profile_open_toast: { en: 'Opening profile manager...', ko: '프로필 관리 화면을 엽니다.', ja: 'プロフィール管理を開きます。' },
+
+  // Real GPS & location memo
+  gps_waiting: { en: 'Waiting for GPS...', ko: 'GPS 대기 중...', ja: 'GPS待機中...' },
+  gps_locating: { en: 'Finding my location...', ko: '내 위치를 찾는 중...', ja: '現在地を取得中...' },
+  gps_my_location: { en: 'My current location', ko: '내 현재 위치', ja: '現在地' },
+  memo_modal_title: { en: 'Leave a Memo Here', ko: '이 위치에 메모 남기기', ja: 'この場所にメモを残す' },
+  memo_modal_desc: { en: 'Save a short note at your current GPS location.', ko: '현재 GPS 위치에 짧은 텍스트 메모를 저장합니다.', ja: '現在のGPS位置に短いテキストメモを保存します。' },
+  memo_text_placeholder: { en: 'Write a memo for this place...', ko: '이 장소에 남길 메모를 적어주세요...', ja: 'この場所に残すメモを書いてください...' },
+  memo_cancel: { en: 'Cancel', ko: '취소', ja: 'キャンセル' },
+  memo_save: { en: 'Save Memo', ko: '메모 저장', ja: 'メモを保存' },
+  nav_map: { en: 'Map', ko: '지도', ja: '地図' },
+  nav_explore: { en: 'Explore', ko: '피드', ja: 'フィード' },
+  nav_rewards: { en: 'Rewards', ko: '쿠폰&이벤트', ja: '特典＆イベント' },
+  nav_creator: { en: 'Creator', ko: '스튜디오', ja: 'スタジオ' },
+  share: { en: 'Share', ko: '공유', ja: '共有' },
+  search_placeholder: { en: 'Search logs...', ko: '여행기 검색...', ja: '旅ログを検索...' },
+  puzzle_placeholder: { en: 'Enter password/answer...', ko: '암호 또는 정답 입력...', ja: '暗号または答えを入力...' }
+};
+
+// ==========================================
+// Main Initialization & Event Binding
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  initLanguageToggle();
+  updatePointsDisplay();
+  initOnboarding();
   
-  let isSimulating = false;
-  let simIntervalId = null;
-  let simPath = [];
-  let simIndex = 0;
-  
-  // Track triggered places in this walk session
-  const triggeredNodes = new Set();
-  let didInit = false;
-  let hasRealGpsLocation = false;
-  let latestGpsFix = null;
-  let realtimeWatchId = null;
-  let isRealtimeTracking = false;
-  let lastTrackingToastAt = 0;
-  let memoDraftLocation = null;
-  let userMemoItems = [];
-  const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
-
-  // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
-  // Use relative paths, not github.com/blob URLs, so <audio>/<video> can play directly in the app.
-  const GUIDE_MEDIA_SOURCES = {
-    minho: {
-      audio: 'assets/icons/Audio/Test_log.m4a',
-      video: 'assets/icons/Video/t_log_video.mp4'
-    }
-  };
-
-  function getMinhoMedia(kind) {
-    return GUIDE_MEDIA_SOURCES.minho[kind];
+  // Trigger sub-module updates if they need state initial loading
+  if (window.TravelogMapModule && typeof window.TravelogMapModule.init === 'function') {
+    window.TravelogMapModule.init();
+  }
+  if (window.TravelogExploreModule && typeof window.TravelogExploreModule.init === 'function') {
+    window.TravelogExploreModule.init();
+  }
+  if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.init === 'function') {
+    window.TravelogRewardsModule.init();
+  }
+  if (window.TravelogMediaStorageModule && typeof window.TravelogMediaStorageModule.init === 'function') {
+    window.TravelogMediaStorageModule.init();
+  }
+  if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.init === 'function') {
+    window.TravelogCreatorModule.init();
+  }
+  if (window.TravelogAdventureModule && typeof window.TravelogAdventureModule.init === 'function') {
+    window.TravelogAdventureModule.init();
   }
 
-
-  // Custom marker icons using FontAwesome & CSS
-  function createHtmlIcon(iconClass, colorClass) {
-    return L.divIcon({
-      html: `<div class="custom-pin ${colorClass}" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%;"><i class="${iconClass}"></i></div>`,
-      className: 'custom-leaflet-marker',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
-    });
-  }
-
-  function createCurrentLocationIcon() {
-    return L.divIcon({
-      html: `<div class="pin-current-location"></div>`,
-      className: 'custom-player-marker',
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    });
-  }
-
-  function escapeHtml(value) {
-    return String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function formatDateTime(timestamp) {
-    try {
-      return new Date(timestamp).toLocaleString();
-    } catch (err) {
-      return '';
-    }
-  }
-
-  function getCurrentLatLng() {
-    if (latestGpsFix) {
-      return { lat: latestGpsFix.lat, lng: latestGpsFix.lng, accuracy: latestGpsFix.accuracy || null };
-    }
-    if (userMarker) {
-      const loc = userMarker.getLatLng();
-      return { lat: loc.lat, lng: loc.lng, accuracy: null };
-    }
-    return { lat: 37.5750, lng: 126.9768, accuracy: null };
-  }
-
-  // Predefined Tour Spots (Minho's Gyeongbokgung Tour)
-  const getTourNodes = () => {
-    return [
-      {
-        id: 'node-gwanghwamun',
-        name: t('광화문 (소개 영상 지점)', 'Gwanghwamun Gate (Intro Video)', '光化門（紹介動画地点）'),
-        desc: t('경복궁의 남쪽 정문으로 왕의 행차가 이루어지던 곳입니다.', 'The main and southern gate of Gyeongbokgung Palace.', '景福宮の南側の正門で、王の行幸が行われた場所です。'),
-        lat: 37.5760,
-        lng: 126.9768,
-        type: 'video',
-        icon: 'fa-solid fa-video',
-        color: 'pin-video',
-        triggerText: t('광화문 소개 영상이 자동 재생됩니다.', 'Gwanghwamun Intro Video is autoplaying.', '光化門の紹介動画が自動再生されます。')
-      },
-      {
-        id: 'node-heungnyemun',
-        name: t('흥례문 뜰 (가이드 인사)', 'Heungnyemun Court (Guide Greeting)', '興礼門の庭（ガイド挨拶）'),
-        desc: t('두 번째 문인 흥례문 앞뜰로, 품계석과 넓은 조정이 펼쳐집니다.', 'The courtyard in front of the second gate, Heungnyemun.', '二番目の門・興礼門の前庭で、品階石と広い朝廷の庭が広がります。'),
-        lat: 37.5772,
-        lng: 126.9768,
-        type: 'audio',
-        icon: 'fa-solid fa-volume-high',
-        color: 'pin-audio',
-        triggerText: t('민호 가이드의 해설이 시작됩니다.', 'Guide Minho\'s commentary is playing.', 'ミンホガイドの解説が始まります。')
-      },
-      {
-        id: 'node-geunjeongjeon',
-        name: t('근정전 (할인 쿠폰 지점)', 'Geunjeongjeon Hall (Coupon Spot)', '勤政殿（割引クーポン地点）'),
-        desc: t('경복궁의 으뜸 법전으로 왕의 즉위식이나 아침 조회가 행해졌습니다.', 'The main throne hall where coronation ceremonies were held.', '景福宮の中心となる正殿で、王の即位式や朝会が行われた場所です。'),
-        lat: 37.5786,
-        lng: 126.9772,
-        type: 'coupon',
-        icon: 'fa-solid fa-ticket',
-        color: 'pin-coupon',
-        triggerText: t('법전 비화 퀴즈를 풀고 할인 쿠폰을 받으세요!', 'Solve the throne history quiz and win a coupon!', '正殿の秘話クイズを解いて割引クーポンを受け取りましょう！')
-      },
-      {
-        id: 'node-gyeonghoeru',
-        name: t('경회루 (음성 해설)', 'Gyeonghoeru Pavilion (Audio Story)', '慶会楼（音声解説）'),
-        desc: t('나라의 경사가 있을 때 연회를 베풀던 연못 위 누각입니다.', 'A majestic pavilion sitting over a pond, used for royal banquets.', '国の慶事の際に宴が開かれた、池の上に建つ楼閣です。'),
-        lat: 37.5798,
-        lng: 126.9760,
-        type: 'audio',
-        icon: 'fa-solid fa-microphone',
-        color: 'pin-audio',
-        triggerText: t('경회루 물안개 스토리 오디오가 재생됩니다.', 'Gyeonghoeru Water Fog Story audio is playing.', '慶会楼の水霧ストーリー音声が再生されます。')
-      }
-    ];
-  };
-
-  function getFallbackMapMarkup(reasonText) {
-    const safeReason = reasonText || '지도 타일 또는 지도 라이브러리를 불러오지 못했습니다.';
-    return `
-      <div class="map-iframe-fallback-overlay">
-        <iframe
-          class="map-fallback-iframe"
-          title="Travelog fallback map"
-          src="https://www.openstreetmap.org/export/embed.html?bbox=126.9700%2C37.5730%2C126.9835%2C37.5830&layer=mapnik&marker=37.5780%2C126.9768"
-          loading="lazy"
-          referrerpolicy="strict-origin-when-cross-origin"
-          allowfullscreen>
-        </iframe>
-        <div class="map-fallback-notice glass-panel">
-          <i class="fa-solid fa-map-location-dot"></i>
-          <div>
-            <strong>지도 대체 모드</strong>
-            <p>${safeReason}</p>
-            <a href="https://www.openstreetmap.org/?mlat=37.5780&mlon=126.9768#map=16/37.5780/126.9768" target="_blank" rel="noopener noreferrer">새 창에서 지도 열기</a>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderFallbackMap(reasonText, replaceContainer = false) {
-    const mapContainer = document.getElementById('map-container');
-    if (!mapContainer) return;
-
-    const existing = mapContainer.querySelector('.map-iframe-fallback-overlay');
-    if (existing) return;
-
-    if (replaceContainer) {
-      mapContainer.innerHTML = getFallbackMapMarkup(reasonText);
-    } else {
-      mapContainer.insertAdjacentHTML('beforeend', getFallbackMapMarkup(reasonText));
-    }
-  }
-
-
-  // ==========================================
-  // Collapsible Map HUD
-  // ==========================================
-  const HUD_COLLAPSE_STORAGE_KEY = 'travelog-map-hud-collapse-state';
-
-  function readHudCollapseState() {
-    try {
-      return JSON.parse(localStorage.getItem(HUD_COLLAPSE_STORAGE_KEY) || '{}');
-    } catch (err) {
-      console.warn('[Travelog Map] Failed to read HUD collapse state:', err);
-      return {};
-    }
-  }
-
-  function saveHudCollapseState(state) {
-    try {
-      localStorage.setItem(HUD_COLLAPSE_STORAGE_KEY, JSON.stringify(state));
-    } catch (err) {
-      console.warn('[Travelog Map] Failed to save HUD collapse state:', err);
-    }
-  }
-
-  function setHudCollapsed(hudId, collapsed, persist = true) {
-    const card = document.querySelector(`.collapsible-hud[data-hud-id="${hudId}"]`);
-    const toggle = document.querySelector(`[data-hud-toggle="${hudId}"]`);
-    if (!card || !toggle) return;
-
-    const icon = toggle.querySelector('.hud-toggle-icon');
-    card.classList.toggle('collapsed', collapsed);
-    card.classList.toggle('expanded', !collapsed);
-    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle.setAttribute('title', collapsed
-      ? t('펼치기', 'Expand', '開く')
-      : t('접기', 'Collapse', '閉じる')
-    );
-
-    if (icon) {
-      icon.className = collapsed
-        ? 'fa-solid fa-chevron-down hud-toggle-icon'
-        : 'fa-solid fa-chevron-up hud-toggle-icon';
-    }
-
-    if (persist) {
-      const state = readHudCollapseState();
-      state[hudId] = collapsed;
-      saveHudCollapseState(state);
-    }
-
-    // Leaflet은 UI 패널 변화 후 크기 재계산을 해주면 모바일에서 더 안정적입니다.
-    if (map) {
-      setTimeout(() => map.invalidateSize(), 280);
-    }
-  }
-
-  function initMapHudCollapse() {
-    const toggles = document.querySelectorAll('[data-hud-toggle]');
-    if (!toggles.length) return;
-
-    const savedState = readHudCollapseState();
-
-    toggles.forEach(toggle => {
-      const hudId = toggle.getAttribute('data-hud-toggle');
-      if (!hudId) return;
-
-      const initialCollapsed = Boolean(savedState[hudId]);
-      setHudCollapsed(hudId, initialCollapsed, false);
-
-      if (toggle.dataset.hudBound === 'true') return;
-      toggle.dataset.hudBound = 'true';
-
-      toggle.addEventListener('click', () => {
-        const card = document.querySelector(`.collapsible-hud[data-hud-id="${hudId}"]`);
-        const nextCollapsed = !(card && card.classList.contains('collapsed'));
-        setHudCollapsed(hudId, nextCollapsed, true);
-      });
-    });
-  }
-
-  function init() {
-    if (didInit) {
-      return;
-    }
-    didInit = true;
-
-    const mapContainer = document.getElementById('map-container');
-    if (!mapContainer) {
-      console.error('[Travelog Map] #map-container not found.');
-      return;
-    }
-
-    initMapHudCollapse();
-
-    // Leaflet CDN이 차단되었거나 로드되지 않았을 때도 빈 화면 대신 OSM iframe 지도를 보여줍니다.
-    if (typeof L === 'undefined') {
-      renderFallbackMap('Leaflet 지도 라이브러리가 로드되지 않아 iframe 지도로 표시합니다.', true);
-      console.error('[Travelog Map] Leaflet library is not loaded. Check Leaflet CSS/JS CDN in index.html.');
-      return;
-    }
-
-    // 1. Leaflet initialization centered at Gyeongbokgung
-    try {
-      map = L.map('map-container', {
-        zoomControl: false,
-        preferCanvas: true
-      }).setView([37.5780, 126.9768], 16);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-    } catch (err) {
-      console.error('[Travelog Map] Failed to initialize Leaflet map:', err);
-      renderFallbackMap('지도 초기화 중 오류가 발생해 iframe 지도로 표시합니다.', true);
-      return;
-    }
-
-    // 2. Add Map Tiles
-    // CARTO 타일이 모바일/브라우저 환경에서 막히는 경우가 있어 OpenStreetMap 기본 타일을 1순위로 사용합니다.
-    let loadedTileCount = 0;
-    let tileErrorCount = 0;
-
-    const openStreetMapTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-      detectRetina: true,
-      crossOrigin: true,
-      referrerPolicy: 'strict-origin-when-cross-origin'
-    });
-
-    const cartoVoyagerTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 20,
-      detectRetina: true,
-      crossOrigin: true,
-      referrerPolicy: 'strict-origin-when-cross-origin'
-    });
-
-    openStreetMapTiles.addTo(map);
-
-    const fallbackTimer = setTimeout(() => {
-      if (loadedTileCount === 0) {
-        console.warn('[Travelog Map] No map tiles loaded within timeout. Showing iframe fallback.');
-        renderFallbackMap('지도 타일 서버 응답이 늦거나 차단되어 iframe 지도로 표시합니다.');
-      }
-    }, 6500);
-
-    openStreetMapTiles.on('tileload', () => {
-      loadedTileCount++;
-      clearTimeout(fallbackTimer);
-    });
-
-    // 타일 로딩 에러가 반복되면 빈 화면 대신 iframe 지도를 보여줍니다.
-    openStreetMapTiles.on('tileerror', (e) => {
-      tileErrorCount++;
-      console.warn('[Travelog Map] OpenStreetMap tile load error:', e);
-      if (tileErrorCount >= 3 && loadedTileCount === 0) {
-        renderFallbackMap('OpenStreetMap 타일이 현재 브라우저에서 차단되어 iframe 지도로 표시합니다.');
-      }
-    });
-    cartoVoyagerTiles.on('tileerror', (e) => {
-      console.warn('[Travelog Map] CARTO tile load error:', e);
-    });
-
-    // 모바일/탭 전환 시 지도 영역 크기 계산이 늦어지는 문제 보정
-    setTimeout(() => {
-      if (map) map.invalidateSize();
-    }, 300);
-
-    // 3. Add Layers
-    markersLayer = L.layerGroup().addTo(map);
-    memoMarkersLayer = L.layerGroup().addTo(map);
-    
-    // Create user marker. It starts near Gwanghwamun until the phone GPS updates it.
-    userMarker = L.marker([37.5750, 126.9768], { icon: createCurrentLocationIcon() }).addTo(map);
-
-    // 4. Bind map click event for Creator Studio Node Placement
-    map.on('click', (e) => {
-      // Check if we are currently in Creator tab
-      const creatorTab = document.getElementById('creator-tab');
-      if (creatorTab && creatorTab.classList.contains('active')) {
-        addNewCreatorPin(e.latlng.lat, e.latlng.lng);
-      }
-    });
-
-    // 5. Setup Controls
-    const zoomToUserBtn = document.getElementById('zoom-to-user-btn');
-    if (zoomToUserBtn) {
-      zoomToUserBtn.addEventListener('click', () => {
-        const loc = getCurrentLatLng();
-        map.setView([loc.lat, loc.lng], 17);
-      });
-    }
-
-    const realGpsBtn = document.getElementById('real-gps-btn');
-    if (realGpsBtn) {
-      setRealtimeTrackingButtonState(false);
-      realGpsBtn.addEventListener('click', () => toggleRealtimeLocationTracking());
-    }
-
-    const memoBtn = document.getElementById('add-location-memo-btn');
-    if (memoBtn) {
-      memoBtn.addEventListener('click', handleMemoButtonClick);
-    }
-
-    const gpsSimulationBtn = document.getElementById('gps-simulation-btn');
-    if (gpsSimulationBtn) {
-      gpsSimulationBtn.addEventListener('click', toggleGPSSimulation);
-    }
-
-    initMemoModalEvents();
-    
-    // Floating HUD Button actions
-    const introBtn = document.getElementById('play-guide-intro-btn');
-    if (introBtn) {
-      introBtn.addEventListener('click', () => {
-        triggerVideoOverlay('Gwanghwamun Gate Intro', 'Minho (Seoul Local)');
-      });
-    }
-
-    const greetingBtn = document.getElementById('hear-greeting-btn');
-    if (greetingBtn) {
-      greetingBtn.addEventListener('click', () => {
-        triggerAudioOverlay('Greeting from Minho', 'Minho (Seoul Local)');
-      });
-    }
-
-    window.addEventListener('pagehide', () => stopRealtimeLocationTracking(false));
-
-    // Draw active tour markers and lines
-    renderTour();
-    loadUserMemos();
-    renderUserMemoMarkers();
-  }
-
-  function renderTour() {
-    markersLayer.clearLayers();
-    if (routePolyline) {
-      map.removeLayer(routePolyline);
-    }
-
-    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
-    if (activeGuide) {
-      const guideName = document.getElementById('guide-name');
-      const guideDesc = document.getElementById('guide-desc');
-      if (guideName) guideName.textContent = pick(activeGuide, 'name');
-      if (guideDesc) guideDesc.textContent = pick(activeGuide, 'desc');
-    }
-
-    const nodes = getTourNodes();
-    const routeCoords = [];
-
-    // Draw Marker Pins
-    nodes.forEach(node => {
-      routeCoords.push([node.lat, node.lng]);
-
-      const marker = L.marker([node.lat, node.lng], {
-        icon: createHtmlIcon(node.icon, node.color)
-      });
-
-      // Bind Popups with dynamic content
-      const popupContent = `
-        <div style="color:var(--bg-primary); padding:4px;">
-          <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">${node.name}</h4>
-          <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
-        </div>
-      `;
-      marker.bindPopup(popupContent);
-      markersLayer.addLayer(marker);
-    });
-
-    // Draw Polyline route
-    routePolyline = L.polyline(routeCoords, {
-      color: '#70A2B7',
-      weight: 5,
-      opacity: 0.8,
-      dashArray: '8, 8'
-    }).addTo(map);
-
-    // Render list in Tour Stops HUD
-    const listEl = document.getElementById('tour-stops-list');
-    listEl.innerHTML = '';
-    nodes.forEach((node, index) => {
-      const row = document.createElement('div');
-      row.style.cssText = `
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(112, 162, 183, 0.12);
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      `;
-      row.innerHTML = `
-        <span style="background:var(--bg-tertiary); border-radius:50%; width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700;">${index+1}</span>
-        <span style="flex:1;">${node.name}</span>
-        <i class="${node.icon}" style="font-size:12px; color:var(--text-muted);"></i>
-      `;
-      listEl.appendChild(row);
-    });
-  }
-
-  // ==========================================
-  // Real GPS & Text Memo Logic
-  // ==========================================
-  function updateGpsStatus(message, show = true) {
-    const pill = document.getElementById('gps-location-pill');
-    const text = document.getElementById('gps-location-text');
-    if (!pill || !text) return;
-    text.textContent = message;
-    pill.style.display = show ? 'block' : 'none';
-  }
-
-  function setRealtimeTrackingButtonState(active) {
-    const btn = document.getElementById('real-gps-btn');
-    if (!btn) return;
-
-    btn.classList.toggle('tracking-active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    btn.setAttribute('title', active
-      ? t('실시간 위치 추적 중지', 'Stop live location tracking', 'リアルタイム位置追跡を停止')
-      : t('실시간 내 위치 추적 시작', 'Start live location tracking', 'リアルタイム現在地追跡を開始')
-    );
-    btn.innerHTML = active
-      ? '<i class="fa-solid fa-location-arrow fa-beat"></i>'
-      : '<i class="fa-solid fa-location-crosshairs"></i>';
-  }
-
-  function updateRealtimeTrackingStatus() {
-    if (!isRealtimeTracking) return;
-
-    if (latestGpsFix) {
-      const ageSeconds = Math.max(0, Math.round((Date.now() - latestGpsFix.updatedAt) / 1000));
-      const accuracyText = latestGpsFix.accuracy ? ` · ±${Math.round(latestGpsFix.accuracy)}m` : '';
-      updateGpsStatus(`${t('실시간 추적 중', 'Live tracking', 'リアルタイム追跡中')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${accuracyText} · ${ageSeconds}${t('초 전', 's ago', '秒前')}`);
-    } else {
-      updateGpsStatus(t('실시간 GPS 신호를 기다리는 중...', 'Waiting for live GPS signal...', 'リアルタイムGPS信号を待機中...'));
-    }
-  }
-
-  function applyUserLocation(lat, lng, accuracy = null, shouldPan = true) {
-    if (!map || !userMarker) return;
-
-    latestGpsFix = { lat, lng, accuracy, updatedAt: Date.now() };
-    hasRealGpsLocation = true;
-    userMarker.setLatLng([lat, lng]);
-
-    if (accuracy && accuracy > 0) {
-      if (!userAccuracyCircle) {
-        userAccuracyCircle = L.circle([lat, lng], {
-          radius: accuracy,
-          color: '#70A2B7',
-          weight: 1,
-          fillColor: '#70A2B7',
-          fillOpacity: 0.12
-        }).addTo(map);
-      } else {
-        userAccuracyCircle.setLatLng([lat, lng]);
-        userAccuracyCircle.setRadius(accuracy);
-      }
-    }
-
-    const accuracyText = accuracy ? ` ±${Math.round(accuracy)}m` : '';
-    updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracyText}`);
-
-    if (shouldPan) {
-      map.setView([lat, lng], Math.max(map.getZoom(), 17));
-    }
-
-    checkProximityTrigger(lat, lng);
-    if (window.TravelogAdventureModule && typeof window.TravelogAdventureModule.updateDistanceToClue === 'function') {
-      window.TravelogAdventureModule.updateDistanceToClue(lat, lng);
-    }
-  }
-
-  function getGeolocationErrorMessage(error) {
-    if (!error) return t('위치를 가져오지 못했습니다.', 'Could not get your location.', '位置情報を取得できませんでした。');
-    if (error.code === 1) return t('위치 권한이 거부되었습니다. 브라우저 위치 권한을 허용해 주세요.', 'Location permission was denied. Please allow location access in your browser.', '位置情報の許可が拒否されました。ブラウザで位置情報を許可してください。');
-    if (error.code === 2) return t('현재 위치를 확인할 수 없습니다. GPS 또는 네트워크 상태를 확인해 주세요.', 'Your location is unavailable. Check GPS or network status.', '現在地を確認できません。GPSまたはネットワーク状態を確認してください。');
-    if (error.code === 3) return t('위치 확인 시간이 초과되었습니다. 다시 시도해 주세요.', 'Location request timed out. Please try again.', '位置情報の取得がタイムアウトしました。もう一度お試しください。');
-    return t('위치를 가져오지 못했습니다.', 'Could not get your location.', '位置情報を取得できませんでした。');
-  }
-
-  function requestCurrentLocation(afterSuccess, shouldPan = true) {
-    if (!navigator.geolocation) {
-      const msg = t('이 브라우저는 GPS 위치 기능을 지원하지 않습니다.', 'This browser does not support GPS geolocation.', 'このブラウザはGPS位置情報に対応していません。');
-      updateGpsStatus(msg);
-      window.TravelogApp.showToast(msg);
-      return;
-    }
-
-    updateGpsStatus(t('GPS 권한을 요청하고 있습니다...', 'Requesting GPS permission...', 'GPS権限をリクエスト中...'));
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        applyUserLocation(latitude, longitude, accuracy, shouldPan);
-        if (typeof afterSuccess === 'function') {
-          afterSuccess({ lat: latitude, lng: longitude, accuracy });
+  // Set default language
+  setLanguage('ko');
+});
+
+// Tab Navigation logic
+function initNavigation() {
+  const navItems = document.querySelectorAll('.nav-item');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const targetTab = item.getAttribute('data-tab');
+      
+      // Update Navbar selection UI
+      navItems.forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+      
+      // Update Tab panel visibility
+      tabContents.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.id === targetTab) {
+          tab.classList.add('active');
         }
-      },
-      (error) => {
-        const msg = getGeolocationErrorMessage(error);
-        updateGpsStatus(msg);
-        window.TravelogApp.showToast(msg);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 5000
+      });
+
+      // Special Tab-Specific Handlers
+      if (targetTab === 'map-tab' && window.TravelogMapModule) {
+        window.TravelogMapModule.invalidateSize(); // Force Leaflet redraw
       }
-    );
-  }
-
-  function startRealtimeLocationTracking() {
-    if (!navigator.geolocation) {
-      const msg = t('이 브라우저는 GPS 위치 기능을 지원하지 않습니다.', 'This browser does not support GPS geolocation.', 'このブラウザはGPS位置情報に対応していません。');
-      updateGpsStatus(msg);
-      window.TravelogApp.showToast(msg);
-      return;
-    }
-
-    if (isSimulating) {
-      toggleGPSSimulation();
-    }
-
-    if (isRealtimeTracking) {
-      updateRealtimeTrackingStatus();
-      return;
-    }
-
-    isRealtimeTracking = true;
-    setRealtimeTrackingButtonState(true);
-    updateGpsStatus(t('실시간 GPS 추적을 시작합니다...', 'Starting live GPS tracking...', 'リアルタイムGPS追跡を開始します...'));
-    window.TravelogApp.showToast(t('이제 이동하면 내 위치 마커가 계속 따라갑니다.', 'Your marker will now keep following your movement.', '移動すると現在地マーカーが継続して追従します。'));
-
-    realtimeWatchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        applyUserLocation(latitude, longitude, accuracy, true);
-        updateRealtimeTrackingStatus();
-
-        // 너무 자주 토스트가 뜨지 않도록 첫 안정화 알림만 제한적으로 표시합니다.
-        const now = Date.now();
-        if (now - lastTrackingToastAt > 30000) {
-          lastTrackingToastAt = now;
-          if (!latestGpsFix || now - latestGpsFix.updatedAt < 3000) {
-            // 상태 pill이 실시간 좌표를 계속 보여주므로 토스트는 최소화합니다.
-          }
-        }
-      },
-      (error) => {
-        const msg = getGeolocationErrorMessage(error);
-        updateGpsStatus(msg);
-        window.TravelogApp.showToast(msg);
-        stopRealtimeLocationTracking(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 3000
-      }
-    );
-  }
-
-  function stopRealtimeLocationTracking(showToast = true) {
-    if (realtimeWatchId !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(realtimeWatchId);
-    }
-    realtimeWatchId = null;
-    isRealtimeTracking = false;
-    setRealtimeTrackingButtonState(false);
-
-    if (latestGpsFix) {
-      const accuracyText = latestGpsFix.accuracy ? ` ±${Math.round(latestGpsFix.accuracy)}m` : '';
-      updateGpsStatus(`${t('마지막 위치', 'Last location', '最後の位置')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${accuracyText}`);
-    } else {
-      updateGpsStatus(t('GPS 추적이 꺼졌습니다.', 'GPS tracking is off.', 'GPS追跡はオフです。'));
-    }
-
-    if (showToast) {
-      window.TravelogApp.showToast(t('실시간 위치 추적을 중지했습니다.', 'Live location tracking stopped.', 'リアルタイム位置追跡を停止しました。'));
-    }
-  }
-
-  function toggleRealtimeLocationTracking() {
-    if (isRealtimeTracking) {
-      stopRealtimeLocationTracking(true);
-    } else {
-      startRealtimeLocationTracking();
-    }
-  }
-
-  function handleMemoButtonClick() {
-    if (!hasRealGpsLocation) {
-      requestCurrentLocation((loc) => openMemoModal(loc));
-      return;
-    }
-    openMemoModal(getCurrentLatLng());
-  }
-
-  function initMemoModalEvents() {
-    const modal = document.getElementById('location-memo-modal');
-    const closeBtn = document.getElementById('close-location-memo-modal-btn');
-    const cancelBtn = document.getElementById('cancel-location-memo-btn');
-    const saveBtn = document.getElementById('save-location-memo-btn');
-
-    if (!modal || modal.dataset.memoBound === 'true') return;
-    modal.dataset.memoBound = 'true';
-
-    if (closeBtn) closeBtn.addEventListener('click', closeMemoModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeMemoModal);
-    if (saveBtn) saveBtn.addEventListener('click', saveLocationMemo);
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeMemoModal();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal.classList.contains('active')) {
-        closeMemoModal();
+      
+      if (targetTab === 'rewards-tab' && window.TravelogRewardsModule) {
+        window.TravelogRewardsModule.resizeScratchCanvas();
       }
     });
-  }
-
-  function openMemoModal(location) {
-    const modal = document.getElementById('location-memo-modal');
-    const textArea = document.getElementById('location-memo-text');
-    const preview = document.getElementById('memo-location-preview');
-    if (!modal || !textArea || !preview) return;
-
-    memoDraftLocation = location || getCurrentLatLng();
-    preview.textContent = `${t('좌표', 'Coords', '座標')}: ${memoDraftLocation.lat.toFixed(6)}, ${memoDraftLocation.lng.toFixed(6)}`;
-    textArea.value = '';
-    modal.classList.add('active');
-    modal.setAttribute('aria-hidden', 'false');
-    setTimeout(() => textArea.focus(), 80);
-  }
-
-  function closeMemoModal() {
-    const modal = document.getElementById('location-memo-modal');
-    if (!modal) return;
-    modal.classList.remove('active');
-    modal.setAttribute('aria-hidden', 'true');
-    memoDraftLocation = null;
-  }
-
-  function loadUserMemos() {
-    try {
-      const raw = localStorage.getItem(USER_MEMO_STORAGE_KEY);
-      userMemoItems = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(userMemoItems)) userMemoItems = [];
-    } catch (err) {
-      console.warn('[Travelog Map] Failed to load memos:', err);
-      userMemoItems = [];
-    }
-  }
-
-  function saveUserMemos() {
-    try {
-      localStorage.setItem(USER_MEMO_STORAGE_KEY, JSON.stringify(userMemoItems));
-    } catch (err) {
-      console.warn('[Travelog Map] Failed to save memos:', err);
-      window.TravelogApp.showToast(t('메모 저장 공간이 부족합니다.', 'Not enough storage for memos.', 'メモの保存容量が不足しています。'));
-    }
-  }
-
-  function saveLocationMemo() {
-    const textArea = document.getElementById('location-memo-text');
-    if (!textArea || !memoDraftLocation) return;
-
-    const text = textArea.value.trim();
-    if (!text) {
-      window.TravelogApp.showToast(t('메모 내용을 입력해 주세요.', 'Please write a memo first.', 'メモ内容を入力してください。'));
-      textArea.focus();
-      return;
-    }
-
-    const memo = {
-      id: `memo-${Date.now()}`,
-      text,
-      lat: memoDraftLocation.lat,
-      lng: memoDraftLocation.lng,
-      accuracy: memoDraftLocation.accuracy || null,
-      createdAt: Date.now()
-    };
-
-    userMemoItems.unshift(memo);
-    saveUserMemos();
-    renderUserMemoMarkers();
-    closeMemoModal();
-
-    if (map) {
-      map.setView([memo.lat, memo.lng], Math.max(map.getZoom(), 17));
-    }
-    window.TravelogApp.showToast(t('현재 위치에 메모를 저장했습니다.', 'Memo saved at your current location.', '現在地にメモを保存しました。'));
-  }
-
-  function renderUserMemoMarkers() {
-    if (!memoMarkersLayer || typeof L === 'undefined') return;
-    memoMarkersLayer.clearLayers();
-
-    userMemoItems.forEach((memo) => {
-      const memoIcon = createHtmlIcon('fa-solid fa-note-sticky', 'pin-memo');
-      const marker = L.marker([memo.lat, memo.lng], { icon: memoIcon });
-      const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
-      marker.bindPopup(`
-        <div class="memo-popup">
-          <h4>${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
-          <p>${escapeHtml(memo.text)}</p>
-          <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
-          <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
-        </div>
-      `);
-      memoMarkersLayer.addLayer(marker);
-    });
-  }
-
-  function deleteMemo(id) {
-    userMemoItems = userMemoItems.filter(memo => memo.id !== id);
-    saveUserMemos();
-    renderUserMemoMarkers();
-    window.TravelogApp.showToast(t('메모를 삭제했습니다.', 'Memo deleted.', 'メモを削除しました。'));
-  }
-
-  // ==========================================
-  // GPS Path Simulator Logic
-  // ==========================================
-  function toggleGPSSimulation() {
-    const btn = document.getElementById('gps-simulation-btn');
-    const statusPill = document.getElementById('simulation-status-pill');
-    
-    if (isSimulating) {
-      // Pause/Stop simulation
-      clearInterval(simIntervalId);
-      isSimulating = false;
-      btn.innerHTML = `<i class="fa-solid fa-person-walking"></i>`;
-      btn.style.background = '';
-      statusPill.style.display = 'none';
-      window.TravelogApp.showToast(t('시뮬레이션이 종료되었습니다.', 'Simulation stopped.', 'シミュレーションを終了しました。'));
-    } else {
-      // Start simulation
-      if (isRealtimeTracking) {
-        stopRealtimeLocationTracking(false);
-      }
-      isSimulating = true;
-      btn.innerHTML = `<i class="fa-solid fa-circle-pause"></i>`;
-      btn.style.background = 'var(--accent-pink)';
-      statusPill.style.display = 'block';
-      triggeredNodes.clear();
-      
-      generateSimulationPath();
-      simIndex = 0;
-      
-      window.TravelogApp.showToast(t('GPS 이동 시뮬레이션을 시작합니다!', 'Starting GPS Walk Simulation!', 'GPS移動シミュレーションを開始します！'));
-      
-      simIntervalId = setInterval(runSimulationStep, 250); // Move user every 250ms
-    }
-  }
-
-  // Generate intermediate coordinates along the route
-  function generateSimulationPath() {
-    simPath = [];
-    const nodes = getTourNodes();
-    
-    // Start slightly south of Gwanghwamun
-    let currentPt = { lat: 37.5750, lng: 126.9768 };
-    
-    nodes.forEach(node => {
-      // Interpolate 12 steps between consecutive nodes
-      const steps = 12;
-      const dLat = (node.lat - currentPt.lat) / steps;
-      const dLng = (node.lng - currentPt.lng) / steps;
-      
-      for (let i = 1; i <= steps; i++) {
-        simPath.push({
-          lat: currentPt.lat + dLat * i,
-          lng: currentPt.lng + dLng * i
-        });
-      }
-      currentPt = { lat: node.lat, lng: node.lng };
-    });
-  }
-
-  function runSimulationStep() {
-    if (simIndex >= simPath.length) {
-      toggleGPSSimulation(); // Finished path
-      return;
-    }
-
-    const nextCoord = simPath[simIndex];
-    userMarker.setLatLng([nextCoord.lat, nextCoord.lng]);
-    map.panTo([nextCoord.lat, nextCoord.lng]);
-    
-    // Verify distance to nodes
-    checkProximityTrigger(nextCoord.lat, nextCoord.lng);
-    
-    // Forward distance updates to Adventure Mode if active
-    if (window.TravelogAdventureModule && typeof window.TravelogAdventureModule.updateDistanceToClue === 'function') {
-      window.TravelogAdventureModule.updateDistanceToClue(nextCoord.lat, nextCoord.lng);
-    }
-
-    simIndex++;
-  }
-
-  // Calculate distance & trigger coordinate events
-  function checkProximityTrigger(lat, lng) {
-    const nodes = getTourNodes();
-    nodes.forEach(node => {
-      if (triggeredNodes.has(node.id)) return;
-
-      const dist = getDistanceInMeters(lat, lng, node.lat, node.lng);
-      
-      // Node trigger threshold (approx. 20-30 meters)
-      if (dist <= 22) {
-        triggeredNodes.add(node.id);
-        triggerNodeEvent(node);
-      }
-    });
-  }
-
-  function triggerNodeEvent(node) {
-    window.TravelogApp.showToast(`${node.name}: ${node.triggerText}`);
-
-    if (node.type === 'video') {
-      triggerVideoOverlay(node.name, 'Minho (Seoul Local)');
-    } else if (node.type === 'audio') {
-      triggerAudioOverlay(node.name, 'Minho (Seoul Local)');
-    } else if (node.type === 'coupon') {
-      // Give points to user & redirect/award coupon
-      setTimeout(() => {
-        window.TravelogApp.addPoints(100);
-        window.TravelogApp.claimCoupon({
-          id: 'coupon-geunjeong',
-          tag: 'GEUNJEONG THRONES',
-          value: '15% OFF',
-          desc: 'Seochon Traditional Cafe Tea House'
-        });
-        window.TravelogApp.showToast(t('근정전 비화 보상: +100 포인트 & 카페 15% 할인 쿠폰 획득!', 'Geunjeong Hall Reward: +100 pts & 15% Cafe Coupon claimed!', '勤政殿の報酬：+100ポイント＆カフェ15%割引クーポン獲得！'));
-      }, 1000);
-    }
-  }
-
-  // Helper: Haversine formula to compute distance
-  function getDistanceInMeters(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // metres
-    const phi1 = lat1 * Math.PI/180;
-    const phi2 = lat2 * Math.PI/180;
-    const deltaPhi = (lat2-lat1) * Math.PI/180;
-    const deltaLambda = (lon2-lon1) * Math.PI/180;
-
-    const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
-              Math.cos(phi1) * Math.cos(phi2) *
-              Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-    return R * c; // in meters
-  }
-
-  // ==========================================
-  // Audio Overlay Controller
-  // ==========================================
-  let isAudioPlaying = false;
-
-  function getGuideAudioElement() {
-    return document.getElementById('guide-audio-element');
-  }
-
-  function triggerAudioOverlay(title, speaker, audioSrc = getMinhoMedia('audio')) {
-    const overlay = document.getElementById('audio-overlay');
-    const audioEl = getGuideAudioElement();
-    document.getElementById('audio-title').textContent = title;
-    document.getElementById('audio-speaker').textContent = `By ${speaker}`;
-    overlay.classList.add('active');
-
-    if (audioEl && audioSrc) {
-      if (!audioEl.src || !audioEl.src.endsWith(audioSrc)) {
-        audioEl.src = audioSrc;
-        audioEl.load();
-      }
-      const playPromise = audioEl.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => {
-          isAudioPlaying = false;
-          updateAudioPlayButtonIcon();
-          stopAudioWaveAnimation();
-          window.TravelogApp?.showToast(t('모바일 브라우저 정책상 재생 버튼을 눌러 음성을 시작해 주세요.', 'Tap play to start audio on mobile.', 'モバイルでは再生ボタンを押して音声を開始してください。'));
-        });
-      }
-    }
-
-    isAudioPlaying = true;
-    updateAudioPlayButtonIcon();
-    startAudioWaveAnimation();
-  }
-
-  // Bind audio controls
-  document.getElementById('close-audio-btn').addEventListener('click', () => {
-    const audioEl = getGuideAudioElement();
-    if (audioEl) audioEl.pause();
-    isAudioPlaying = false;
-    document.getElementById('audio-overlay').classList.remove('active');
-    updateAudioPlayButtonIcon();
-    stopAudioWaveAnimation();
   });
+}
 
-  document.getElementById('play-audio-btn').addEventListener('click', () => {
-    const audioEl = getGuideAudioElement();
-    if (!audioEl) return;
+// Language logic
+const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja'];
+const NEXT_LANGUAGE_LABELS = { ko: 'English', en: '日本語', ja: '한국어' };
 
-    if (audioEl.paused) {
-      audioEl.play().then(() => {
-        isAudioPlaying = true;
-        updateAudioPlayButtonIcon();
-        startAudioWaveAnimation();
-      }).catch(() => {
-        window.TravelogApp?.showToast(t('음성 파일을 재생할 수 없습니다. 파일 경로를 확인해 주세요.', 'Audio could not be played. Check the file path.', '音声ファイルを再生できません。ファイルパスを確認してください。'));
-      });
-    } else {
-      audioEl.pause();
-      isAudioPlaying = false;
-      updateAudioPlayButtonIcon();
-      stopAudioWaveAnimation();
+function normalizeLanguage(lang) {
+  return SUPPORTED_LANGUAGES.includes(lang) ? lang : 'ko';
+}
+
+function getNextLanguage(lang) {
+  const currentIndex = SUPPORTED_LANGUAGES.indexOf(normalizeLanguage(lang));
+  return SUPPORTED_LANGUAGES[(currentIndex + 1) % SUPPORTED_LANGUAGES.length];
+}
+
+function localizedText(ko, en, ja) {
+  const lang = normalizeLanguage(TravelogState.language);
+  if (lang === 'ja') return ja || en || ko;
+  if (lang === 'en') return en || ko || ja;
+  return ko || en || ja;
+}
+
+function localizedField(source, baseKey) {
+  const suffix = normalizeLanguage(TravelogState.language) === 'ja' ? 'Ja' : normalizeLanguage(TravelogState.language) === 'en' ? 'En' : 'Ko';
+  return source?.[`${baseKey}${suffix}`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ko`] || source?.[`${baseKey}Ja`] || '';
+}
+
+function initLanguageToggle() {
+  const langBtn = document.getElementById('lang-toggle-btn');
+  if (!langBtn) return;
+
+  langBtn.addEventListener('click', () => {
+    setLanguage(getNextLanguage(TravelogState.language));
+  });
+}
+
+function setLanguage(lang) {
+  const nextLanguage = normalizeLanguage(lang);
+  TravelogState.language = nextLanguage;
+  document.documentElement.lang = nextLanguage;
+  
+  // Update header text: button shows the next language users can switch to
+  const currentLangText = document.getElementById('current-lang');
+  if (currentLangText) {
+    currentLangText.textContent = NEXT_LANGUAGE_LABELS[nextLanguage];
+  }
+  
+  // Update HTML elements with data-localize
+  document.querySelectorAll('[data-localize]').forEach(el => {
+    const key = el.getAttribute('data-localize');
+    if (LocalizationDictionary[key]) {
+      el.innerHTML = LocalizationDictionary[key][nextLanguage] || LocalizationDictionary[key].en || LocalizationDictionary[key].ko || '';
     }
   });
 
-  const guideAudioElement = getGuideAudioElement();
-  if (guideAudioElement) {
-    guideAudioElement.addEventListener('play', () => {
-      isAudioPlaying = true;
-      updateAudioPlayButtonIcon();
-      startAudioWaveAnimation();
-    });
-    guideAudioElement.addEventListener('pause', () => {
-      isAudioPlaying = false;
-      updateAudioPlayButtonIcon();
-      stopAudioWaveAnimation();
-    });
-    guideAudioElement.addEventListener('ended', () => {
-      isAudioPlaying = false;
-      updateAudioPlayButtonIcon();
-      stopAudioWaveAnimation();
-    });
-  }
-
-  function updateAudioPlayButtonIcon() {
-    const btn = document.getElementById('play-audio-btn');
-    if (!btn) return;
-    btn.innerHTML = isAudioPlaying ? `<i class="fa-solid fa-pause"></i>` : `<i class="fa-solid fa-play"></i>`;
-  }
-
-  function startAudioWaveAnimation() {
-    const waveBars = document.querySelectorAll('#waveform-visualizer .wave-bar');
-    waveBars.forEach((bar, index) => {
-      bar.style.animation = `jump-wave ${0.4 + (index * 0.1)}s ease-in-out infinite alternate`;
-    });
-  }
-
-  function stopAudioWaveAnimation() {
-    const waveBars = document.querySelectorAll('#waveform-visualizer .wave-bar');
-    waveBars.forEach(bar => {
-      bar.style.animation = 'none';
-      bar.style.height = '12px';
-    });
-  }
-
-  // ==========================================
-  // Video Overlay Controller (Guide Video)
-  // ==========================================
-  function formatMediaTime(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
-  }
-
-  function getGuideVideoElement() {
-    return document.getElementById('guide-video-element');
-  }
-
-  function triggerVideoOverlay(title, author, videoSrc = getMinhoMedia('video')) {
-    const modal = document.getElementById('video-overlay');
-    const videoEl = getGuideVideoElement();
-    const timerText = document.getElementById('video-play-timer');
-
-    document.getElementById('video-overlay-title').textContent = title;
-    document.getElementById('video-overlay-author').textContent = author;
-    modal.classList.add('active');
-
-    if (videoEl && videoSrc) {
-      if (!videoEl.src || !videoEl.src.endsWith(videoSrc)) {
-        videoEl.src = videoSrc;
-        videoEl.load();
-      }
-      if (timerText) timerText.textContent = '0:00 / --:--';
-      const playPromise = videoEl.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => {
-          window.TravelogApp?.showToast(t('모바일에서는 영상의 재생 버튼을 눌러 시작해 주세요.', 'Tap the video play button to start on mobile.', 'モバイルでは動画の再生ボタンを押して開始してください。'));
-        });
-      }
+  // Update input placeholders
+  document.querySelectorAll('[data-localize-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-localize-placeholder');
+    if (LocalizationDictionary[key]) {
+      el.placeholder = LocalizationDictionary[key][nextLanguage] || LocalizationDictionary[key].en || LocalizationDictionary[key].ko || '';
     }
-  }
+  });
 
-  function closeVideoOverlay() {
-    const videoEl = getGuideVideoElement();
-    if (videoEl) videoEl.pause();
-    document.getElementById('video-overlay').classList.remove('active');
-  }
+  renderProfileSampleAvatars();
+  renderUserProfileWidget();
 
-  document.getElementById('close-video-modal-btn').addEventListener('click', closeVideoOverlay);
+  // Notify modules of language change
+  triggerModuleLanguageUpdate();
+}
 
-  const guideVideoElement = getGuideVideoElement();
-  if (guideVideoElement) {
-    guideVideoElement.addEventListener('timeupdate', () => {
-      const timerText = document.getElementById('video-play-timer');
-      if (!timerText) return;
-      timerText.textContent = `${formatMediaTime(guideVideoElement.currentTime)} / ${formatMediaTime(guideVideoElement.duration)}`;
-    });
-    guideVideoElement.addEventListener('loadedmetadata', () => {
-      const timerText = document.getElementById('video-play-timer');
-      if (!timerText) return;
-      timerText.textContent = `0:00 / ${formatMediaTime(guideVideoElement.duration)}`;
-    });
-  }
+function triggerModuleLanguageUpdate() {
+  const modules = [
+    window.TravelogMapModule,
+    window.TravelogExploreModule,
+    window.TravelogRewardsModule,
+    window.TravelogMediaStorageModule,
+    window.TravelogCreatorModule,
+    window.TravelogAdventureModule
+  ];
 
-  // ==========================================
-  // Creator Custom Pins Placement
-  // ==========================================
-  function addNewCreatorPin(lat, lng) {
-    // Add coordinates to state
-    const customPins = window.TravelogApp.getState().customCreatedPins;
-    const newIndex = customPins.length + 1;
-    
-    const newPin = {
-      id: `custom-pin-${newIndex}`,
-      nameEn: `Custom Pin #${newIndex}`,
-      nameKo: `커스텀 핀 #${newIndex}`,
-      nameJa: `カスタムピン #${newIndex}`,
-      lat: lat,
-      lng: lng
-    };
-    
-    customPins.push(newPin);
-    
-    // Draw Pin on Map
-    const marker = L.marker([lat, lng], {
-      icon: createHtmlIcon('fa-solid fa-location-crosshairs', 'pin-quest')
-    }).bindPopup(`<b>Custom Pin #${newIndex}</b><br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-    
-    markersLayer.addLayer(marker);
-    
-    // Notify Creator Studio
-    if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
-      window.TravelogCreatorModule.renderCoordinatesList();
+  modules.forEach(mod => {
+    if (mod && typeof mod.onLanguageChange === 'function') {
+      mod.onLanguageChange(TravelogState.language);
     }
-    
-    window.TravelogApp.showToast(t(`새 핀 #${newIndex}이 추가되었습니다.`, `New pin #${newIndex} added.`, `新しいピン #${newIndex} を追加しました。`));
-  }
-
-  function clearCreatorPins() {
-    window.TravelogApp.getState().customCreatedPins = [];
-    renderTour(); // Redraw baseline tour
-  }
+  });
+}
 
 
-  // app.js에서 init을 호출하지 못하는 상황을 대비해 map.js가 스스로도 지도를 시작합니다.
-  // didInit 가드가 있어서 app.js가 다시 호출해도 중복 실행되지 않습니다.
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(init, 0);
-      setTimeout(() => {
-        const mapContainer = document.getElementById('map-container');
-        if (mapContainer && !mapContainer.querySelector('.leaflet-tile-loaded') && !mapContainer.querySelector('.map-iframe-fallback-overlay')) {
-          renderFallbackMap('지도 타일이 표시되지 않아 iframe 지도로 전환했습니다.');
-        }
-      }, 8000);
-    });
+// ==========================================
+// Onboarding & Profile Flow
+// ==========================================
+const ONBOARDING_STORAGE_KEY = 'travelog_user_profile_v1';
+const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
+const AVATAR_PRESETS = {
+  sun: '☀️',
+  wave: '🌊',
+  leaf: '🍃',
+  camera: '📷',
+  compass: '🧭',
+  mountain: '⛰️'
+};
+
+const PROFILE_SAMPLE_AVATARS = [
+  { id: 'hanok', icon: '🏯', bg1: '#E28743', bg2: '#F2E58A', labelKo: '한옥', labelEn: 'Hanok', labelJa: '韓屋' },
+  { id: 'compass', icon: '🧭', bg1: '#002855', bg2: '#70A2B7', labelKo: '나침반', labelEn: 'Compass', labelJa: 'コンパス' },
+  { id: 'camera', icon: '📷', bg1: '#E91E63', bg2: '#E8B4B8', labelKo: '카메라', labelEn: 'Camera', labelJa: 'カメラ' },
+  { id: 'mountain', icon: '⛰️', bg1: '#4A7F4D', bg2: '#AFD499', labelKo: '산길', labelEn: 'Mountain', labelJa: '山道' },
+  { id: 'ocean', icon: '🌊', bg1: '#70A2B7', bg2: '#A8DFEC', labelKo: '바다', labelEn: 'Ocean', labelJa: '海' },
+  { id: 'cafe', icon: '☕', bg1: '#9B6A45', bg2: '#F1D7B0', labelKo: '카페', labelEn: 'Cafe', labelJa: 'カフェ' },
+  { id: 'train', icon: '🚆', bg1: '#002855', bg2: '#E28743', labelKo: '기차', labelEn: 'Train', labelJa: '電車' },
+  { id: 'night', icon: '🌙', bg1: '#1A2340', bg2: '#8EA8C3', labelKo: '야경', labelEn: 'Night', labelJa: '夜景' }
+];
+
+let verifiedNickname = '';
+let profileManagerDraft = null;
+
+function initOnboarding() {
+  loadSavedProfile();
+  bindOnboardingEvents();
+  renderUserProfileWidget();
+
+  if (TravelogState.userProfile.isOnboarded) {
+    hideOnboardingOverlay(true);
   } else {
-    setTimeout(init, 0);
-    setTimeout(() => {
-      const mapContainer = document.getElementById('map-container');
-      if (mapContainer && !mapContainer.querySelector('.leaflet-tile-loaded') && !mapContainer.querySelector('.map-iframe-fallback-overlay')) {
-        renderFallbackMap('지도 타일이 표시되지 않아 iframe 지도로 전환했습니다.');
+    showOnboardingScreen('login');
+  }
+}
+
+
+function safelyGoToProfileStep(provider) {
+  TravelogState.userProfile.authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
+  showOnboardingScreen('profile');
+  focusNicknameInput();
+}
+
+function attachActivationHandler(element, handler) {
+  if (!element || element.dataset.travelogActivationBound === 'true') return;
+  element.dataset.travelogActivationBound = 'true';
+  ['click', 'pointerup', 'touchend'].forEach(eventName => {
+    element.addEventListener(eventName, (event) => {
+      if (eventName !== 'click') {
+        event.preventDefault();
       }
-    }, 8000);
+      handler(event);
+    }, { passive: false });
+  });
+}
+
+function bindOnboardingEvents() {
+  const loginButtons = [
+    { id: 'login-google-btn', provider: 'Google' },
+    { id: 'login-naver-btn', provider: 'Naver' },
+    { id: 'login-email-btn', provider: 'Email' },
+    { id: 'login-guest-btn', provider: 'Guest' }
+  ];
+
+  loginButtons.forEach(({ id, provider }) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    attachActivationHandler(btn, () => safelyGoToProfileStep(provider));
+  });
+
+  const backBtn = document.getElementById('onboarding-back-btn');
+  if (backBtn) {
+    attachActivationHandler(backBtn, () => showOnboardingScreen('login'));
+  }
+
+  const nicknameInput = document.getElementById('onboarding-nickname-input');
+  const nicknameCheckBtn = document.getElementById('nickname-check-btn');
+  const startBtn = document.getElementById('start-app-btn');
+
+  if (nicknameInput) {
+    nicknameInput.addEventListener('input', () => {
+      verifiedNickname = '';
+      const draftNickname = nicknameInput.value.trim();
+      startBtn.disabled = draftNickname.length < 2;
+      hideNicknameFeedback();
+    });
+
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyNickname();
+      }
+    });
+  }
+
+  if (nicknameCheckBtn) {
+    attachActivationHandler(nicknameCheckBtn, verifyNickname);
+  }
+
+  if (startBtn) {
+    attachActivationHandler(startBtn, completeOnboarding);
+  }
+
+  document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.getAttribute('data-preset');
+      selectAvatarPreset(preset);
+    });
+  });
+
+  const fileInput = document.getElementById('onboarding-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', handleAvatarUpload);
+  }
+
+  bindProfileManagerEvents();
+  renderProfileSampleAvatars();
+  installOnboardingSafetyNet();
+}
+
+function showOnboardingScreen(screenName) {
+  const loginScreen = document.getElementById('onboarding-screen-login');
+  const profileScreen = document.getElementById('onboarding-screen-profile');
+  if (!loginScreen || !profileScreen) return;
+
+  const isLogin = screenName === 'login';
+  loginScreen.classList.toggle('active', isLogin);
+  profileScreen.classList.toggle('active', !isLogin);
+
+  // 모바일 브라우저에서 class 전환이 늦게 반영되거나 이전 스타일이 남는 경우를 막기 위한 하드 보정입니다.
+  loginScreen.style.display = isLogin ? 'flex' : 'none';
+  loginScreen.style.pointerEvents = isLogin ? 'auto' : 'none';
+  profileScreen.style.display = isLogin ? 'none' : 'flex';
+  profileScreen.style.pointerEvents = isLogin ? 'none' : 'auto';
+
+  document.querySelectorAll('.step-dots span').forEach((dot, index) => {
+    const shouldActivate = isLogin ? index === 0 : index === 1;
+    dot.classList.toggle('active', shouldActivate);
+  });
+}
+
+function focusNicknameInput() {
+  window.setTimeout(() => {
+    const input = document.getElementById('onboarding-nickname-input');
+    if (input) input.focus();
+  }, 120);
+}
+
+
+function installOnboardingSafetyNet() {
+  if (window.__travelogOnboardingSafetyNetInstalled) return;
+  window.__travelogOnboardingSafetyNetInstalled = true;
+
+  document.addEventListener('click', (event) => {
+    const loginButton = event.target.closest('#login-google-btn, #login-naver-btn, #login-email-btn, #login-guest-btn');
+    if (loginButton) {
+      const providerMap = {
+        'login-google-btn': 'Google',
+        'login-naver-btn': 'Naver',
+        'login-email-btn': 'Email',
+        'login-guest-btn': 'Guest'
+      };
+      safelyGoToProfileStep(providerMap[loginButton.id] || 'Guest');
+      return;
+    }
+
+    const backButton = event.target.closest('#onboarding-back-btn');
+    if (backButton) {
+      showOnboardingScreen('login');
+      return;
+    }
+
+    const checkButton = event.target.closest('#nickname-check-btn');
+    if (checkButton) {
+      verifyNickname();
+      return;
+    }
+
+    const startButton = event.target.closest('#start-app-btn');
+    if (startButton && !startButton.disabled) {
+      completeOnboarding();
+    }
+  }, true);
+}
+
+window.TravelogGoOnboardingProfile = safelyGoToProfileStep;
+window.TravelogShowOnboardingScreen = showOnboardingScreen;
+window.TravelogVerifyNickname = verifyNickname;
+window.TravelogCompleteOnboarding = completeOnboarding;
+
+function createSampleAvatarDataUri(sample) {
+  const safeIcon = escapeHtml(sample.icon);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${sample.bg1}"/>
+          <stop offset="100%" stop-color="${sample.bg2}"/>
+        </linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,0.22)"/>
+        </filter>
+      </defs>
+      <rect width="160" height="160" rx="80" fill="url(#g)"/>
+      <circle cx="116" cy="34" r="34" fill="rgba(255,255,255,0.24)"/>
+      <circle cx="42" cy="122" r="42" fill="rgba(255,255,255,0.14)"/>
+      <text x="80" y="96" text-anchor="middle" font-size="58" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif" filter="url(#shadow)">${safeIcon}</text>
+    </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '\'': '&#39;',
+    '"': '&quot;'
+  }[char]));
+}
+
+function getSampleAvatarById(id) {
+  return PROFILE_SAMPLE_AVATARS.find(item => item.id === id) || PROFILE_SAMPLE_AVATARS[0];
+}
+
+function getSampleAvatarData(id) {
+  const sample = getSampleAvatarById(id);
+  return createSampleAvatarDataUri(sample);
+}
+
+function getLocalizedSampleLabel(sample) {
+  return localizedField(sample, 'label') || sample.labelEn || sample.id;
+}
+
+function cloneProfile(profile) {
+  return JSON.parse(JSON.stringify(profile || TravelogState.userProfile));
+}
+
+function applyAvatarToElements(profile, avatarEl, emojiEl) {
+  if (!avatarEl) return;
+
+  const currentProfile = profile || TravelogState.userProfile;
+  const avatarType = currentProfile.avatarType || 'emoji';
+  const avatarValue = currentProfile.avatarValue || '☀️';
+
+  if (avatarType === 'image' || avatarType === 'presetImage') {
+    avatarEl.style.backgroundImage = `url(${avatarValue})`;
+    avatarEl.style.backgroundSize = 'cover';
+    avatarEl.style.backgroundPosition = 'center';
+    if (emojiEl) {
+      emojiEl.style.display = 'none';
+      emojiEl.textContent = '';
+    } else {
+      avatarEl.innerHTML = '';
+    }
+    return;
+  }
+
+  avatarEl.style.backgroundImage = 'none';
+  if (emojiEl) {
+    emojiEl.style.display = 'block';
+    emojiEl.textContent = avatarValue;
+  } else {
+    avatarEl.innerHTML = `<span>${avatarValue}</span>`;
+  }
+}
+
+function setActiveAvatarControls(profile) {
+  const currentProfile = profile || TravelogState.userProfile;
+  const activePresetId = currentProfile.avatarPresetId || '';
+
+  document.querySelectorAll('.sample-avatar-option').forEach(btn => {
+    btn.classList.toggle('active', currentProfile.avatarType === 'presetImage' && btn.getAttribute('data-avatar-id') === activePresetId);
+  });
+
+  document.querySelectorAll('.profile-preset-btn').forEach(btn => {
+    btn.classList.toggle('active', currentProfile.avatarType === 'emoji' && btn.getAttribute('data-profile-preset') === activePresetId);
+  });
+}
+
+function renderProfileSampleAvatars() {
+  const grid = document.getElementById('profile-sample-avatar-grid');
+  if (!grid) return;
+
+  const activePresetId = profileManagerDraft?.avatarPresetId || TravelogState.userProfile.avatarPresetId || '';
+  const activeType = profileManagerDraft?.avatarType || TravelogState.userProfile.avatarType;
+
+  grid.innerHTML = PROFILE_SAMPLE_AVATARS.map(sample => {
+    const imageData = createSampleAvatarDataUri(sample);
+    const label = getLocalizedSampleLabel(sample);
+    const isActive = activeType === 'presetImage' && activePresetId === sample.id;
+    return `
+      <button class="sample-avatar-option ${isActive ? 'active' : ''}" type="button" data-avatar-id="${sample.id}">
+        <span class="sample-avatar-thumb" style="background-image:url('${imageData}')"></span>
+        <span>${label}</span>
+      </button>`;
+  }).join('');
+}
+
+function updateProfileManagerPreview() {
+  if (!profileManagerDraft) return;
+  applyAvatarToElements(
+    profileManagerDraft,
+    document.getElementById('profile-manager-avatar-preview'),
+    document.getElementById('profile-manager-avatar-emoji')
+  );
+  setActiveAvatarControls(profileManagerDraft);
+}
+
+function selectAvatarPreset(preset) {
+  const emoji = AVATAR_PRESETS[preset] || AVATAR_PRESETS.sun;
+  TravelogState.userProfile.avatarType = 'emoji';
+  TravelogState.userProfile.avatarValue = emoji;
+  TravelogState.userProfile.avatarPresetId = preset;
+
+  document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-preset') === preset);
+  });
+
+  applyAvatarToElements(
+    TravelogState.userProfile,
+    document.getElementById('avatar-preview-circle'),
+    document.getElementById('avatar-preview-emoji')
+  );
+}
+
+function readImageFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 512;
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleAvatarUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showNicknameFeedback(localizedText('이미지 파일만 올릴 수 있어요.', 'Please upload an image file.', '画像ファイルのみアップロードできます。'), false);
+    return;
+  }
+
+  readImageFileAsDataUrl(file)
+    .then((imageData) => {
+      TravelogState.userProfile.avatarType = 'image';
+      TravelogState.userProfile.avatarValue = imageData;
+      TravelogState.userProfile.avatarPresetId = null;
+
+      document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => btn.classList.remove('active'));
+
+      applyAvatarToElements(
+        TravelogState.userProfile,
+        document.getElementById('avatar-preview-circle'),
+        document.getElementById('avatar-preview-emoji')
+      );
+    })
+    .catch(() => {
+      showNicknameFeedback(localizedText('이미지를 불러오지 못했어요.', 'Could not load the image.', '画像を読み込めませんでした。'), false);
+    });
+}
+
+function validateNicknameValue(nickname) {
+  if (nickname.length < 2 || nickname.length > 16) {
+    return {
+      ok: false,
+      message: localizedText('닉네임은 2~16자로 입력해주세요.', 'Nickname must be 2–16 characters.', 'ニックネームは2〜16文字で入力してください。')
+    };
+  }
+
+  if (!/^[a-zA-Z0-9가-힣ぁ-んァ-ン一-龥ー_\s-]+$/.test(nickname)) {
+    return {
+      ok: false,
+      message: localizedText('한글, 영문, 일본어, 숫자, 공백, -, _만 사용할 수 있어요.', 'Use Korean, English, Japanese, numbers, spaces, -, or _ only.', '韓国語・英字・日本語・数字・スペース・-・_のみ使用できます。')
+    };
+  }
+
+  if (RESERVED_NICKNAMES.includes(nickname.toLowerCase())) {
+    return {
+      ok: false,
+      message: localizedText('이미 사용 중인 닉네임이에요.', 'This nickname is already taken.', 'このニックネームはすでに使用されています。')
+    };
   }
 
   return {
-    init: init,
-    invalidateSize: () => {
-      if (map) {
-        map.invalidateSize();
-      }
-    },
-    onLanguageChange: (lang) => {
-      if (map) {
-        renderTour();
-        renderUserMemoMarkers();
-        setRealtimeTrackingButtonState(isRealtimeTracking);
-        if (isRealtimeTracking) {
-          updateRealtimeTrackingStatus();
-        } else if (latestGpsFix) {
-          updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${latestGpsFix.lat.toFixed(5)}, ${latestGpsFix.lng.toFixed(5)}${latestGpsFix.accuracy ? ` ±${Math.round(latestGpsFix.accuracy)}m` : ''}`);
-        }
-      }
-    },
-    clearCreatorPins: clearCreatorPins,
-    requestCurrentLocation: requestCurrentLocation,
-    startRealtimeLocationTracking: startRealtimeLocationTracking,
-    stopRealtimeLocationTracking: stopRealtimeLocationTracking,
-    toggleRealtimeLocationTracking: toggleRealtimeLocationTracking,
-    deleteMemo: deleteMemo,
-    teleportUser: (lat, lng) => {
-      if (userMarker) {
-        userMarker.setLatLng([lat, lng]);
-        map.panTo([lat, lng]);
-        checkProximityTrigger(lat, lng);
-        if (window.TravelogAdventureModule && typeof window.TravelogAdventureModule.updateDistanceToClue === 'function') {
-          window.TravelogAdventureModule.updateDistanceToClue(lat, lng);
-        }
-      }
-    },
-    getDistanceInMeters: getDistanceInMeters,
-    getUserLocation: () => {
-      const loc = getCurrentLatLng();
-      return { lat: loc.lat, lng: loc.lng };
-    },
-    showFallbackMap: () => renderFallbackMap('수동으로 대체 지도를 표시했습니다.'),
-    getDebugStatus: () => ({
-      hasLeaflet: typeof L !== 'undefined',
-      hasMapObject: !!map,
-      hasUserMarker: !!userMarker,
-      isRealtimeTracking: isRealtimeTracking,
-      realtimeWatchId: realtimeWatchId,
-      latestGpsFix: latestGpsFix,
-      fallbackVisible: !!document.querySelector('.map-iframe-fallback-overlay')
-    })
+    ok: true,
+    message: localizedText('사용 가능한 닉네임입니다!', 'Nickname is available!', '使用できるニックネームです！')
   };
-})();
+}
+
+function verifyNickname() {
+  const input = document.getElementById('onboarding-nickname-input');
+  const startBtn = document.getElementById('start-app-btn');
+  if (!input || !startBtn) return false;
+
+  const nickname = input.value.trim();
+  const validation = validateNicknameValue(nickname);
+
+  if (!validation.ok) {
+    showNicknameFeedback(validation.message, false);
+    startBtn.disabled = true;
+    return false;
+  }
+
+  verifiedNickname = nickname;
+  TravelogState.userProfile.nickname = nickname;
+  startBtn.disabled = false;
+  showNicknameFeedback(validation.message, true);
+  return true;
+}
+
+function hideNicknameFeedback() {
+  const feedback = document.getElementById('nickname-feedback');
+  if (!feedback) return;
+  feedback.style.display = 'none';
+  feedback.classList.remove('success', 'error');
+}
+
+function showNicknameFeedback(message, isSuccess) {
+  const feedback = document.getElementById('nickname-feedback');
+  if (!feedback) return;
+  feedback.textContent = message;
+  feedback.style.display = 'inline-block';
+  feedback.classList.toggle('success', isSuccess);
+  feedback.classList.toggle('error', !isSuccess);
+}
+
+function showProfileManagerFeedback(message, isSuccess) {
+  const feedback = document.getElementById('profile-manager-feedback');
+  if (!feedback) return;
+  feedback.textContent = message;
+  feedback.style.display = 'inline-block';
+  feedback.classList.toggle('success', isSuccess);
+  feedback.classList.toggle('error', !isSuccess);
+}
+
+function hideProfileManagerFeedback() {
+  const feedback = document.getElementById('profile-manager-feedback');
+  if (!feedback) return;
+  feedback.style.display = 'none';
+  feedback.classList.remove('success', 'error');
+}
+
+function bindProfileManagerEvents() {
+  const widget = document.getElementById('user-profile-widget');
+  if (widget) {
+    widget.addEventListener('click', openProfileManagerModal);
+    widget.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openProfileManagerModal();
+      }
+    });
+  }
+
+  const closeBtn = document.getElementById('profile-manager-close-btn');
+  const cancelBtn = document.getElementById('profile-manager-cancel-btn');
+  const modal = document.getElementById('profile-manager-modal');
+  const uploadBtn = document.getElementById('profile-manager-upload-btn');
+  const fileInput = document.getElementById('profile-manager-file-input');
+  const saveBtn = document.getElementById('profile-manager-save-btn');
+  const resetBtn = document.getElementById('profile-manager-reset-btn');
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+
+  if (closeBtn) closeBtn.addEventListener('click', closeProfileManagerModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeProfileManagerModal);
+  if (uploadBtn && fileInput) uploadBtn.addEventListener('click', () => fileInput.click());
+  if (fileInput) fileInput.addEventListener('change', handleProfileManagerUpload);
+  if (saveBtn) saveBtn.addEventListener('click', saveProfileManagerChanges);
+  if (resetBtn) resetBtn.addEventListener('click', resetProfileSetup);
+
+  if (nicknameInput) {
+    nicknameInput.addEventListener('input', hideProfileManagerFeedback);
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveProfileManagerChanges();
+      }
+    });
+  }
+
+  document.querySelectorAll('.profile-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.getAttribute('data-profile-preset');
+      if (!profileManagerDraft || !preset) return;
+      profileManagerDraft.avatarType = 'emoji';
+      profileManagerDraft.avatarValue = AVATAR_PRESETS[preset] || AVATAR_PRESETS.sun;
+      profileManagerDraft.avatarPresetId = preset;
+      updateProfileManagerPreview();
+      renderProfileSampleAvatars();
+    });
+  });
+
+  const sampleGrid = document.getElementById('profile-sample-avatar-grid');
+  if (sampleGrid) {
+    sampleGrid.addEventListener('click', (e) => {
+      const option = e.target.closest('.sample-avatar-option');
+      if (!option || !profileManagerDraft) return;
+      const sampleId = option.getAttribute('data-avatar-id');
+      profileManagerDraft.avatarType = 'presetImage';
+      profileManagerDraft.avatarValue = getSampleAvatarData(sampleId);
+      profileManagerDraft.avatarPresetId = sampleId;
+      updateProfileManagerPreview();
+      renderProfileSampleAvatars();
+    });
+  }
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeProfileManagerModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+      closeProfileManagerModal();
+    }
+  });
+}
+
+function openProfileManagerModal() {
+  if (!TravelogState.userProfile.isOnboarded) return;
+  const modal = document.getElementById('profile-manager-modal');
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+  if (!modal) return;
+
+  profileManagerDraft = cloneProfile(TravelogState.userProfile);
+  if (!profileManagerDraft.avatarPresetId && profileManagerDraft.avatarType === 'emoji') {
+    const presetMatch = Object.entries(AVATAR_PRESETS).find(([, emoji]) => emoji === profileManagerDraft.avatarValue);
+    profileManagerDraft.avatarPresetId = presetMatch ? presetMatch[0] : 'sun';
+  }
+
+  if (nicknameInput) {
+    nicknameInput.value = profileManagerDraft.nickname || '';
+  }
+
+  hideProfileManagerFeedback();
+  renderProfileSampleAvatars();
+  updateProfileManagerPreview();
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+
+  window.setTimeout(() => {
+    if (nicknameInput) nicknameInput.focus();
+  }, 100);
+}
+
+function closeProfileManagerModal() {
+  const modal = document.getElementById('profile-manager-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+  profileManagerDraft = null;
+}
+
+function handleProfileManagerUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file || !profileManagerDraft) return;
+
+  if (!file.type.startsWith('image/')) {
+    showProfileManagerFeedback(localizedText('이미지 파일만 올릴 수 있어요.', 'Please upload an image file.', '画像ファイルのみアップロードできます。'), false);
+    return;
+  }
+
+  readImageFileAsDataUrl(file)
+    .then((imageData) => {
+      profileManagerDraft.avatarType = 'image';
+      profileManagerDraft.avatarValue = imageData;
+      profileManagerDraft.avatarPresetId = null;
+      updateProfileManagerPreview();
+      renderProfileSampleAvatars();
+      showProfileManagerFeedback(localizedText('이미지가 적용되었습니다. 저장을 눌러 완료하세요.', 'Image applied. Press Save to finish.', '画像を適用しました。保存を押して完了してください。'), true);
+      event.target.value = '';
+    })
+    .catch(() => {
+      showProfileManagerFeedback(localizedText('이미지를 불러오지 못했어요.', 'Could not load the image.', '画像を読み込めませんでした。'), false);
+    });
+}
+
+function saveProfileManagerChanges() {
+  if (!profileManagerDraft) return;
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+  const nickname = nicknameInput ? nicknameInput.value.trim() : '';
+  const validation = validateNicknameValue(nickname);
+
+  if (!validation.ok) {
+    showProfileManagerFeedback(validation.message, false);
+    return;
+  }
+
+  TravelogState.userProfile = {
+    ...TravelogState.userProfile,
+    ...profileManagerDraft,
+    nickname,
+    isOnboarded: true
+  };
+  verifiedNickname = nickname;
+  saveProfile();
+  renderUserProfileWidget();
+  closeProfileManagerModal();
+  showToast(LocalizationDictionary.profile_saved_toast[TravelogState.language] || LocalizationDictionary.profile_saved_toast.ko);
+}
+
+function resetProfileSetup() {
+  const confirmMessage = localizedText(
+    '저장된 프로필을 지우고 처음 설정 화면으로 돌아갈까요?',
+    'Remove the saved profile and return to the first setup screen?',
+    '保存されたプロフィールを削除して初期設定画面に戻りますか？'
+  );
+
+  if (!window.confirm(confirmMessage)) return;
+
+  try { localStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch (error) {}
+  TravelogState.userProfile = {
+    isOnboarded: false,
+    authProvider: null,
+    nickname: '',
+    avatarType: 'emoji',
+    avatarValue: '☀️',
+    avatarPresetId: 'sun'
+  };
+  verifiedNickname = '';
+  closeProfileManagerModal();
+
+  const widget = document.getElementById('user-profile-widget');
+  if (widget) widget.style.display = 'none';
+
+  const overlay = document.getElementById('onboarding-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.classList.remove('closing');
+    showOnboardingScreen('login');
+  }
+}
+
+function completeOnboarding() {
+  const input = document.getElementById('onboarding-nickname-input');
+  const nickname = input ? input.value.trim() : '';
+
+  if (!verifiedNickname || verifiedNickname !== nickname) {
+    if (!verifyNickname()) return;
+  }
+
+  TravelogState.userProfile.nickname = verifiedNickname || nickname;
+  TravelogState.userProfile.isOnboarded = true;
+  saveProfile();
+  renderUserProfileWidget();
+  hideOnboardingOverlay(false);
+
+  window.setTimeout(() => {
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.invalidateSize === 'function') {
+      window.TravelogMapModule.invalidateSize();
+    }
+    showToast(localizedText(`${TravelogState.userProfile.nickname}님, 즐거운 여행을 시작해볼까요?`, `Welcome, ${TravelogState.userProfile.nickname}!`, `${TravelogState.userProfile.nickname}さん、楽しい旅を始めましょう！`));
+  }, 500);
+}
+
+function hideOnboardingOverlay(skipAnimation) {
+  const overlay = document.getElementById('onboarding-overlay');
+  if (!overlay) return;
+
+  if (skipAnimation) {
+    overlay.style.display = 'none';
+    return;
+  }
+
+  overlay.classList.add('closing');
+  window.setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 450);
+}
+
+function renderUserProfileWidget() {
+  const widget = document.getElementById('user-profile-widget');
+  const avatar = document.getElementById('header-avatar-container');
+  const nickname = document.getElementById('header-nickname');
+  const profile = TravelogState.userProfile;
+
+  if (!widget || !avatar || !nickname) return;
+
+  if (!profile.isOnboarded) {
+    widget.style.display = 'none';
+    return;
+  }
+
+  widget.style.display = 'flex';
+  widget.title = localizedText('프로필 관리', 'Manage profile', 'プロフィール管理');
+  nickname.textContent = profile.nickname || 'Traveler';
+  applyAvatarToElements(profile, avatar, null);
+}
+
+function saveProfile() {
+  try {
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(TravelogState.userProfile));
+  } catch (error) {
+    console.warn('Travelog profile could not be saved locally.', error);
+  }
+}
+
+function loadSavedProfile() {
+  try {
+    const saved = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    if (!saved) return;
+
+    const parsedProfile = JSON.parse(saved);
+    TravelogState.userProfile = {
+      ...TravelogState.userProfile,
+      ...parsedProfile
+    };
+
+    if (!TravelogState.userProfile.avatarPresetId && TravelogState.userProfile.avatarType === 'emoji') {
+      const presetMatch = Object.entries(AVATAR_PRESETS).find(([, emoji]) => emoji === TravelogState.userProfile.avatarValue);
+      TravelogState.userProfile.avatarPresetId = presetMatch ? presetMatch[0] : 'sun';
+    }
+  } catch (error) {
+    console.warn('Travelog profile could not be loaded locally.', error);
+  }
+}
+
+// Global points management
+function updatePointsDisplay() {
+  document.getElementById('user-points').textContent = TravelogState.points;
+}
+
+function addPoints(amount) {
+  TravelogState.points += amount;
+  updatePointsDisplay();
+  showToast(`+${amount} points!`);
+}
+
+function deductPoints(amount) {
+  if (TravelogState.points >= amount) {
+    TravelogState.points -= amount;
+    updatePointsDisplay();
+    return true;
+  }
+  showToast(localizedText('포인트가 부족합니다!', 'Not enough points!', 'ポイントが足りません！'));
+  return false;
+}
+
+// Toast notification helper
+function showToast(message) {
+  let toast = document.getElementById('app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.style.cssText = `
+      position: absolute;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--grad-pink-purple);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 10000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: var(--shadow-neon-pink);
+    `;
+    document.body.appendChild(toast);
+  }
+  
+  toast.textContent = message;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-20px)';
+  }, 2500);
+}
+
+// Share functions globally on window object
+window.TravelogApp = {
+  getState: () => TravelogState,
+  resetOnboarding: () => {
+    resetProfileSetup();
+  },
+  addPoints: addPoints,
+  deductPoints: deductPoints,
+  showToast: showToast,
+  getLanguage: () => TravelogState.language,
+  t: (ko, en, ja) => localizedText(ko, en, ja),
+  pickLocalized: (source, baseKey) => localizedField(source, baseKey),
+  claimCoupon: (coupon) => {
+    TravelogState.ownedCoupons.push(coupon);
+    if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.renderCouponWallet === 'function') {
+      window.TravelogRewardsModule.renderCouponWallet();
+    }
+  }
+};
