@@ -56,6 +56,34 @@
       <section id="map-tab" class="tab-content active">
         <!-- Leaflet Map Canvas -->
         <div id="map-container"></div>
+
+        <!-- Map Top Summary UI -->
+        <div class="map-topbar glass-panel">
+          <div class="map-topbar-main">
+            <div class="map-brand-icon" aria-hidden="true">
+              <img src="assets/icons/ui/travelog-ci-symbol.svg" alt="">
+            </div>
+            <div class="map-topbar-copy">
+              <span class="map-kicker" data-localize="map_top_badge">Live Travel Map</span>
+              <h2 data-localize="map_route_title">경복궁 로컬 투어</h2>
+              <p data-localize="map_route_desc">GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.</p>
+            </div>
+          </div>
+          <div class="map-stat-row" aria-label="Map quick status">
+            <div class="map-stat-chip">
+              <strong id="map-stop-count">4</strong>
+              <span data-localize="map_stat_stops">Stops</span>
+            </div>
+            <div class="map-stat-chip">
+              <strong id="map-memo-count">0</strong>
+              <span data-localize="map_stat_memos">Memos</span>
+            </div>
+            <div class="map-stat-chip">
+              <strong id="map-gps-mode">OFF</strong>
+              <span data-localize="map_stat_gps">GPS</span>
+            </div>
+          </div>
+        </div>
         
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
@@ -65,13 +93,14 @@
               <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
             </button>
             <div id="active-guide-box" class="hud-card-body" style="margin-top: 10px;">
-              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                <div class="voice-avatar" id="guide-avatar-img" style="width: 44px; height: 44px;">
-                  <i class="fa-solid fa-user-tie"></i>
+              <div class="map-guide-profile">
+                <div class="map-guide-avatar" id="guide-avatar-img">
+                  <img src="assets/icons/ui/avatar-minho-guide.svg" alt="Minho guide avatar">
                 </div>
-                <div>
+                <div class="map-guide-text">
+                  <span class="map-guide-badge" data-localize="map_mini_guide">Recommended Guide</span>
                   <h4 id="guide-name">Minho (Seoul Local)</h4>
-                  <span id="guide-desc" style="font-size: 11px; color: var(--text-secondary);">Gyeongbokgung Historical Tour</span>
+                  <span id="guide-desc">Gyeongbokgung Historical Tour</span>
                 </div>
               </div>
               <div style="display: flex; gap: 8px;">
@@ -97,18 +126,22 @@
         </div>
 
         <!-- Map HUD Right Controls: GPS, Memo & Simulation -->
-        <div class="gps-controls">
-          <button class="btn-circle" id="real-gps-btn" title="Use My Current GPS Location" aria-label="Use My Current GPS Location">
+        <div class="gps-controls glass-panel" aria-label="Map controls">
+          <button class="btn-circle map-control-btn" id="real-gps-btn" title="Use My Current GPS Location" aria-label="Use My Current GPS Location" aria-pressed="false">
             <i class="fa-solid fa-location-crosshairs"></i>
+            <span data-localize="map_control_gps">Live GPS</span>
           </button>
-          <button class="btn-circle" id="add-location-memo-btn" title="Leave Memo at My Location" aria-label="Leave Memo at My Location">
+          <button class="btn-circle map-control-btn" id="add-location-memo-btn" title="Leave Memo at My Location" aria-label="Leave Memo at My Location">
             <i class="fa-solid fa-note-sticky"></i>
+            <span data-localize="map_control_memo">Memo</span>
           </button>
-          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
+          <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
             <i class="fa-solid fa-person-walking"></i>
+            <span data-localize="map_control_sim">Walk Test</span>
           </button>
-          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
+          <button class="btn-circle map-control-btn" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
             <i class="fa-solid fa-crosshairs"></i>
+            <span data-localize="map_control_recenter">Center</span>
           </button>
           <div id="gps-location-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-satellite-dish"></i>
@@ -116,6 +149,35 @@
           </div>
           <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
+          </div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="map-legend-panel glass-panel" aria-label="Map legend">
+          <span class="legend-item"><i class="legend-dot legend-current"></i><span data-localize="map_legend_current">Me</span></span>
+          <span class="legend-item"><i class="legend-dot legend-audio"></i><span data-localize="map_legend_audio">Audio</span></span>
+          <span class="legend-item"><i class="legend-dot legend-video"></i><span data-localize="map_legend_video">Video</span></span>
+          <span class="legend-item"><i class="legend-dot legend-coupon"></i><span data-localize="map_legend_coupon">Coupon</span></span>
+          <span class="legend-item"><i class="legend-dot legend-memo"></i><span data-localize="map_legend_memo">Memo</span></span>
+        </div>
+
+        <!-- Mobile Friendly Bottom Status Sheet -->
+        <div class="map-bottom-sheet glass-panel">
+          <div class="map-sheet-handle" aria-hidden="true"></div>
+          <div class="map-sheet-info">
+            <span data-localize="map_current_status">Current Map Status</span>
+            <strong id="map-current-coords" data-localize="map_coords_waiting">Turn on GPS to show your coordinates.</strong>
+            <small id="map-accuracy-text" data-localize="map_accuracy_waiting">Location accuracy will appear here.</small>
+          </div>
+          <div class="map-sheet-actions">
+            <button type="button" class="map-mini-action" onclick="document.getElementById('real-gps-btn')?.click()">
+              <i class="fa-solid fa-location-crosshairs"></i>
+              <span data-localize="map_control_gps">Live GPS</span>
+            </button>
+            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
+              <i class="fa-solid fa-note-sticky"></i>
+              <span data-localize="map_control_memo">Memo</span>
+            </button>
           </div>
         </div>
 
