@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 512 512"><defs><linearGradient id="hero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#162545"/><stop offset="1" stop-color="#8DA6C1"/></linearGradient><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#182743"/><stop offset="1" stop-color="#355A8B"/></linearGradient></defs><rect width="512" height="512" fill="url(#hero)"/><rect width="512" height="512" fill="#132241"/>
+<path d="M0 360 C116 314 250 392 512 340 V512 H0 Z" fill="#243E65"/>
+<path d="M106 322 L138 216 L176 264 L232 182 L304 266 L362 194 L414 314 Z" fill="#7A93BA" opacity="0.46"/>
+<circle cx="402" cy="122" r="34" fill="#FFD789"/>
+<path d="M182 146c36-24 86-24 122 0" fill="none" stroke="#FFD789" stroke-width="8" stroke-linecap="round"/>
+<circle cx="248" cy="214" r="84" fill="#F8F2E8"/><path d="M248 166 L266 208 L308 208 L274 232 L286 274 L248 248 L210 274 L222 232 L188 208 L230 208 Z" fill="#E28743"/>
+<path d="M120 342c26-30 64-48 106-48h44c44 0 86 18 118 50" fill="none" stroke="#A8DFEC" stroke-width="10" stroke-linecap="round"/>
+<rect x="40" y="36" width="126" height="34" rx="17" fill="rgba(255,255,255,0.88)"/><text x="103" y="58" text-anchor="middle" font-size="18" fill="#2B3A42" font-family="Arial, sans-serif" font-weight="bold">QUEST</text><rect x="40" y="420" width="432" height="62" rx="28" fill="rgba(255,255,255,0.92)"/><text x="64" y="447" font-size="26" fill="#002855" font-family="Arial, sans-serif" font-weight="bold">Seoul Palaces Mystery</text><text x="64" y="470" font-size="16" fill="#4F626C" font-family="Arial, sans-serif">Outdoor detective game across royal landmarks</text></svg>
