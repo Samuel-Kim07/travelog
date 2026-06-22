@@ -337,14 +337,14 @@ const AVATAR_PRESETS = {
 };
 
 const PROFILE_SAMPLE_AVATARS = [
-  { id: 'hanok', icon: '🏯', bg1: '#E28743', bg2: '#F2E58A', labelKo: '한옥', labelEn: 'Hanok', labelJa: '韓屋' },
-  { id: 'compass', icon: '🧭', bg1: '#002855', bg2: '#70A2B7', labelKo: '나침반', labelEn: 'Compass', labelJa: 'コンパス' },
-  { id: 'camera', icon: '📷', bg1: '#E91E63', bg2: '#E8B4B8', labelKo: '카메라', labelEn: 'Camera', labelJa: 'カメラ' },
-  { id: 'mountain', icon: '⛰️', bg1: '#4A7F4D', bg2: '#AFD499', labelKo: '산길', labelEn: 'Mountain', labelJa: '山道' },
-  { id: 'ocean', icon: '🌊', bg1: '#70A2B7', bg2: '#A8DFEC', labelKo: '바다', labelEn: 'Ocean', labelJa: '海' },
-  { id: 'cafe', icon: '☕', bg1: '#9B6A45', bg2: '#F1D7B0', labelKo: '카페', labelEn: 'Cafe', labelJa: 'カフェ' },
-  { id: 'train', icon: '🚆', bg1: '#002855', bg2: '#E28743', labelKo: '기차', labelEn: 'Train', labelJa: '電車' },
-  { id: 'night', icon: '🌙', bg1: '#1A2340', bg2: '#8EA8C3', labelKo: '야경', labelEn: 'Night', labelJa: '夜景' }
+  { id: 'hanok', icon: '🏯', bg1: '#E28743', bg2: '#F2E58A', labelKo: '한옥', labelEn: 'Hanok', labelJa: '韓屋', imagePath: 'assets/images/profile/profile-hanok.svg' },
+  { id: 'compass', icon: '🧭', bg1: '#002855', bg2: '#70A2B7', labelKo: '나침반', labelEn: 'Compass', labelJa: 'コンパス', imagePath: 'assets/images/profile/profile-compass.svg' },
+  { id: 'camera', icon: '📷', bg1: '#E91E63', bg2: '#E8B4B8', labelKo: '카메라', labelEn: 'Camera', labelJa: 'カメラ', imagePath: 'assets/images/profile/profile-camera.svg' },
+  { id: 'mountain', icon: '⛰️', bg1: '#4A7F4D', bg2: '#AFD499', labelKo: '산길', labelEn: 'Mountain', labelJa: '山道', imagePath: 'assets/images/profile/profile-mountain.svg' },
+  { id: 'ocean', icon: '🌊', bg1: '#70A2B7', bg2: '#A8DFEC', labelKo: '바다', labelEn: 'Ocean', labelJa: '海', imagePath: 'assets/images/profile/profile-ocean.svg' },
+  { id: 'cafe', icon: '☕', bg1: '#9B6A45', bg2: '#F1D7B0', labelKo: '카페', labelEn: 'Cafe', labelJa: 'カフェ', imagePath: 'assets/images/profile/profile-cafe.svg' },
+  { id: 'train', icon: '🚆', bg1: '#002855', bg2: '#E28743', labelKo: '기차', labelEn: 'Train', labelJa: '電車', imagePath: 'assets/images/profile/profile-train.svg' },
+  { id: 'night', icon: '🌙', bg1: '#1A2340', bg2: '#8EA8C3', labelKo: '야경', labelEn: 'Night', labelJa: '夜景', imagePath: 'assets/images/profile/profile-night.svg' }
 ];
 
 let verifiedNickname = '';
@@ -517,24 +517,7 @@ window.TravelogVerifyNickname = verifyNickname;
 window.TravelogCompleteOnboarding = completeOnboarding;
 
 function createSampleAvatarDataUri(sample) {
-  const safeIcon = escapeHtml(sample.icon);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${sample.bg1}"/>
-          <stop offset="100%" stop-color="${sample.bg2}"/>
-        </linearGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,0.22)"/>
-        </filter>
-      </defs>
-      <rect width="160" height="160" rx="80" fill="url(#g)"/>
-      <circle cx="116" cy="34" r="34" fill="rgba(255,255,255,0.24)"/>
-      <circle cx="42" cy="122" r="42" fill="rgba(255,255,255,0.14)"/>
-      <text x="80" y="96" text-anchor="middle" font-size="58" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif" filter="url(#shadow)">${safeIcon}</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  return sample.imagePath || '';
 }
 
 function escapeHtml(value) {
@@ -553,7 +536,7 @@ function getSampleAvatarById(id) {
 
 function getSampleAvatarData(id) {
   const sample = getSampleAvatarById(id);
-  return createSampleAvatarDataUri(sample);
+  return sample.imagePath || createSampleAvatarDataUri(sample);
 }
 
 function getLocalizedSampleLabel(sample) {

@@ -28,13 +28,13 @@ const TravelogExploreModule = (() => {
       locationKo: "서울 서촌",
       locationJa: "ソウル西村",
       creator: "Yuna_Travels",
-      avatar: "assets/icons/ui/avatar-yuna-travels.svg",
+      avatar: "assets/images/avatars/avatar-yuna-travels.svg",
       likes: 1240,
       comments: 420,
       soundEn: "Acoustic Afternoon - Yuna",
       soundKo: "어쿠스틱 오후 - 유나의 여행송",
       soundJa: "アコースティック午後 - ユナの旅ソング",
-      image: "assets/icons/ui/vlog-seoul-hanok-tea-cafe.svg",
+      image: "assets/images/explore/vlog-seoul-hanok-tea-cafe.svg",
       liked: false
     },
     {
@@ -49,13 +49,13 @@ const TravelogExploreModule = (() => {
       locationKo: "도쿄 시부야",
       locationJa: "東京・渋谷",
       creator: "Hiro_Gamer",
-      avatar: "assets/icons/ui/avatar-hiro-gamer.svg",
+      avatar: "assets/images/avatars/avatar-hiro-gamer.svg",
       likes: 4520,
       comments: 980,
       soundEn: "Synthwave Tokyo Beats",
       soundKo: "도쿄 시부야 신스웨이브 로파이",
       soundJa: "東京渋谷シンセウェーブ・ローファイ",
-      image: "assets/icons/ui/vlog-shibuya-night-walk.svg",
+      image: "assets/images/explore/vlog-shibuya-night-walk.svg",
       liked: false
     },
     {
@@ -70,13 +70,13 @@ const TravelogExploreModule = (() => {
       locationKo: "파리 센강",
       locationJa: "パリ・セーヌ川",
       creator: "Chloe_Parisienne",
-      avatar: "assets/icons/ui/avatar-chloe-parisienne.svg",
+      avatar: "assets/images/avatars/avatar-chloe-parisienne.svg",
       likes: 2890,
       comments: 650,
       soundEn: "La Vie En Rose (Accordion Cover)",
       soundKo: "라비앙로즈 아코디언 클래식 커버",
       soundJa: "ラ・ヴィ・アン・ローズ アコーディオンカバー",
-      image: "assets/icons/ui/vlog-paris-seine-sunset.svg",
+      image: "assets/images/explore/vlog-paris-seine-sunset.svg",
       liked: false
     }
   ];
@@ -96,8 +96,8 @@ const TravelogExploreModule = (() => {
       tagKo: "추천코스",
       tagJa: "おすすめコース",
       author: "Minho",
-      authorAvatar: "assets/icons/ui/avatar-minho-guide.svg",
-      image: "assets/icons/ui/blog-seoul-history-food.svg"
+      authorAvatar: "assets/images/avatars/avatar-minho-guide.svg",
+      image: "assets/images/blogs/blog-seoul-history-food.svg"
     },
     {
       id: 'blog-kyoto',
@@ -112,8 +112,8 @@ const TravelogExploreModule = (() => {
       tagKo: "힐링여행",
       tagJa: "癒やし旅",
       author: "Yuki",
-      authorAvatar: "assets/icons/ui/avatar-yuki-guide.svg",
-      image: "assets/icons/ui/blog-kyoto-temple-bamboo.svg"
+      authorAvatar: "assets/images/avatars/avatar-yuki-guide.svg",
+      image: "assets/images/blogs/blog-kyoto-temple-bamboo.svg"
     },
     {
       id: 'blog-swiss',
@@ -128,8 +128,8 @@ const TravelogExploreModule = (() => {
       tagKo: "배낭여행",
       tagJa: "バックパック旅",
       author: "Stefan",
-      authorAvatar: "assets/icons/ui/avatar-stefan-guide.svg",
-      image: "assets/icons/ui/blog-switzerland-interlaken.svg"
+      authorAvatar: "assets/images/avatars/avatar-stefan-guide.svg",
+      image: "assets/images/blogs/blog-switzerland-interlaken.svg"
     }
   ];
 
