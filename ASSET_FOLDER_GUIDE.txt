@@ -126,5 +126,54 @@ assets/icons/ui/poster-minho-video.svg
 assets/icons/ui/travelog-ci-symbol.svg
 
 위 파일들은 모두 GitHub Pages에서 바로 표시 가능한 SVG 이미지입니다.
+------------------------------------------
+26_06_22
+TRAVELOG ASSET FOLDER GUIDE
+===========================
+
+Main image folder now used by the app:
+assets/images/
+
+Subfolders:
+assets/images/brand/
+assets/images/avatars/
+assets/images/explore/
+assets/images/blogs/
+assets/images/adventure/
+assets/images/video/
+assets/images/profile/
+
+Connected UI image files:
+assets/images/brand/travelog-ci-symbol.svg
+assets/images/avatars/avatar-minho-guide.svg
+assets/images/avatars/avatar-yuna-travels.svg
+assets/images/avatars/avatar-hiro-gamer.svg
+assets/images/avatars/avatar-chloe-parisienne.svg
+assets/images/avatars/avatar-yuki-guide.svg
+assets/images/avatars/avatar-stefan-guide.svg
+assets/images/explore/vlog-seoul-hanok-tea-cafe.svg
+assets/images/explore/vlog-shibuya-night-walk.svg
+assets/images/explore/vlog-paris-seine-sunset.svg
+assets/images/blogs/blog-seoul-history-food.svg
+assets/images/blogs/blog-kyoto-temple-bamboo.svg
+assets/images/blogs/blog-switzerland-interlaken.svg
+assets/images/adventure/quest-seoul-palace-mystery.svg
+assets/images/video/poster-minho-video.svg
+assets/images/profile/profile-hanok.svg
+assets/images/profile/profile-compass.svg
+assets/images/profile/profile-camera.svg
+assets/images/profile/profile-mountain.svg
+assets/images/profile/profile-ocean.svg
+assets/images/profile/profile-cafe.svg
+assets/images/profile/profile-train.svg
+assets/images/profile/profile-night.svg
+
+Media content folders still used by the app:
+assets/icons/Audio/
+assets/icons/Video/
+assets/icons/google-g-logo.svg
+
+If you replace any image file, keep the same file name to avoid reconnecting code.
+
 
 
