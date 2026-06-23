@@ -519,21 +519,28 @@ nav.bottom-nav {
 }
 
 .hud-toggle-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(112, 162, 183, 0.10);
-  color: var(--color-ocean);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  width: 30px;
+  height: 30px;
+  display: inline-block;
   flex-shrink: 0;
-  font-size: 12px;
-  transition: transform var(--transition-fast), background var(--transition-fast);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transition: transform var(--transition-fast), filter var(--transition-fast), opacity var(--transition-fast);
+  opacity: 0.96;
+}
+
+.hud-toggle-icon[data-state="expanded"] {
+  background-image: url('assets/images/controls/toggle-expand.svg');
+}
+
+.hud-toggle-icon[data-state="collapsed"] {
+  background-image: url('assets/images/controls/toggle-collapse.svg');
 }
 
 .hud-card-toggle:hover .hud-toggle-icon {
-  background: rgba(112, 162, 183, 0.18);
+  filter: brightness(1.03);
+  opacity: 1;
 }
 
 .hud-card-body {
@@ -556,7 +563,7 @@ nav.bottom-nav {
 }
 
 .collapsible-hud.collapsed .hud-toggle-icon {
-  transform: rotate(180deg);
+  transform: none;
 }
 
 @media (max-width: 600px) {
@@ -574,9 +581,8 @@ nav.bottom-nav {
   }
 
   .hud-toggle-icon {
-    width: 24px;
-    height: 24px;
-    font-size: 11px;
+    width: 28px;
+    height: 28px;
   }
 }
 

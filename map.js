@@ -270,9 +270,7 @@ const TravelogMapModule = (() => {
     );
 
     if (icon) {
-      icon.className = collapsed
-        ? 'fa-solid fa-chevron-down hud-toggle-icon'
-        : 'fa-solid fa-chevron-up hud-toggle-icon';
+      icon.setAttribute('data-state', collapsed ? 'collapsed' : 'expanded');
     }
 
     if (persist) {

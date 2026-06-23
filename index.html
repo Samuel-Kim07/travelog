@@ -90,7 +90,7 @@
           <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="active-guide">
             <button type="button" class="hud-card-toggle" data-hud-toggle="active-guide" aria-expanded="true">
               <span class="hud-card-title" data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</span>
-              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
+              <span class="hud-toggle-icon" data-state="expanded" aria-hidden="true"></span>
             </button>
             <div id="active-guide-box" class="hud-card-body" style="margin-top: 10px;">
               <div class="map-guide-profile">
@@ -117,7 +117,7 @@
           <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="tour-stops">
             <button type="button" class="hud-card-toggle" data-hud-toggle="tour-stops" aria-expanded="true">
               <span class="hud-card-title" data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</span>
-              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
+              <span class="hud-toggle-icon" data-state="expanded" aria-hidden="true"></span>
             </button>
             <div id="tour-stops-list" class="hud-card-body" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
               <!-- Populated dynamically -->
@@ -184,8 +184,8 @@
         <!-- Location Memo Modal -->
         <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
           <div class="location-memo-card glass-panel">
-            <button class="btn-circle memo-close-btn close-x-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
-              <span class="close-x-icon" aria-hidden="true">×</span>
+            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
+              <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="memo-modal-header">
               <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
@@ -207,7 +207,7 @@
         <div id="audio-overlay" class="floating-overlay-player glass-panel">
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 12px; text-transform: uppercase; color: var(--accent-blue); font-weight: 700;" data-localize="audio_guide">Audio Guide Triggered</span>
-            <button class="btn-circle close-x-btn" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;" aria-label="Close audio player"><span class="close-x-icon" aria-hidden="true">×</span></button>
+            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
@@ -237,7 +237,7 @@
 
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
-          <button class="btn-circle close-overlay-video close-x-btn" id="close-video-modal-btn" aria-label="Close video player"><span class="close-x-icon" aria-hidden="true">×</span></button>
+          <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
           <div class="video-wrapper guide-video-wrapper">
             <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
               <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
@@ -670,8 +670,8 @@
           <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
           <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
         </div>
-        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn close-x-btn" aria-label="Close profile manager">
-          <span class="close-x-icon" aria-hidden="true">×</span>
+        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
