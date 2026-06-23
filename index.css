@@ -3526,3 +3526,25 @@ nav.bottom-nav {
     font-size: 20px !important;
   }
 }
+
+
+/* Intuitive close X icon for popups */
+.close-x-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-x-icon {
+  display: inline-block;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  color: currentColor;
+  transform: translateY(-1px);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#close-audio-btn .close-x-icon {
+  font-size: 18px;
+}

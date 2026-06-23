@@ -6,8 +6,7 @@
   <title>Travelog - Global Travel Assistant & Adventure Map</title>
   
   <!-- FontAwesome & Google Fonts -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&amp;family=Outfit:wght@500;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Leaflet Map CSS & JS -->
   <!-- GitHub Pages/mobile에서 SRI 또는 특정 CDN이 막히는 경우를 줄이기 위해 jsDelivr를 사용합니다. -->
@@ -185,8 +184,8 @@
         <!-- Location Memo Modal -->
         <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
           <div class="location-memo-card glass-panel">
-            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
-              <i class="fa-solid fa-xmark"></i>
+            <button class="btn-circle memo-close-btn close-x-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
+              <span class="close-x-icon" aria-hidden="true">×</span>
             </button>
             <div class="memo-modal-header">
               <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
@@ -208,7 +207,7 @@
         <div id="audio-overlay" class="floating-overlay-player glass-panel">
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 12px; text-transform: uppercase; color: var(--accent-blue); font-weight: 700;" data-localize="audio_guide">Audio Guide Triggered</span>
-            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-circle close-x-btn" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;" aria-label="Close audio player"><span class="close-x-icon" aria-hidden="true">×</span></button>
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
@@ -238,7 +237,7 @@
 
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
-          <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-circle close-overlay-video close-x-btn" id="close-video-modal-btn" aria-label="Close video player"><span class="close-x-icon" aria-hidden="true">×</span></button>
           <div class="video-wrapper guide-video-wrapper">
             <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
               <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
@@ -671,8 +670,8 @@
           <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
           <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
         </div>
-        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
-          <i class="fa-solid fa-xmark"></i>
+        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn close-x-btn" aria-label="Close profile manager">
+          <span class="close-x-icon" aria-hidden="true">×</span>
         </button>
       </div>
 
