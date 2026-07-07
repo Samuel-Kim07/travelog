@@ -9,9 +9,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Leaflet Map CSS & JS -->
-  <!-- GitHub Pages/mobile에서 SRI 또는 특정 CDN이 막히는 경우를 줄이기 위해 jsDelivr를 사용합니다. -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="index.css">
@@ -28,10 +27,9 @@
       
       <div class="header-actions">
         <!-- User Profile Widget (Redesign addition) -->
-        <div id="user-profile-widget" class="profile-widget" style="display: none;" role="button" tabindex="0" aria-label="Open profile manager">
+        <div id="user-profile-widget" class="profile-widget" style="display: none;">
           <div class="profile-widget-avatar" id="header-avatar-container"></div>
           <span id="header-nickname">Traveler</span>
-          <i class="fa-solid fa-gear profile-widget-gear" aria-hidden="true"></i>
         </div>
 
         <!-- User Points Stat -->
@@ -56,51 +54,19 @@
       <section id="map-tab" class="tab-content active">
         <!-- Leaflet Map Canvas -->
         <div id="map-container"></div>
-
-        <!-- Map Top Summary UI -->
-        <div class="map-topbar glass-panel">
-          <div class="map-topbar-main">
-            <div class="map-brand-icon" aria-hidden="true">
-              <img src="assets/images/brand/travelog-ci-symbol.svg" alt="">
-            </div>
-            <div class="map-topbar-copy">
-              <span class="map-kicker" data-localize="map_top_badge">Live Travel Map</span>
-              <h2 data-localize="map_route_title">경복궁 로컬 투어</h2>
-              <p data-localize="map_route_desc">GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.</p>
-            </div>
-          </div>
-          <div class="map-stat-row" aria-label="Map quick status">
-            <div class="map-stat-chip">
-              <strong id="map-stop-count">4</strong>
-              <span data-localize="map_stat_stops">Stops</span>
-            </div>
-            <div class="map-stat-chip">
-              <strong id="map-memo-count">0</strong>
-              <span data-localize="map_stat_memos">Memos</span>
-            </div>
-            <div class="map-stat-chip">
-              <strong id="map-gps-mode">OFF</strong>
-              <span data-localize="map_stat_gps">GPS</span>
-            </div>
-          </div>
-        </div>
         
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
-          <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="active-guide">
-            <button type="button" class="hud-card-toggle" data-hud-toggle="active-guide" aria-expanded="true">
-              <span class="hud-card-title" data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</span>
-              <span class="hud-toggle-icon" data-state="expanded" aria-hidden="true"></span>
-            </button>
-            <div id="active-guide-box" class="hud-card-body" style="margin-top: 10px;">
-              <div class="map-guide-profile">
-                <div class="map-guide-avatar" id="guide-avatar-img">
-                  <img src="assets/images/avatars/avatar-minho-guide.svg" alt="Minho guide avatar">
+          <div class="hud-card glass-panel">
+            <h3 data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</h3>
+            <div id="active-guide-box" style="margin-top: 10px;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div class="voice-avatar" id="guide-avatar-img" style="width: 44px; height: 44px;">
+                  <i class="fa-solid fa-user-tie"></i>
                 </div>
-                <div class="map-guide-text">
-                  <span class="map-guide-badge" data-localize="map_mini_guide">Recommended Guide</span>
+                <div>
                   <h4 id="guide-name">Minho (Seoul Local)</h4>
-                  <span id="guide-desc">Gyeongbokgung Historical Tour</span>
+                  <span id="guide-desc" style="font-size: 11px; color: var(--text-secondary);">Gyeongbokgung Historical Tour</span>
                 </div>
               </div>
               <div style="display: flex; gap: 8px;">
@@ -114,92 +80,24 @@
             </div>
           </div>
           
-          <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="tour-stops">
-            <button type="button" class="hud-card-toggle" data-hud-toggle="tour-stops" aria-expanded="true">
-              <span class="hud-card-title" data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</span>
-              <span class="hud-toggle-icon" data-state="expanded" aria-hidden="true"></span>
-            </button>
-            <div id="tour-stops-list" class="hud-card-body" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
+          <div class="hud-card glass-panel">
+            <h3 data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</h3>
+            <div id="tour-stops-list" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
               <!-- Populated dynamically -->
             </div>
           </div>
         </div>
 
-        <!-- Map HUD Right Controls: GPS, Memo & Simulation -->
-        <div class="gps-controls glass-panel" aria-label="Map controls">
-          <button class="btn-circle map-control-btn" id="real-gps-btn" title="Use My Current GPS Location" aria-label="Use My Current GPS Location" aria-pressed="false">
-            <span class="map-control-icon" aria-hidden="true">⌖</span>
-            <span data-localize="map_control_gps">Live GPS</span>
+        <!-- Map HUD Right Controls: GPS Simulation -->
+        <div class="gps-controls">
+          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk">
+            <i class="fa-solid fa-person-walking"></i>
           </button>
-          <button class="btn-circle map-control-btn" id="add-location-memo-btn" title="Leave Memo at My Location" aria-label="Leave Memo at My Location">
-            <span class="map-control-icon" aria-hidden="true">✎</span>
-            <span data-localize="map_control_memo">Memo</span>
+          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map">
+            <i class="fa-solid fa-crosshairs"></i>
           </button>
-          <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
-            <span class="map-control-icon" aria-hidden="true">↟</span>
-            <span data-localize="map_control_sim">Walk Test</span>
-          </button>
-          <button class="btn-circle map-control-btn" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
-            <span class="map-control-icon" aria-hidden="true">◎</span>
-            <span data-localize="map_control_recenter">Center</span>
-          </button>
-          <div id="gps-location-pill" class="glass-panel map-status-pill" style="display: none;">
-            <i class="fa-solid fa-satellite-dish"></i>
-            <span id="gps-location-text" data-localize="gps_waiting">Waiting for GPS...</span>
-          </div>
-          <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
+          <div id="simulation-status-pill" class="glass-panel" style="display: none; padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--accent-blue); text-align: center;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
-          </div>
-        </div>
-
-        <!-- Map Legend -->
-        <div class="map-legend-panel glass-panel" aria-label="Map legend">
-          <span class="legend-item"><i class="legend-dot legend-current"></i><span data-localize="map_legend_current">Me</span></span>
-          <span class="legend-item"><i class="legend-dot legend-audio"></i><span data-localize="map_legend_audio">Audio</span></span>
-          <span class="legend-item"><i class="legend-dot legend-video"></i><span data-localize="map_legend_video">Video</span></span>
-          <span class="legend-item"><i class="legend-dot legend-coupon"></i><span data-localize="map_legend_coupon">Coupon</span></span>
-          <span class="legend-item"><i class="legend-dot legend-memo"></i><span data-localize="map_legend_memo">Memo</span></span>
-        </div>
-
-        <!-- Mobile Friendly Bottom Status Sheet -->
-        <div class="map-bottom-sheet glass-panel">
-          <div class="map-sheet-handle" aria-hidden="true"></div>
-          <div class="map-sheet-info">
-            <span data-localize="map_current_status">Current Map Status</span>
-            <strong id="map-current-coords" data-localize="map_coords_waiting">Turn on GPS to show your coordinates.</strong>
-            <small id="map-accuracy-text" data-localize="map_accuracy_waiting">Location accuracy will appear here.</small>
-          </div>
-          <div class="map-sheet-actions">
-            <button type="button" class="map-mini-action" onclick="document.getElementById('real-gps-btn')?.click()">
-              <i class="fa-solid fa-location-crosshairs"></i>
-              <span data-localize="map_control_gps">Live GPS</span>
-            </button>
-            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
-              <i class="fa-solid fa-note-sticky"></i>
-              <span data-localize="map_control_memo">Memo</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Location Memo Modal -->
-        <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
-          <div class="location-memo-card glass-panel">
-            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-            <div class="memo-modal-header">
-              <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
-              <div>
-                <h3 data-localize="memo_modal_title">Leave a Memo Here</h3>
-                <p data-localize="memo_modal_desc">Save a short note at your current GPS location.</p>
-              </div>
-            </div>
-            <div id="memo-location-preview" class="memo-location-preview">37.00000, 127.00000</div>
-            <textarea id="location-memo-text" maxlength="220" data-localize-placeholder="memo_text_placeholder" placeholder="Write a memo for this place..."></textarea>
-            <div class="memo-modal-actions">
-              <button class="btn-rect secondary" id="cancel-location-memo-btn" data-localize="memo_cancel">Cancel</button>
-              <button class="btn-rect" id="save-location-memo-btn" data-localize="memo_save">Save Memo</button>
-            </div>
           </div>
         </div>
 
@@ -211,9 +109,6 @@
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
-          <audio id="guide-audio-element" class="guide-audio-element" controls preload="metadata">
-            <source src="assets/icons/Audio/Test_log.m4a" type="audio/mp4">
-          </audio>
           
           <!-- Animated audio waves -->
           <div class="player-wave-container" id="waveform-visualizer">
@@ -238,14 +133,24 @@
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
           <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
-          <div class="video-wrapper guide-video-wrapper">
-            <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
-              <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
-            </video>
-            <div class="guide-video-info-panel">
-              <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
-              <p id="video-overlay-author">Minho's Historical Walk</p>
-              <span id="video-play-timer">0:00 / --:--</span>
+          <div class="video-wrapper">
+            <!-- Simulated Video (Canvas + Audio + Interactive Graphics) -->
+            <div class="simulated-video" id="simulated-video-screen">
+              <div style="position: absolute; bottom: 20px; left: 20px; z-index: 10; color: white;">
+                <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
+                <p id="video-overlay-author" style="font-size: 12px; color: var(--accent-blue); font-weight: 600;">Minho's Historical Walk</p>
+              </div>
+              <div class="player-wave-container" style="position: absolute; top: 10px; right: 10px; width: 100px; height: 30px;">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+              <!-- Graphic Simulator -->
+              <div id="video-canvas-anim" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; background: radial-gradient(circle, #2b1055, #000000);">
+                <i class="fa-solid fa-video" style="font-size: 48px; color: var(--accent-pink); margin-bottom: 20px; animation: pulse-pin 1.5s infinite;"></i>
+                <span style="color: white; font-size: 14px; font-weight: 500;" id="video-play-status" data-localize="vlog_playing">Vlog Video Playing...</span>
+                <span style="color: var(--text-secondary); font-size: 12px; margin-top: 10px;" id="video-play-timer">0:00 / 0:15</span>
+              </div>
             </div>
           </div>
         </div>
@@ -411,54 +316,6 @@
                 <!-- Voice Market Cards dynamically generated -->
               </div>
             </div>
-
-            <div class="glass-panel github-storage-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
-              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
-
-              <div class="storage-config-box">
-                <div class="storage-row">
-                  <span data-localize="media_storage_repo">Repository</span>
-                  <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
-                </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_audio_path">Audio path</span>
-                  <code id="github-audio-path">assets/icons/Audio</code>
-                </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_video_path">Video path</span>
-                  <code id="github-video-path">assets/icons/Video</code>
-                </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_token_status">Token status</span>
-                  <span id="github-token-status" class="storage-status-pill">No token</span>
-                </div>
-              </div>
-
-              <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
-              <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
-              <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
-              <div class="storage-action-row">
-                <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
-                <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
-                <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
-              </div>
-
-              <div class="media-upload-test-grid">
-                <div class="media-upload-card">
-                  <label data-localize="media_storage_audio_file">Audio file test</label>
-                  <input type="file" id="media-audio-file" accept="audio/*">
-                  <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
-                </div>
-                <div class="media-upload-card">
-                  <label data-localize="media_storage_video_file">Video file test</label>
-                  <input type="file" id="media-video-file" accept="video/*">
-                  <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
-                </div>
-              </div>
-
-              <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
-            </div>
           </div>
         </div>
       </section>
@@ -468,7 +325,7 @@
         <div class="adventure-layout">
           <!-- Left Column: Quest details & current milestones -->
           <div class="adventure-console">
-            <div class="quest-banner" style="background-image: url('assets/images/adventure/quest-seoul-palace-mystery.svg');">
+            <div class="quest-banner" style="background-image: url('https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=600');">
               <div class="quest-status-badge" data-localize="quest_active">Active Quest</div>
               <div class="quest-banner-content">
                 <h2 style="font-size: 22px; color: white;" id="quest-main-title">Seoul Palaces Mystery</h2>
@@ -550,185 +407,179 @@
     </nav>
   </div>
 
-  <!-- Onboarding Full-Screen Overlay (Redesign Addition) -->
-  <div id="onboarding-overlay" class="onboarding-backdrop">
+  <!-- Onboarding Full-Screen Overlay: Login → Profile → Tutorial → Start -->
+  <div id="onboarding-overlay" class="onboarding-backdrop" aria-modal="true" role="dialog">
     <div class="onboarding-card glass-panel arch-card">
+      <div class="onboarding-progress" aria-label="Onboarding progress">
+        <span class="progress-dot active" data-step-dot="login"></span>
+        <span class="progress-line"></span>
+        <span class="progress-dot" data-step-dot="profile"></span>
+        <span class="progress-line"></span>
+        <span class="progress-dot" data-step-dot="tutorial"></span>
+      </div>
       
-      <!-- SCREEN 1: LOGIN SIGNUP SELECTION -->
-      <div id="onboarding-screen-login" class="onboarding-screen active">
-        <div class="onboarding-step-row">
-          <span class="step-pill" data-localize="onboarding_step_login">1/2단계 · 시작하기</span>
-          <div class="step-dots" aria-hidden="true"><span class="active"></span><span></span></div>
-        </div>
-
+      <!-- SCREEN 1: LOGIN / SIGNUP SELECTION -->
+      <div id="onboarding-screen-login" class="onboarding-screen active" data-onboarding-screen="login">
         <div class="onboarding-header">
           <i class="fa-solid fa-earth-americas logo-icon"></i>
-          <h2 class="gradient-text" data-localize="onboarding_title">Travelog에 오신 걸 환영해요</h2>
-          <p data-localize="onboarding_subtitle">The global companion for passionate travelers</p>
-        </div>
-
-        <div class="onboarding-feature-row">
-          <span><i class="fa-solid fa-location-dot"></i> <b data-localize="onboarding_feature_guide">GPS 음성 가이드</b></span>
-          <span><i class="fa-solid fa-gift"></i> <b data-localize="onboarding_feature_reward">쿠폰과 퀘스트</b></span>
-          <span><i class="fa-solid fa-microphone-lines"></i> <b data-localize="onboarding_feature_creator">가이드 제작 스튜디오</b></span>
+          <span class="onboarding-step-label" data-localize="step_login">1. 로그인</span>
+          <h2 class="gradient-text" data-localize="onboarding_login_title">Travelog 시작하기</h2>
+          <p data-localize="onboarding_subtitle">간편 로그인 또는 이메일 가입으로 여행 가이드를 시작하세요.</p>
         </div>
         
         <div class="login-button-container">
-          <!-- Google Login -->
-          <button type="button" class="login-btn-google" id="login-google-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Google')">
-            <img src="assets/icons/google-g-logo.svg" alt="Google Logo">
-            <span data-localize="login_google">Continue with Google</span>
+          <button class="login-btn-google" id="login-google-btn" data-provider="google">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
+            <span data-localize="login_google">Google로 계속하기</span>
           </button>
           
-          <!-- Naver Login -->
-          <button type="button" class="login-btn-naver" id="login-naver-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Naver')">
+          <button class="login-btn-naver" id="login-naver-btn" data-provider="naver">
             <span class="naver-icon">N</span>
-            <span data-localize="login_naver">Continue with Naver</span>
-          </button>
-          
-          <!-- Email Login -->
-          <button type="button" class="login-btn-email" id="login-email-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Email')">
-            <i class="fa-solid fa-envelope"></i>
-            <span data-localize="login_email">Continue with Email</span>
+            <span data-localize="login_naver">Naver로 계속하기</span>
           </button>
 
-          <!-- Guest Login, common in travel/discovery apps for low-friction entry -->
-          <button type="button" class="login-btn-guest" id="login-guest-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Guest')">
-            <i class="fa-solid fa-suitcase-rolling"></i>
-            <span data-localize="login_guest">게스트로 먼저 둘러보기</span>
+          <button class="login-btn-facebook" id="login-facebook-btn" data-provider="facebook">
+            <i class="fa-brands fa-facebook-f"></i>
+            <span data-localize="login_facebook">Facebook으로 계속하기</span>
+          </button>
+          
+          <button class="login-btn-email" id="login-email-btn" data-provider="email">
+            <i class="fa-solid fa-envelope"></i>
+            <span data-localize="login_email">이메일로 가입하기</span>
           </button>
         </div>
 
-        <p class="onboarding-privacy-note" data-localize="onboarding_privacy_hint">현재 프로토타입에서는 실제 로그인 정보를 전송하지 않고 다음 설정 단계로 이동합니다.</p>
+        <form id="email-signup-panel" class="email-signup-panel" style="display:none;" novalidate>
+          <label data-localize="email_label">이메일 주소</label>
+          <input type="email" id="signup-email-input" placeholder="travelog@example.com" autocomplete="email">
+          <label data-localize="password_label">비밀번호</label>
+          <input type="password" id="signup-password-input" placeholder="6자 이상" autocomplete="new-password">
+          <button type="submit" class="btn-rect" id="email-submit-btn">
+            <i class="fa-solid fa-check"></i>
+            <span data-localize="email_signup_submit">이메일 가입 완료</span>
+          </button>
+          <div id="email-signup-feedback" class="feedback-badge" style="display:none;"></div>
+        </form>
+
+        <p class="privacy-note" data-localize="login_notice">현재 버전은 테스트용 로그인 흐름입니다. 실제 배포 시 Firebase/Auth0/Supabase 같은 인증 서버 연결이 필요합니다.</p>
       </div>
 
-      <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
-      <div id="onboarding-screen-profile" class="onboarding-screen">
-        <div class="onboarding-step-row">
-          <button type="button" id="onboarding-back-btn" class="onboarding-back-btn" onclick="window.TravelogShowOnboardingScreen && window.TravelogShowOnboardingScreen('login')"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
-          <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
-          <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
-        </div>
-
+      <!-- SCREEN 2: PROFILE SETUP -->
+      <div id="onboarding-screen-profile" class="onboarding-screen" data-onboarding-screen="profile">
         <div class="onboarding-header">
-          <h2 class="gradient-text" data-localize="onboarding_profile_title">Set Up Your Profile</h2>
-          <p data-localize="onboarding_profile_subtitle">Create your travel identity to start exploring</p>
+          <span class="onboarding-step-label" data-localize="step_profile">2. 개인계정 설정</span>
+          <h2 class="gradient-text" data-localize="onboarding_profile_title">프로필 설정</h2>
+          <p data-localize="onboarding_profile_subtitle">닉네임과 프로필 이미지를 설정해 주세요.</p>
         </div>
         
         <div class="profile-creation-container">
-          <!-- Interactive Avatar Setup -->
           <div class="avatar-setup-section">
             <div class="avatar-preview-wrapper">
               <div id="avatar-preview-circle" class="avatar-preview">
                 <span id="avatar-preview-emoji">☀️</span>
               </div>
-              <label for="onboarding-file-input" class="upload-badge" title="Upload Custom Photo">
+              <button type="button" class="upload-badge" id="open-photo-options-btn" title="Upload Custom Photo" aria-label="Upload Custom Photo">
                 <i class="fa-solid fa-camera"></i>
-              </label>
-              <!-- Invisible File Input -->
-              <input type="file" id="onboarding-file-input" accept="image/*" style="display: none;">
+              </button>
+              <input type="file" id="onboarding-gallery-input" accept="image/*" style="display: none;">
+              <input type="file" id="onboarding-camera-input" accept="image/*" capture="environment" style="display: none;">
             </div>
             
-            <!-- Preset Selection -->
             <div class="avatar-presets">
-              <button class="preset-btn active" data-preset="sun">☀️</button>
-              <button class="preset-btn" data-preset="wave">🌊</button>
-              <button class="preset-btn" data-preset="leaf">🍃</button>
+              <button type="button" class="preset-btn active" data-preset="sun">☀️</button>
+              <button type="button" class="preset-btn" data-preset="wave">🌊</button>
+              <button type="button" class="preset-btn" data-preset="leaf">🍃</button>
+              <button type="button" class="preset-btn" data-preset="plane">✈️</button>
             </div>
             
-            <span style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;" data-localize="avatar_hint">Choose preset or upload custom photo</span>
+            <span class="avatar-hint" data-localize="avatar_hint">기본 아이콘을 선택하거나 폰 갤러리/카메라 이미지를 사용할 수 있습니다.</span>
           </div>
           
-          <!-- Nickname & Duplicate Check Form -->
           <div class="nickname-form-section">
-            <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <input type="text" id="onboarding-nickname-input" placeholder="예: 여행고래" data-localize-placeholder="nickname_placeholder" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
-              <button type="button" class="btn-rect secondary" id="nickname-check-btn" onclick="window.TravelogVerifyNickname && window.TravelogVerifyNickname()" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
+            <label data-localize="nickname_label">닉네임 만들기</label>
+            <div class="nickname-row">
+              <input type="text" id="onboarding-nickname-input" placeholder="예: travelog_sam" autocomplete="nickname">
+              <button type="button" class="btn-rect secondary" id="nickname-check-btn" data-localize="nickname_check">확인</button>
             </div>
-            
-            <!-- Feedback Messages -->
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
-            
-            <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
-              <span data-localize="start_exploring">Start Exploring!</span>
-            </button>
+            <div class="profile-action-row">
+              <button type="button" class="btn-rect secondary" id="profile-back-btn">
+                <i class="fa-solid fa-arrow-left"></i>
+                <span data-localize="back_btn">뒤로</span>
+              </button>
+              <button type="button" class="btn-rect" id="profile-next-btn" disabled>
+                <span data-localize="next_tutorial">튜토리얼로 이동</span>
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      
-    </div>
-  </div>
 
-
-  <!-- Profile Manager Modal -->
-  <div id="profile-manager-modal" class="profile-manager-modal" aria-hidden="true">
-    <div class="profile-manager-card glass-panel arch-card" role="dialog" aria-modal="true" aria-labelledby="profile-manager-title">
-      <div class="profile-manager-topbar">
-        <div>
-          <span class="step-pill" data-localize="profile_manage_badge">프로필 관리</span>
-          <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
-          <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
+      <!-- SCREEN 3: TUTORIAL -->
+      <div id="onboarding-screen-tutorial" class="onboarding-screen" data-onboarding-screen="tutorial">
+        <div class="onboarding-header">
+          <span class="onboarding-step-label" data-localize="step_tutorial">3. 튜토리얼</span>
+          <h2 class="gradient-text" data-localize="tutorial_title">Travelog 사용법</h2>
+          <p data-localize="tutorial_subtitle">핵심 기능 3가지만 확인하면 바로 시작할 수 있습니다.</p>
         </div>
-        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
+
+        <div class="tutorial-slide active" data-tutorial-slide="0">
+          <div class="tutorial-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+          <h3 data-localize="tutorial_map_title">지도 위 가이드</h3>
+          <p data-localize="tutorial_map_desc">선택한 가이드의 경로를 따라가면 위치에 맞춰 영상, 음성, 쿠폰이 자동으로 열립니다.</p>
+        </div>
+        <div class="tutorial-slide" data-tutorial-slide="1">
+          <div class="tutorial-icon"><i class="fa-solid fa-microphone-lines"></i></div>
+          <h3 data-localize="tutorial_creator_title">나만의 여행 가이드 만들기</h3>
+          <p data-localize="tutorial_creator_desc">지도에 핀을 찍고 직접 녹음하거나 보이스 마켓 샘플을 사용해 투어를 등록할 수 있습니다.</p>
+        </div>
+        <div class="tutorial-slide" data-tutorial-slide="2">
+          <div class="tutorial-icon"><i class="fa-solid fa-gamepad"></i></div>
+          <h3 data-localize="tutorial_adventure_title">오프라인 모험 퀘스트</h3>
+          <p data-localize="tutorial_adventure_desc">특정 장소에 도착하면 단서가 열리고, 정답을 맞히면 포인트와 쿠폰 보상을 받을 수 있습니다.</p>
+        </div>
+
+        <div class="tutorial-dots">
+          <button type="button" class="tutorial-dot active" data-slide-target="0"></button>
+          <button type="button" class="tutorial-dot" data-slide-target="1"></button>
+          <button type="button" class="tutorial-dot" data-slide-target="2"></button>
+        </div>
+
+        <div class="tutorial-action-row">
+          <button type="button" class="btn-rect secondary" id="tutorial-prev-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span data-localize="prev_btn">이전</span>
+          </button>
+          <button type="button" class="btn-rect secondary" id="tutorial-skip-btn" data-localize="skip_tutorial">건너뛰기</button>
+          <button type="button" class="btn-rect" id="tutorial-next-btn">
+            <span data-localize="next_btn">다음</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+          <button type="button" class="btn-rect" id="start-app-btn" style="display:none;">
+            <span data-localize="start_exploring">시작하기</span>
+            <i class="fa-solid fa-rocket"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photo Permission Choice Modal -->
+    <div id="photo-permission-modal" class="photo-permission-modal" style="display:none;">
+      <div class="photo-permission-card glass-panel">
+        <button type="button" class="btn-circle" id="close-photo-permission-btn" aria-label="Close">
           <i class="fa-solid fa-xmark"></i>
         </button>
-      </div>
-
-      <div class="profile-manager-body">
-        <div class="profile-manager-preview-panel">
-          <div class="avatar-preview-wrapper profile-large-preview-wrapper">
-            <div id="profile-manager-avatar-preview" class="avatar-preview profile-large-preview">
-              <span id="profile-manager-avatar-emoji">☀️</span>
-            </div>
-            <label for="profile-manager-file-input" class="upload-badge profile-upload-badge" title="Upload Profile Image">
-              <i class="fa-solid fa-camera"></i>
-            </label>
-            <input type="file" id="profile-manager-file-input" accept="image/*" style="display: none;">
-          </div>
-          <button class="btn-rect" id="profile-manager-upload-btn" type="button">
-            <i class="fa-solid fa-image"></i>
-            <span data-localize="profile_use_my_photo">내 사진/이미지 선택</span>
+        <h3 data-localize="photo_permission_title">프로필 이미지 접근 권한</h3>
+        <p data-localize="photo_permission_desc">프로필 이미지를 설정하려면 갤러리 또는 카메라 접근을 허용해야 합니다. 선택 후 브라우저/기기 권한 팝업에서 허용을 눌러주세요.</p>
+        <div class="photo-option-grid">
+          <button type="button" class="photo-option-btn" id="choose-gallery-btn">
+            <i class="fa-solid fa-images"></i>
+            <span data-localize="choose_gallery">갤러리에서 선택</span>
           </button>
-          <p class="profile-image-note" data-localize="profile_image_note">사진은 이 브라우저에만 저장되는 프로토타입용 데이터입니다.</p>
-        </div>
-
-        <div class="profile-manager-editor-panel">
-          <div class="profile-field-block">
-            <label data-localize="profile_nickname_label">닉네임</label>
-            <input type="text" id="profile-manager-nickname-input" data-localize-placeholder="nickname_placeholder" placeholder="예: 여행고래">
-            <div id="profile-manager-feedback" class="feedback-badge" style="display:none;"></div>
-          </div>
-
-          <div class="profile-field-block">
-            <label data-localize="profile_temp_image_title">임시 이미지 선택</label>
-            <div id="profile-sample-avatar-grid" class="profile-sample-avatar-grid"></div>
-          </div>
-
-          <div class="profile-field-block">
-            <label data-localize="profile_emoji_title">간단 아이콘 선택</label>
-            <div class="avatar-presets profile-emoji-presets">
-              <button class="preset-btn profile-preset-btn" data-profile-preset="sun">☀️</button>
-              <button class="preset-btn profile-preset-btn" data-profile-preset="wave">🌊</button>
-              <button class="preset-btn profile-preset-btn" data-profile-preset="leaf">🍃</button>
-              <button class="preset-btn profile-preset-btn" data-profile-preset="camera">📷</button>
-              <button class="preset-btn profile-preset-btn" data-profile-preset="compass">🧭</button>
-              <button class="preset-btn profile-preset-btn" data-profile-preset="mountain">⛰️</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="profile-manager-actions">
-        <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
-          <i class="fa-solid fa-rotate-left"></i>
-          <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
-        </button>
-        <div class="profile-action-right">
-          <button id="profile-manager-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
-          <button id="profile-manager-save-btn" class="btn-rect" type="button">
-            <i class="fa-solid fa-floppy-disk"></i>
-            <span data-localize="profile_save">저장하기</span>
+          <button type="button" class="photo-option-btn" id="choose-camera-btn">
+            <i class="fa-solid fa-camera"></i>
+            <span data-localize="choose_camera">카메라로 촬영</span>
           </button>
         </div>
       </div>
@@ -739,7 +590,6 @@
   <script src="map.js" defer></script>
   <script src="explore.js" defer></script>
   <script src="rewards.js" defer></script>
-  <script src="mediaStorage.js" defer></script>
   <script src="creator.js" defer></script>
   <script src="adventure.js" defer></script>
   <script src="app.js" defer></script>

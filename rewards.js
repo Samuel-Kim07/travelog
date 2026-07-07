@@ -3,14 +3,6 @@
 // ==========================================
 
 const TravelogRewardsModule = (() => {
-  function t(ko, en, ja) {
-    return window.TravelogApp && typeof window.TravelogApp.t === 'function' ? window.TravelogApp.t(ko, en, ja) : ko;
-  }
-
-  function pick(source, baseKey) {
-    return window.TravelogApp && typeof window.TravelogApp.pickLocalized === 'function' ? window.TravelogApp.pickLocalized(source, baseKey) : (source?.[`${baseKey}Ko`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ja`] || '');
-  }
-
   // Scratch Card State
   let scratchCanvas, scratchCtx;
   let isScratching = false;
@@ -25,22 +17,22 @@ const TravelogRewardsModule = (() => {
   
   // Mock Scratch Card Prizes
   const scratchPrizes = [
-    { id: 'sc-1', tag: 'SEOUL PALACES', value: '50% OFF', descEn: 'Traditional Hanok Dining Experience', descKo: '전통 한옥 한정식 맛집 50% 식사권', descJa: '伝統韓屋レストラン50%食事券' },
-    { id: 'sc-2', tag: 'NAMSAN SECTOR', value: 'FREE PASS', descEn: 'Namsan N Seoul Tower Cable Car Ticket', descKo: '남산 N서울타워 왕복 케이블카 탑승권', descJa: '南山Nソウルタワー往復ケーブルカー乗車券' },
-    { id: 'sc-3', tag: 'CITY BUS TOUR', value: '30% OFF', descEn: 'Seoul Double-Decker Hop-On Hop-Off Bus', descKo: '서울 도심 순환 2층 버스 30% 할인권', descJa: 'ソウル都心循環2階建てバス30%割引券' },
-    { id: 'sc-4', tag: 'LOCAL MARKET', value: '10,000 KRW', descEn: 'Gwangjang Market Food Alley Voucher', descKo: '광장시장 먹거리 골목 1만원 모바일 상품권', descJa: '広蔵市場グルメ通り1万ウォンモバイル券' }
+    { id: 'sc-1', tag: 'SEOUL PALACES', value: '50% OFF', descEn: 'Traditional Hanok Dining Experience', descKo: '전통 한옥 한정식 맛집 50% 식사권' },
+    { id: 'sc-2', tag: 'NAMSAN SECTOR', value: 'FREE PASS', descEn: 'Namsan N Seoul Tower Cable Car Ticket', descKo: '남산 N서울타워 왕복 케이블카 탑승권' },
+    { id: 'sc-3', tag: 'CITY BUS TOUR', value: '30% OFF', descEn: 'Seoul Double-Decker Hop-On Hop-Off Bus', descKo: '서울 도심 순환 2층 버스 30% 할인권' },
+    { id: 'sc-4', tag: 'LOCAL MARKET', value: '10,000 KRW', descEn: 'Gwangjang Market Food Alley Voucher', descKo: '광장시장 먹거리 골목 1만원 모바일 상품권' }
   ];
 
   // Spin Wheel Segments
   const wheelSegments = [
-    { labelEn: "100 pts", labelKo: "100 P", labelJa: "100 P", type: "points", value: 100, color: "#70A2B7" },
-    { labelEn: "Coffee", labelKo: "커피 쿠폰", labelJa: "コーヒー券", type: "coupon", value: "Cafe Americano Coupon", valueJa: "カフェアメリカーノクーポン", color: "#AFD499" },
-    { labelEn: "50 pts", labelKo: "50 P", labelJa: "50 P", type: "points", value: 50, color: "#F2E58A" },
-    { labelEn: "Hotel 10%", labelKo: "호텔 10%", labelJa: "ホテル10%", type: "coupon", value: "10% Hotel Stay Coupon", valueJa: "ホテル宿泊10%割引券", color: "#A8DFEC" },
-    { labelEn: "200 pts", labelKo: "200 P", labelJa: "200 P", type: "points", value: 200, color: "#70A2B7" },
-    { labelEn: "Free Guide", labelKo: "성우 가이드", labelJa: "音声ガイド", type: "coupon", value: "Free Voice Guide Voucher", valueJa: "音声ガイド無料券", color: "#AFD499" },
-    { labelEn: "10 pts", labelKo: "10 P", labelJa: "10 P", type: "points", value: 10, color: "#F2E58A" },
-    { labelEn: "Jackpot!", labelKo: "대박 쿠폰!", labelJa: "大当たり！", type: "coupon", value: "Seoul Palaces Free All-Pass", valueJa: "ソウル宮殿フリーオールパス", color: "#A8DFEC" }
+    { labelEn: "100 pts", labelKo: "100 P", type: "points", value: 100, color: "#70A2B7" },
+    { labelEn: "Coffee", labelKo: "커피 쿠폰", type: "coupon", value: "Cafe Americano Coupon", color: "#AFD499" },
+    { labelEn: "50 pts", labelKo: "50 P", type: "points", value: 50, color: "#F2E58A" },
+    { labelEn: "Hotel 10%", labelKo: "호텔 10%", type: "coupon", value: "10% Hotel Stay Coupon", color: "#A8DFEC" },
+    { labelEn: "200 pts", labelKo: "200 P", type: "points", value: 200, color: "#70A2B7" },
+    { labelEn: "Free Guide", labelKo: "성우 가이드", type: "coupon", value: "Free Voice Guide Voucher", color: "#AFD499" },
+    { labelEn: "10 pts", labelKo: "10 P", type: "points", value: 10, color: "#F2E58A" },
+    { labelEn: "Jackpot!", labelKo: "대박 쿠폰!", type: "coupon", value: "Seoul Palaces Free All-Pass", color: "#A8DFEC" }
   ];
 
   // Mock Events Calendar Data
@@ -49,15 +41,12 @@ const TravelogRewardsModule = (() => {
       id: 'event-gyeongbok',
       titleEn: "Gyeongbokgung Starlight Palace Tour",
       titleKo: "경복궁 별빛야행 야간 특별 관람",
-      titleJa: "景福宮 星明かり夜間特別観覧",
       descEn: "Walk through illuminated chambers, eat royal food, and solve riddles inside the palace under the stars.",
       descKo: "은은한 불빛 아래 경복궁의 궁궐 전각들을 돌아보고, 외소주방에서 국악 공연과 왕실 수라상을 체험해보세요.",
-      descJa: "やわらかな灯りの下で景福宮の殿閣を巡り、国楽公演と王室の食事体験を楽しめます。",
       dateMonth: "MAY",
       dateDay: "28",
       locationEn: "Gyeongbokgung Palace, Seoul",
       locationKo: "서울 경복궁 일대",
-      locationJa: "ソウル景福宮一帯",
       pointsReward: 300,
       activeQuest: true
     },
@@ -65,15 +54,12 @@ const TravelogRewardsModule = (() => {
       id: 'event-cherry',
       titleEn: "Kyoto Temple Walk & Stamp Quest",
       titleKo: "교토 철학의 길 밤벚꽃 스탬프 투어",
-      titleJa: "京都・哲学の道 夜桜スタンプツアー",
       descEn: "Find 5 hidden stamps along the stream to unlock special traditional tea coupons and voices.",
       descKo: "흐드러지게 핀 밤벚꽃 길을 산책하며 숨겨진 5개의 스탬프를 찍으면 특산 맛차 아이스크림 쿠폰을 증정합니다.",
-      descJa: "夜桜の道を歩きながら隠れた5つのスタンプを集めると、名物抹茶アイスクーポンがもらえます。",
       dateMonth: "JUN",
       dateDay: "05",
       locationEn: "Philosopher's Path, Kyoto",
       locationKo: "일본 교토 철학의 길",
-      locationJa: "日本・京都 哲学の道",
       pointsReward: 250,
       activeQuest: false
     },
@@ -81,15 +67,12 @@ const TravelogRewardsModule = (() => {
       id: 'event-river',
       titleEn: "Seine Cruise Dinner Sparkle Hunt",
       titleKo: "파리 센강 바토무슈 불꽃 탐정 게임",
-      titleJa: "パリ・セーヌ川バトームーシュ光の探偵ゲーム",
       descEn: "Solve offline riddles on the cruise boat at 9 PM to unlock coordinates for a hidden cafe voucher.",
       descKo: "매시 정각 에펠탑 불빛 쇼가 진행되는 동안 바토무슈에 탐승하여 암호를 맞추는 센강 추리 어드벤처.",
-      descJa: "毎時のエッフェル塔ライトショー中に、バトームーシュ船上で暗号を解くセーヌ川ミステリーです。",
       dateMonth: "JUL",
       dateDay: "14",
       locationEn: "Bateaux Mouches Cruise, Paris",
       locationKo: "프랑스 파리 센강 크루즈",
-      locationJa: "フランス・パリ セーヌ川クルーズ",
       pointsReward: 500,
       activeQuest: false
     }
@@ -138,10 +121,11 @@ const TravelogRewardsModule = (() => {
     const randomIndex = Math.floor(Math.random() * scratchPrizes.length);
     currentScratchPrize = scratchPrizes[randomIndex];
 
-
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
+    
     document.getElementById('scratch-coupon-tag').textContent = currentScratchPrize.tag;
     document.getElementById('scratch-coupon-value').textContent = currentScratchPrize.value;
-    document.getElementById('scratch-coupon-desc').textContent = pick(currentScratchPrize, 'desc');
+    document.getElementById('scratch-coupon-desc').textContent = lang === 'ko' ? currentScratchPrize.descKo : currentScratchPrize.descEn;
     
     resetScratchCanvas();
   }
@@ -250,18 +234,19 @@ const TravelogRewardsModule = (() => {
       id: currentScratchPrize.id + '-' + Date.now(),
       tag: currentScratchPrize.tag,
       value: currentScratchPrize.value,
-      desc: pick(currentScratchPrize, 'desc')
+      desc: lang === 'ko' ? currentScratchPrize.descKo : currentScratchPrize.descEn
     });
     
-    window.TravelogApp.showToast(t('축하합니다! 쿠폰이 내 지갑에 저장되었습니다.', 'Congrats! Coupon saved in your wallet.', 'おめでとうございます！クーポンをウォレットに保存しました。'));
+    window.TravelogApp.showToast(lang === 'ko' ? '축하합니다! 쿠폰이 내 지갑에 저장되었습니다.' : 'Congrats! Coupon saved in your wallet.');
   }
 
   function buyNewScratchCard() {
-
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
+    
     // Costs 50 points
     if (window.TravelogApp.deductPoints(50)) {
       selectNewScratchPrize();
-      window.TravelogApp.showToast(t('새 스크래치 카드가 제공되었습니다! (-50P)', 'New scratch card loaded! (-50 pts)', '新しいスクラッチカードを用意しました！(-50P)'));
+      window.TravelogApp.showToast(lang === 'ko' ? '새 스크래치 카드가 제공되었습니다! (-50P)' : 'New scratch card loaded! (-50 pts)');
     }
   }
 
@@ -301,9 +286,9 @@ const TravelogRewardsModule = (() => {
       wheelCtx.rotate(startAng + sliceAngle / 2);
       wheelCtx.textAlign = "right";
       wheelCtx.fillStyle = "#2B3A42";
-      wheelCtx.font = "bold 13px Outfit, Noto Sans KR, Noto Sans JP";
+      wheelCtx.font = "bold 13px Outfit, Noto Sans KR";
       
-      const label = pick(seg, 'label');
+      const label = lang === 'ko' ? seg.labelKo : seg.labelEn;
       wheelCtx.fillText(label, radius - 15, 5);
       wheelCtx.restore();
     });
@@ -360,6 +345,7 @@ const TravelogRewardsModule = (() => {
 
   function triggerWheelWin(index) {
     const winner = wheelSegments[index];
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     if (winner.type === "points") {
       window.TravelogApp.addPoints(winner.value);
@@ -367,10 +353,10 @@ const TravelogRewardsModule = (() => {
       window.TravelogApp.claimCoupon({
         id: 'spin-' + Date.now(),
         tag: 'WHEEL SPIN',
-        value: t('당첨 경품', 'Lucky Reward', '当選ギフト'),
-        desc: pick(winner, 'value') || winner.value
+        value: lang === 'ko' ? '당첨 경품' : 'Lucky Reward',
+        desc: winner.value
       });
-      window.TravelogApp.showToast(t(`축하합니다! ${winner.labelKo} 획득!`, `Congrats! Won ${winner.labelEn}!`, `おめでとうございます！${winner.labelJa || winner.labelEn}を獲得しました！`));
+      window.TravelogApp.showToast(lang === 'ko' ? `축하합니다! ${winner.labelKo} 획득!` : `Congrats! Won ${winner.labelEn}!`);
     }
   }
 
@@ -380,15 +366,16 @@ const TravelogRewardsModule = (() => {
   function renderEvents() {
     const container = document.getElementById('events-list-container');
     container.innerHTML = '';
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     calendarEvents.forEach(evt => {
       const item = document.createElement('div');
       item.className = 'event-list-item glass-panel glass-panel-hover';
       
-      const title = pick(evt, 'title');
-      const desc = pick(evt, 'desc');
-      const location = pick(evt, 'location');
-      const startBtnText = t('퀘스트 도전', 'Start Quest', 'クエスト開始');
+      const title = lang === 'ko' ? evt.titleKo : evt.titleEn;
+      const desc = lang === 'ko' ? evt.descKo : evt.descEn;
+      const location = lang === 'ko' ? evt.locationKo : evt.locationEn;
+      const startBtnText = lang === 'ko' ? '퀘스트 도전' : 'Start Quest';
 
       item.innerHTML = `
         <div class="event-date-box">
@@ -430,6 +417,7 @@ const TravelogRewardsModule = (() => {
     entries.forEach(e => e.remove());
 
     const coupons = window.TravelogApp.getState().ownedCoupons;
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     if (coupons.length === 0) {
       emptyMsg.style.display = 'block';
@@ -457,7 +445,7 @@ const TravelogRewardsModule = (() => {
           <div style="font-size:12px; color:var(--text-secondary);">${coupon.desc}</div>
         </div>
         <button class="btn-rect secondary" style="padding: 6px 12px; font-size:12px;" onclick="TravelogRewardsModule.useCoupon('${coupon.id}')">
-          ${t('사용하기', 'Redeem', '使う')}
+          ${lang === 'ko' ? '사용하기' : 'Redeem'}
         </button>
       `;
       walletEl.appendChild(item);
@@ -465,7 +453,8 @@ const TravelogRewardsModule = (() => {
   }
 
   function useCoupon(id) {
-
+    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
+    
     // Open a visual QR-code alert
     const qrContainer = document.createElement('div');
     qrContainer.style.cssText = `
@@ -484,12 +473,12 @@ const TravelogRewardsModule = (() => {
     qrContainer.innerHTML = `
       <div class="glass-panel" style="padding:32px; text-align:center; max-width:320px; width:90%; position:relative; background-color: var(--bg-secondary);">
         <button class="btn-circle" style="position:absolute; top:12px; right:12px; width:28px; height:28px; font-size:12px;" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
-        <h4 style="margin-bottom:12px; font-size:16px;">${t('쿠폰 바코드 스캔', 'Scan Coupon QR Code', 'クーポンQRコードをスキャン')}</h4>
+        <h4 style="margin-bottom:12px; font-size:16px;">${lang === 'ko' ? '쿠폰 바코드 스캔' : 'Scan Coupon QR Code'}</h4>
         <div style="background:white; padding:16px; border-radius:var(--radius-md); display:inline-block; margin-bottom:16px;">
           <!-- Simple dynamic simulated QR representation -->
           <i class="fa-solid fa-qrcode" style="font-size: 140px; color:black; display:block;"></i>
         </div>
-        <p style="font-size:12px; color:var(--text-secondary);">${t('해당 업장의 직원에게 스캔용 바코드를 제시해 주세요.', 'Present this QR code to the cashier at the counter.', '店舗スタッフにこのQRコードを提示してください。')}</p>
+        <p style="font-size:12px; color:var(--text-secondary);">${lang === 'ko' ? '해당 업장의 직원에게 스캔용 바코드를 제시해 주세요.' : 'Present this QR code to the cashier at the counter.'}</p>
       </div>
     `;
     
@@ -507,7 +496,7 @@ const TravelogRewardsModule = (() => {
       // Update scratch card texts (if not scratched yet)
       if (!scratchClaimed && currentScratchPrize) {
         const lang = window.TravelogApp.getLanguage();
-        document.getElementById('scratch-coupon-desc').textContent = pick(currentScratchPrize, 'desc');
+        document.getElementById('scratch-coupon-desc').textContent = lang === 'ko' ? currentScratchPrize.descKo : currentScratchPrize.descEn;
       }
     },
     startEventQuest: startEventQuest,
