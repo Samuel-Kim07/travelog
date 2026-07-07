@@ -407,182 +407,88 @@
     </nav>
   </div>
 
-  <!-- Onboarding Full-Screen Overlay: Login → Profile → Tutorial → Start -->
-  <div id="onboarding-overlay" class="onboarding-backdrop" aria-modal="true" role="dialog">
+  <!-- Onboarding Full-Screen Overlay (Redesign Addition) -->
+  <div id="onboarding-overlay" class="onboarding-backdrop">
     <div class="onboarding-card glass-panel arch-card">
-      <div class="onboarding-progress" aria-label="Onboarding progress">
-        <span class="progress-dot active" data-step-dot="login"></span>
-        <span class="progress-line"></span>
-        <span class="progress-dot" data-step-dot="profile"></span>
-        <span class="progress-line"></span>
-        <span class="progress-dot" data-step-dot="tutorial"></span>
-      </div>
       
-      <!-- SCREEN 1: LOGIN / SIGNUP SELECTION -->
-      <div id="onboarding-screen-login" class="onboarding-screen active" data-onboarding-screen="login">
+      <!-- SCREEN 1: LOGIN SIGNUP SELECTION -->
+      <div id="onboarding-screen-login" class="onboarding-screen active">
         <div class="onboarding-header">
           <i class="fa-solid fa-earth-americas logo-icon"></i>
-          <span class="onboarding-step-label" data-localize="step_login">1. 로그인</span>
-          <h2 class="gradient-text" data-localize="onboarding_login_title">Travelog 시작하기</h2>
-          <p data-localize="onboarding_subtitle">간편 로그인 또는 이메일 가입으로 여행 가이드를 시작하세요.</p>
+          <h2 class="gradient-text">Welcome to Travelog</h2>
+          <p data-localize="onboarding_subtitle">The global companion for passionate travelers</p>
         </div>
         
         <div class="login-button-container">
-          <button class="login-btn-google" id="login-google-btn" data-provider="google">
+          <!-- Google Login -->
+          <button class="login-btn-google" id="login-google-btn">
             <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
-            <span data-localize="login_google">Google로 계속하기</span>
+            <span data-localize="login_google">Continue with Google</span>
           </button>
           
-          <button class="login-btn-naver" id="login-naver-btn" data-provider="naver">
+          <!-- Naver Login -->
+          <button class="login-btn-naver" id="login-naver-btn">
             <span class="naver-icon">N</span>
-            <span data-localize="login_naver">Naver로 계속하기</span>
-          </button>
-
-          <button class="login-btn-facebook" id="login-facebook-btn" data-provider="facebook">
-            <i class="fa-brands fa-facebook-f"></i>
-            <span data-localize="login_facebook">Facebook으로 계속하기</span>
+            <span data-localize="login_naver">Continue with Naver</span>
           </button>
           
-          <button class="login-btn-email" id="login-email-btn" data-provider="email">
+          <!-- Email Login -->
+          <button class="login-btn-email" id="login-email-btn">
             <i class="fa-solid fa-envelope"></i>
-            <span data-localize="login_email">이메일로 가입하기</span>
+            <span data-localize="login_email">Continue with Email</span>
           </button>
         </div>
-
-        <form id="email-signup-panel" class="email-signup-panel" style="display:none;" novalidate>
-          <label data-localize="email_label">이메일 주소</label>
-          <input type="email" id="signup-email-input" placeholder="travelog@example.com" autocomplete="email">
-          <label data-localize="password_label">비밀번호</label>
-          <input type="password" id="signup-password-input" placeholder="6자 이상" autocomplete="new-password">
-          <button type="submit" class="btn-rect" id="email-submit-btn">
-            <i class="fa-solid fa-check"></i>
-            <span data-localize="email_signup_submit">이메일 가입 완료</span>
-          </button>
-          <div id="email-signup-feedback" class="feedback-badge" style="display:none;"></div>
-        </form>
-
-        <p class="privacy-note" data-localize="login_notice">현재 버전은 테스트용 로그인 흐름입니다. 실제 배포 시 Firebase/Auth0/Supabase 같은 인증 서버 연결이 필요합니다.</p>
       </div>
 
-      <!-- SCREEN 2: PROFILE SETUP -->
-      <div id="onboarding-screen-profile" class="onboarding-screen" data-onboarding-screen="profile">
+      <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
+      <div id="onboarding-screen-profile" class="onboarding-screen">
         <div class="onboarding-header">
-          <span class="onboarding-step-label" data-localize="step_profile">2. 개인계정 설정</span>
-          <h2 class="gradient-text" data-localize="onboarding_profile_title">프로필 설정</h2>
-          <p data-localize="onboarding_profile_subtitle">닉네임과 프로필 이미지를 설정해 주세요.</p>
+          <h2 class="gradient-text" data-localize="onboarding_profile_title">Set Up Your Profile</h2>
+          <p data-localize="onboarding_profile_subtitle">Create your travel identity to start exploring</p>
         </div>
         
         <div class="profile-creation-container">
+          <!-- Interactive Avatar Setup -->
           <div class="avatar-setup-section">
             <div class="avatar-preview-wrapper">
               <div id="avatar-preview-circle" class="avatar-preview">
                 <span id="avatar-preview-emoji">☀️</span>
               </div>
-              <button type="button" class="upload-badge" id="open-photo-options-btn" title="Upload Custom Photo" aria-label="Upload Custom Photo">
+              <label for="onboarding-file-input" class="upload-badge" title="Upload Custom Photo">
                 <i class="fa-solid fa-camera"></i>
-              </button>
-              <input type="file" id="onboarding-gallery-input" accept="image/*" style="display: none;">
-              <input type="file" id="onboarding-camera-input" accept="image/*" capture="environment" style="display: none;">
+              </label>
+              <!-- Invisible File Input -->
+              <input type="file" id="onboarding-file-input" accept="image/*" style="display: none;">
             </div>
             
+            <!-- Preset Selection -->
             <div class="avatar-presets">
-              <button type="button" class="preset-btn active" data-preset="sun">☀️</button>
-              <button type="button" class="preset-btn" data-preset="wave">🌊</button>
-              <button type="button" class="preset-btn" data-preset="leaf">🍃</button>
-              <button type="button" class="preset-btn" data-preset="plane">✈️</button>
+              <button class="preset-btn active" data-preset="sun">☀️</button>
+              <button class="preset-btn" data-preset="wave">🌊</button>
+              <button class="preset-btn" data-preset="leaf">🍃</button>
             </div>
             
-            <span class="avatar-hint" data-localize="avatar_hint">기본 아이콘을 선택하거나 폰 갤러리/카메라 이미지를 사용할 수 있습니다.</span>
+            <span style="font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 4px;" data-localize="avatar_hint">Choose preset or upload custom photo</span>
           </div>
           
+          <!-- Nickname & Duplicate Check Form -->
           <div class="nickname-form-section">
-            <label data-localize="nickname_label">닉네임 만들기</label>
-            <div class="nickname-row">
-              <input type="text" id="onboarding-nickname-input" placeholder="예: travelog_sam" autocomplete="nickname">
-              <button type="button" class="btn-rect secondary" id="nickname-check-btn" data-localize="nickname_check">확인</button>
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <input type="text" id="onboarding-nickname-input" placeholder="e.g. wanderer" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
+              <button class="btn-rect secondary" id="nickname-check-btn" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
             </div>
+            
+            <!-- Feedback Messages -->
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
-            <div class="profile-action-row">
-              <button type="button" class="btn-rect secondary" id="profile-back-btn">
-                <i class="fa-solid fa-arrow-left"></i>
-                <span data-localize="back_btn">뒤로</span>
-              </button>
-              <button type="button" class="btn-rect" id="profile-next-btn" disabled>
-                <span data-localize="next_tutorial">튜토리얼로 이동</span>
-                <i class="fa-solid fa-arrow-right"></i>
-              </button>
-            </div>
+            
+            <button class="btn-rect" id="start-app-btn" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
+              <span data-localize="start_exploring">Start Exploring!</span>
+            </button>
           </div>
         </div>
       </div>
-
-      <!-- SCREEN 3: TUTORIAL -->
-      <div id="onboarding-screen-tutorial" class="onboarding-screen" data-onboarding-screen="tutorial">
-        <div class="onboarding-header">
-          <span class="onboarding-step-label" data-localize="step_tutorial">3. 튜토리얼</span>
-          <h2 class="gradient-text" data-localize="tutorial_title">Travelog 사용법</h2>
-          <p data-localize="tutorial_subtitle">핵심 기능 3가지만 확인하면 바로 시작할 수 있습니다.</p>
-        </div>
-
-        <div class="tutorial-slide active" data-tutorial-slide="0">
-          <div class="tutorial-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-          <h3 data-localize="tutorial_map_title">지도 위 가이드</h3>
-          <p data-localize="tutorial_map_desc">선택한 가이드의 경로를 따라가면 위치에 맞춰 영상, 음성, 쿠폰이 자동으로 열립니다.</p>
-        </div>
-        <div class="tutorial-slide" data-tutorial-slide="1">
-          <div class="tutorial-icon"><i class="fa-solid fa-microphone-lines"></i></div>
-          <h3 data-localize="tutorial_creator_title">나만의 여행 가이드 만들기</h3>
-          <p data-localize="tutorial_creator_desc">지도에 핀을 찍고 직접 녹음하거나 보이스 마켓 샘플을 사용해 투어를 등록할 수 있습니다.</p>
-        </div>
-        <div class="tutorial-slide" data-tutorial-slide="2">
-          <div class="tutorial-icon"><i class="fa-solid fa-gamepad"></i></div>
-          <h3 data-localize="tutorial_adventure_title">오프라인 모험 퀘스트</h3>
-          <p data-localize="tutorial_adventure_desc">특정 장소에 도착하면 단서가 열리고, 정답을 맞히면 포인트와 쿠폰 보상을 받을 수 있습니다.</p>
-        </div>
-
-        <div class="tutorial-dots">
-          <button type="button" class="tutorial-dot active" data-slide-target="0"></button>
-          <button type="button" class="tutorial-dot" data-slide-target="1"></button>
-          <button type="button" class="tutorial-dot" data-slide-target="2"></button>
-        </div>
-
-        <div class="tutorial-action-row">
-          <button type="button" class="btn-rect secondary" id="tutorial-prev-btn">
-            <i class="fa-solid fa-arrow-left"></i>
-            <span data-localize="prev_btn">이전</span>
-          </button>
-          <button type="button" class="btn-rect secondary" id="tutorial-skip-btn" data-localize="skip_tutorial">건너뛰기</button>
-          <button type="button" class="btn-rect" id="tutorial-next-btn">
-            <span data-localize="next_btn">다음</span>
-            <i class="fa-solid fa-arrow-right"></i>
-          </button>
-          <button type="button" class="btn-rect" id="start-app-btn" style="display:none;">
-            <span data-localize="start_exploring">시작하기</span>
-            <i class="fa-solid fa-rocket"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Photo Permission Choice Modal -->
-    <div id="photo-permission-modal" class="photo-permission-modal" style="display:none;">
-      <div class="photo-permission-card glass-panel">
-        <button type="button" class="btn-circle" id="close-photo-permission-btn" aria-label="Close">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-        <h3 data-localize="photo_permission_title">프로필 이미지 접근 권한</h3>
-        <p data-localize="photo_permission_desc">프로필 이미지를 설정하려면 갤러리 또는 카메라 접근을 허용해야 합니다. 선택 후 브라우저/기기 권한 팝업에서 허용을 눌러주세요.</p>
-        <div class="photo-option-grid">
-          <button type="button" class="photo-option-btn" id="choose-gallery-btn">
-            <i class="fa-solid fa-images"></i>
-            <span data-localize="choose_gallery">갤러리에서 선택</span>
-          </button>
-          <button type="button" class="photo-option-btn" id="choose-camera-btn">
-            <i class="fa-solid fa-camera"></i>
-            <span data-localize="choose_camera">카메라로 촬영</span>
-          </button>
-        </div>
-      </div>
+      
     </div>
   </div>
 
