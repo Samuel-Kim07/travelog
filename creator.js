@@ -15,6 +15,12 @@ const TravelogCreatorModule = (() => {
   let isRecording = false;
   let recordInterval = null;
   let recordSeconds = 0;
+  let mediaRecorder = null;
+  let recordedAudioChunks = [];
+  let recordingStream = null;
+  let selectedScriptText = '';
+  let currentRecordingMimeType = '';
+  let recordingMode = 'simulated';
 
   // Voice Market items
   const voiceMarketItems = [
@@ -75,6 +81,7 @@ const TravelogCreatorModule = (() => {
     scriptBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const text = btn.getAttribute('data-script');
+        selectedScriptText = btn.textContent.trim();
         
         // Feed text into simulator
         window.TravelogApp.showToast(t('스크립트 템플릿 로드 완료', 'Script template loaded', 'スクリプトテンプレートを読み込みました'));
@@ -187,45 +194,137 @@ const TravelogCreatorModule = (() => {
   // ==========================================
   // Audio Recorder Simulation
   // ==========================================
-  function toggleRecording() {
+  async function toggleRecording() {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+  }
+
+  function getSupportedAudioMimeType() {
+    if (!window.MediaRecorder || typeof MediaRecorder.isTypeSupported !== 'function') return '';
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus'
+    ];
+    return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+  }
+
+  async function startRecording() {
     const btn = document.getElementById('record-audio-btn');
     const statusText = document.getElementById('record-status-text');
     const timerText = document.getElementById('record-timer');
 
-    if (isRecording) {
-      // Stop recording
-      clearInterval(recordInterval);
-      isRecording = false;
-      btn.classList.remove('recording');
-      btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
-      
-      statusText.textContent = t('녹음 완료! 오디오 가이드가 핀 #1에 연결되었습니다.', 'Recording saved! Audio guide linked to Pin #1.', '録音完了！音声ガイドがピン #1 に接続されました。');
-      window.TravelogApp.showToast(t('오디오 녹음본이 생성되었습니다.', 'Audio clip saved successfully.', '音声クリップを保存しました。'));
-      
-      // Reset timer
-      setTimeout(() => {
-        timerText.textContent = "00:00";
-        statusText.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクをクリックして録音開始');
-      }, 3000);
+    isRecording = true;
+    recordedAudioChunks = [];
+    recordingMode = 'simulated';
+    btn.classList.add('recording');
+    btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
+    statusText.textContent = t('음성 가이드를 녹음 중입니다... 말씀해 주세요.', 'Recording audio guide... Speak now!', '音声ガイドを録音中です... 話してください。');
 
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
+        recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        currentRecordingMimeType = getSupportedAudioMimeType();
+        mediaRecorder = new MediaRecorder(recordingStream, currentRecordingMimeType ? { mimeType: currentRecordingMimeType } : undefined);
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) recordedAudioChunks.push(event.data);
+        };
+        mediaRecorder.onstop = handleRecordedAudioReady;
+        mediaRecorder.start();
+        recordingMode = 'real';
+      } else {
+        statusText.textContent = t('이 브라우저는 실제 녹음을 지원하지 않아 테스트 소스 파일로 저장됩니다.', 'This browser does not support real recording, so a test source file will be saved.', 'このブラウザは実録音に未対応のため、テストソースファイルとして保存されます。');
+      }
+    } catch (error) {
+      console.warn('Microphone recording unavailable. Falling back to simulated audio package.', error);
+      statusText.textContent = t('마이크 권한을 사용할 수 없어 테스트 음성 소스 파일로 저장됩니다.', 'Microphone permission unavailable. A test audio source file will be saved.', 'マイク権限を使用できないため、テスト音声ソースファイルとして保存します。');
+    }
+
+    recordSeconds = 0;
+    timerText.textContent = "00:00";
+    clearInterval(recordInterval);
+    recordInterval = setInterval(() => {
+      recordSeconds++;
+      const minutes = Math.floor(recordSeconds / 60);
+      const secs = recordSeconds % 60;
+      const displayMin = minutes < 10 ? `0${minutes}` : minutes;
+      const displaySec = secs < 10 ? `0${secs}` : secs;
+      timerText.textContent = `${displayMin}:${displaySec}`;
+    }, 1000);
+  }
+
+  function stopRecording() {
+    const btn = document.getElementById('record-audio-btn');
+    const statusText = document.getElementById('record-status-text');
+    const timerText = document.getElementById('record-timer');
+
+    clearInterval(recordInterval);
+    isRecording = false;
+    btn.classList.remove('recording');
+    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+    statusText.textContent = t('녹음 처리 중입니다. GitHub 저장소 업로드를 준비합니다...', 'Processing recording and preparing GitHub upload...', '録音を処理し、GitHub保存の準備をしています...');
+
+    if (recordingMode === 'real' && mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
     } else {
-      // Start recording
-      isRecording = true;
-      btn.classList.add('recording');
-      btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
-      statusText.textContent = t('음성 가이드를 녹음 중입니다... 말씀해 주세요.', 'Recording audio guide... Speak now!', '音声ガイドを録音中です... 話してください。');
-      
-      recordSeconds = 0;
-      timerText.textContent = "00:00";
+      handleRecordedAudioReady();
+    }
 
-      recordInterval = setInterval(() => {
-        recordSeconds++;
-        const minutes = Math.floor(recordSeconds / 60);
-        const secs = recordSeconds % 60;
-        const displayMin = minutes < 10 ? `0${minutes}` : minutes;
-        const displaySec = secs < 10 ? `0${secs}` : secs;
-        timerText.textContent = `${displayMin}:${displaySec}`;
-      }, 1000);
+    setTimeout(() => {
+      timerText.textContent = "00:00";
+      statusText.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクをクリックして録音開始');
+    }, 5000);
+  }
+
+  async function handleRecordedAudioReady() {
+    const statusText = document.getElementById('record-status-text');
+    const mimeType = currentRecordingMimeType || 'audio/webm';
+    const extension = mimeType.includes('mp4') ? 'm4a' : (mimeType.includes('ogg') ? 'ogg' : 'webm');
+    let audioBlob;
+
+    if (recordedAudioChunks.length > 0) {
+      audioBlob = new Blob(recordedAudioChunks, { type: mimeType });
+    } else {
+      const simulatedText = [
+        'Travelog simulated audio source',
+        `duration_seconds=${recordSeconds}`,
+        `script=${selectedScriptText || 'custom guide audio'}`,
+        `created_at=${new Date().toISOString()}`
+      ].join('\n');
+      audioBlob = new Blob([simulatedText], { type: 'text/plain' });
+    }
+
+    const finalExtension = audioBlob.type.includes('text/plain') ? 'txt' : extension;
+
+    if (recordingStream) {
+      recordingStream.getTracks().forEach(track => track.stop());
+      recordingStream = null;
+    }
+    mediaRecorder = null;
+
+    const metadata = {
+      title: selectedScriptText || 'Travelog guide audio',
+      durationSeconds: recordSeconds,
+      source: recordingMode,
+      extension: finalExtension,
+      mimeType: audioBlob.type,
+      createdAt: new Date().toISOString(),
+      guideName: document.getElementById('new-tour-name')?.value || ''
+    };
+
+    window.TravelogApp.showToast(t('오디오 녹음본이 생성되었습니다.', 'Audio clip saved successfully.', '音声クリップを保存しました。'));
+    statusText.textContent = t('녹음 완료! GitHub 저장소로 업로드를 시도합니다.', 'Recording complete! Trying to upload to GitHub storage.', '録音完了！GitHub保存先へアップロードします。');
+
+    if (window.TravelogMediaStorageModule && typeof window.TravelogMediaStorageModule.autoUploadAudio === 'function') {
+      try {
+        await window.TravelogMediaStorageModule.autoUploadAudio(audioBlob, metadata);
+      } catch (error) {
+        console.warn('Automatic GitHub audio upload failed.', error);
+      }
     }
   }
 

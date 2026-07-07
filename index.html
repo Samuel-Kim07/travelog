@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- Leaflet Map CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- GitHub Pages/mobile에서 SRI 또는 특정 CDN이 막히는 경우를 줄이기 위해 jsDelivr를 사용합니다. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="index.css">
@@ -55,19 +56,51 @@
       <section id="map-tab" class="tab-content active">
         <!-- Leaflet Map Canvas -->
         <div id="map-container"></div>
+
+        <!-- Map Top Summary UI -->
+        <div class="map-topbar glass-panel">
+          <div class="map-topbar-main">
+            <div class="map-brand-icon" aria-hidden="true">
+              <img src="assets/images/brand/travelog-ci-symbol.svg" alt="">
+            </div>
+            <div class="map-topbar-copy">
+              <span class="map-kicker" data-localize="map_top_badge">Live Travel Map</span>
+              <h2 data-localize="map_route_title">경복궁 로컬 투어</h2>
+              <p data-localize="map_route_desc">GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.</p>
+            </div>
+          </div>
+          <div class="map-stat-row" aria-label="Map quick status">
+            <div class="map-stat-chip">
+              <strong id="map-stop-count">4</strong>
+              <span data-localize="map_stat_stops">Stops</span>
+            </div>
+            <div class="map-stat-chip">
+              <strong id="map-memo-count">0</strong>
+              <span data-localize="map_stat_memos">Memos</span>
+            </div>
+            <div class="map-stat-chip">
+              <strong id="map-gps-mode">OFF</strong>
+              <span data-localize="map_stat_gps">GPS</span>
+            </div>
+          </div>
+        </div>
         
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
-          <div class="hud-card glass-panel">
-            <h3 data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</h3>
-            <div id="active-guide-box" style="margin-top: 10px;">
-              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                <div class="voice-avatar" id="guide-avatar-img" style="width: 44px; height: 44px;">
-                  <i class="fa-solid fa-user-tie"></i>
+          <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="active-guide">
+            <button type="button" class="hud-card-toggle" data-hud-toggle="active-guide" aria-expanded="true">
+              <span class="hud-card-title" data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</span>
+              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
+            </button>
+            <div id="active-guide-box" class="hud-card-body" style="margin-top: 10px;">
+              <div class="map-guide-profile">
+                <div class="map-guide-avatar" id="guide-avatar-img">
+                  <img src="assets/images/avatars/avatar-minho-guide.svg" alt="Minho guide avatar">
                 </div>
-                <div>
+                <div class="map-guide-text">
+                  <span class="map-guide-badge" data-localize="map_mini_guide">Recommended Guide</span>
                   <h4 id="guide-name">Minho (Seoul Local)</h4>
-                  <span id="guide-desc" style="font-size: 11px; color: var(--text-secondary);">Gyeongbokgung Historical Tour</span>
+                  <span id="guide-desc">Gyeongbokgung Historical Tour</span>
                 </div>
               </div>
               <div style="display: flex; gap: 8px;">
@@ -81,24 +114,92 @@
             </div>
           </div>
           
-          <div class="hud-card glass-panel">
-            <h3 data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</h3>
-            <div id="tour-stops-list" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
+          <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="tour-stops">
+            <button type="button" class="hud-card-toggle" data-hud-toggle="tour-stops" aria-expanded="true">
+              <span class="hud-card-title" data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</span>
+              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
+            </button>
+            <div id="tour-stops-list" class="hud-card-body" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
               <!-- Populated dynamically -->
             </div>
           </div>
         </div>
 
-        <!-- Map HUD Right Controls: GPS Simulation -->
-        <div class="gps-controls">
-          <button class="btn-circle" id="gps-simulation-btn" title="Simulate GPS Walk">
-            <i class="fa-solid fa-person-walking"></i>
+        <!-- Map HUD Right Controls: GPS, Memo & Simulation -->
+        <div class="gps-controls glass-panel" aria-label="Map controls">
+          <button class="btn-circle map-control-btn" id="real-gps-btn" title="Use My Current GPS Location" aria-label="Use My Current GPS Location" aria-pressed="false">
+            <span class="map-control-icon" aria-hidden="true">⌖</span>
+            <span data-localize="map_control_gps">Live GPS</span>
           </button>
-          <button class="btn-circle" id="zoom-to-user-btn" title="Recenter Map">
-            <i class="fa-solid fa-crosshairs"></i>
+          <button class="btn-circle map-control-btn" id="add-location-memo-btn" title="Leave Memo at My Location" aria-label="Leave Memo at My Location">
+            <span class="map-control-icon" aria-hidden="true">✎</span>
+            <span data-localize="map_control_memo">Memo</span>
           </button>
-          <div id="simulation-status-pill" class="glass-panel" style="display: none; padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--accent-blue); text-align: center;">
+          <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
+            <span class="map-control-icon" aria-hidden="true">↟</span>
+            <span data-localize="map_control_sim">Walk Test</span>
+          </button>
+          <button class="btn-circle map-control-btn" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
+            <span class="map-control-icon" aria-hidden="true">◎</span>
+            <span data-localize="map_control_recenter">Center</span>
+          </button>
+          <div id="gps-location-pill" class="glass-panel map-status-pill" style="display: none;">
+            <i class="fa-solid fa-satellite-dish"></i>
+            <span id="gps-location-text" data-localize="gps_waiting">Waiting for GPS...</span>
+          </div>
+          <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
+          </div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="map-legend-panel glass-panel" aria-label="Map legend">
+          <span class="legend-item"><i class="legend-dot legend-current"></i><span data-localize="map_legend_current">Me</span></span>
+          <span class="legend-item"><i class="legend-dot legend-audio"></i><span data-localize="map_legend_audio">Audio</span></span>
+          <span class="legend-item"><i class="legend-dot legend-video"></i><span data-localize="map_legend_video">Video</span></span>
+          <span class="legend-item"><i class="legend-dot legend-coupon"></i><span data-localize="map_legend_coupon">Coupon</span></span>
+          <span class="legend-item"><i class="legend-dot legend-memo"></i><span data-localize="map_legend_memo">Memo</span></span>
+        </div>
+
+        <!-- Mobile Friendly Bottom Status Sheet -->
+        <div class="map-bottom-sheet glass-panel">
+          <div class="map-sheet-handle" aria-hidden="true"></div>
+          <div class="map-sheet-info">
+            <span data-localize="map_current_status">Current Map Status</span>
+            <strong id="map-current-coords" data-localize="map_coords_waiting">Turn on GPS to show your coordinates.</strong>
+            <small id="map-accuracy-text" data-localize="map_accuracy_waiting">Location accuracy will appear here.</small>
+          </div>
+          <div class="map-sheet-actions">
+            <button type="button" class="map-mini-action" onclick="document.getElementById('real-gps-btn')?.click()">
+              <i class="fa-solid fa-location-crosshairs"></i>
+              <span data-localize="map_control_gps">Live GPS</span>
+            </button>
+            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
+              <i class="fa-solid fa-note-sticky"></i>
+              <span data-localize="map_control_memo">Memo</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Location Memo Modal -->
+        <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
+          <div class="location-memo-card glass-panel">
+            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="memo-modal-header">
+              <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
+              <div>
+                <h3 data-localize="memo_modal_title">Leave a Memo Here</h3>
+                <p data-localize="memo_modal_desc">Save a short note at your current GPS location.</p>
+              </div>
+            </div>
+            <div id="memo-location-preview" class="memo-location-preview">37.00000, 127.00000</div>
+            <textarea id="location-memo-text" maxlength="220" data-localize-placeholder="memo_text_placeholder" placeholder="Write a memo for this place..."></textarea>
+            <div class="memo-modal-actions">
+              <button class="btn-rect secondary" id="cancel-location-memo-btn" data-localize="memo_cancel">Cancel</button>
+              <button class="btn-rect" id="save-location-memo-btn" data-localize="memo_save">Save Memo</button>
+            </div>
           </div>
         </div>
 
@@ -110,6 +211,9 @@
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
+          <audio id="guide-audio-element" class="guide-audio-element" controls preload="metadata">
+            <source src="assets/icons/Audio/Test_log.m4a" type="audio/mp4">
+          </audio>
           
           <!-- Animated audio waves -->
           <div class="player-wave-container" id="waveform-visualizer">
@@ -134,24 +238,14 @@
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
           <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
-          <div class="video-wrapper">
-            <!-- Simulated Video (Canvas + Audio + Interactive Graphics) -->
-            <div class="simulated-video" id="simulated-video-screen">
-              <div style="position: absolute; bottom: 20px; left: 20px; z-index: 10; color: white;">
-                <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
-                <p id="video-overlay-author" style="font-size: 12px; color: var(--accent-blue); font-weight: 600;">Minho's Historical Walk</p>
-              </div>
-              <div class="player-wave-container" style="position: absolute; top: 10px; right: 10px; width: 100px; height: 30px;">
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-                <div class="wave-bar"></div>
-              </div>
-              <!-- Graphic Simulator -->
-              <div id="video-canvas-anim" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; background: radial-gradient(circle, #2b1055, #000000);">
-                <i class="fa-solid fa-video" style="font-size: 48px; color: var(--accent-pink); margin-bottom: 20px; animation: pulse-pin 1.5s infinite;"></i>
-                <span style="color: white; font-size: 14px; font-weight: 500;" id="video-play-status" data-localize="vlog_playing">Vlog Video Playing...</span>
-                <span style="color: var(--text-secondary); font-size: 12px; margin-top: 10px;" id="video-play-timer">0:00 / 0:15</span>
-              </div>
+          <div class="video-wrapper guide-video-wrapper">
+            <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
+              <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
+            </video>
+            <div class="guide-video-info-panel">
+              <h4 id="video-overlay-title">Gwanghwamun Gate Intro</h4>
+              <p id="video-overlay-author">Minho's Historical Walk</p>
+              <span id="video-play-timer">0:00 / --:--</span>
             </div>
           </div>
         </div>
@@ -317,6 +411,54 @@
                 <!-- Voice Market Cards dynamically generated -->
               </div>
             </div>
+
+            <div class="glass-panel github-storage-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
+
+              <div class="storage-config-box">
+                <div class="storage-row">
+                  <span data-localize="media_storage_repo">Repository</span>
+                  <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_audio_path">Audio path</span>
+                  <code id="github-audio-path">assets/icons/Audio</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_video_path">Video path</span>
+                  <code id="github-video-path">assets/icons/Video</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_token_status">Token status</span>
+                  <span id="github-token-status" class="storage-status-pill">No token</span>
+                </div>
+              </div>
+
+              <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
+              <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
+              <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
+              <div class="storage-action-row">
+                <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
+                <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
+                <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
+              </div>
+
+              <div class="media-upload-test-grid">
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_audio_file">Audio file test</label>
+                  <input type="file" id="media-audio-file" accept="audio/*">
+                  <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
+                </div>
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_video_file">Video file test</label>
+                  <input type="file" id="media-video-file" accept="video/*">
+                  <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
+                </div>
+              </div>
+
+              <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -326,7 +468,7 @@
         <div class="adventure-layout">
           <!-- Left Column: Quest details & current milestones -->
           <div class="adventure-console">
-            <div class="quest-banner" style="background-image: url('assets/images/quests/seoul-palace-mystery.jpg');">
+            <div class="quest-banner" style="background-image: url('assets/images/adventure/quest-seoul-palace-mystery.svg');">
               <div class="quest-status-badge" data-localize="quest_active">Active Quest</div>
               <div class="quest-banner-content">
                 <h2 style="font-size: 22px; color: white;" id="quest-main-title">Seoul Palaces Mystery</h2>
@@ -433,25 +575,25 @@
         
         <div class="login-button-container">
           <!-- Google Login -->
-          <button class="login-btn-google" id="login-google-btn">
+          <button type="button" class="login-btn-google" id="login-google-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Google')">
             <img src="assets/icons/google-g-logo.svg" alt="Google Logo">
             <span data-localize="login_google">Continue with Google</span>
           </button>
           
           <!-- Naver Login -->
-          <button class="login-btn-naver" id="login-naver-btn">
+          <button type="button" class="login-btn-naver" id="login-naver-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Naver')">
             <span class="naver-icon">N</span>
             <span data-localize="login_naver">Continue with Naver</span>
           </button>
           
           <!-- Email Login -->
-          <button class="login-btn-email" id="login-email-btn">
+          <button type="button" class="login-btn-email" id="login-email-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Email')">
             <i class="fa-solid fa-envelope"></i>
             <span data-localize="login_email">Continue with Email</span>
           </button>
 
           <!-- Guest Login, common in travel/discovery apps for low-friction entry -->
-          <button class="login-btn-guest" id="login-guest-btn">
+          <button type="button" class="login-btn-guest" id="login-guest-btn" onclick="window.TravelogGoOnboardingProfile && window.TravelogGoOnboardingProfile('Guest')">
             <i class="fa-solid fa-suitcase-rolling"></i>
             <span data-localize="login_guest">게스트로 먼저 둘러보기</span>
           </button>
@@ -463,7 +605,7 @@
       <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
       <div id="onboarding-screen-profile" class="onboarding-screen">
         <div class="onboarding-step-row">
-          <button id="onboarding-back-btn" class="onboarding-back-btn"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
+          <button type="button" id="onboarding-back-btn" class="onboarding-back-btn" onclick="window.TravelogShowOnboardingScreen && window.TravelogShowOnboardingScreen('login')"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
           <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
           <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
         </div>
@@ -502,13 +644,13 @@
             <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
               <input type="text" id="onboarding-nickname-input" placeholder="예: 여행고래" data-localize-placeholder="nickname_placeholder" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
-              <button class="btn-rect secondary" id="nickname-check-btn" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
+              <button type="button" class="btn-rect secondary" id="nickname-check-btn" onclick="window.TravelogVerifyNickname && window.TravelogVerifyNickname()" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
             </div>
             
             <!-- Feedback Messages -->
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
             
-            <button class="btn-rect" id="start-app-btn" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
+            <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
               <span data-localize="start_exploring">Start Exploring!</span>
             </button>
           </div>
@@ -597,6 +739,7 @@
   <script src="map.js" defer></script>
   <script src="explore.js" defer></script>
   <script src="rewards.js" defer></script>
+  <script src="mediaStorage.js" defer></script>
   <script src="creator.js" defer></script>
   <script src="adventure.js" defer></script>
   <script src="app.js" defer></script>

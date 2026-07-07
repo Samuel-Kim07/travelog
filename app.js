@@ -71,6 +71,21 @@ const LocalizationDictionary = {
   script_morning: { en: '"Good Morning!"', ko: '"일어날 시간이에요~"', ja: '"おはようございます！"' },
   market_title: { en: '<i class="fa-solid fa-cart-shopping"></i> Voice Sample Market', ko: '<i class="fa-solid fa-cart-shopping"></i> 가이드 보이스 마켓', ja: '<i class="fa-solid fa-cart-shopping"></i> ガイドボイスマーケット' },
   market_desc: { en: 'Don\'t want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.', ko: '목소리 녹음이 어렵다면 마켓의 다국어 보이스 팩을 구매하여 가이드 북을 완성해보세요!', ja: '自分の声を録音しにくい場合は、多言語ボイスパックでガイドを完成できます。' },
+  media_storage_title: { en: '<i class="fa-brands fa-github"></i> GitHub Media Storage', ko: '<i class="fa-brands fa-github"></i> GitHub 미디어 저장소', ja: '<i class="fa-brands fa-github"></i> GitHubメディア保存先' },
+  media_storage_desc: { en: 'Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.', ko: '생성된 음성/영상 소스를 ZIP이 아닌 재생 가능한 압축 미디어 파일로 GitHub 저장소에 직접 저장합니다.', ja: '生成された音声・動画ソースをZIPではなく、再生可能な圧縮メディアファイルとしてGitHubに直接保存します。' },
+  media_storage_repo: { en: 'Repository', ko: '저장소', ja: 'リポジトリ' },
+  media_storage_audio_path: { en: 'Audio path', ko: '음성 저장 경로', ja: '音声保存先' },
+  media_storage_video_path: { en: 'Video path', ko: '영상 저장 경로', ja: '動画保存先' },
+  media_storage_token_status: { en: 'Token status', ko: '토큰 상태', ja: 'トークン状態' },
+  media_storage_token_label: { en: 'GitHub token for test upload', ko: '테스트 업로드용 GitHub 토큰', ja: 'テストアップロード用GitHubトークン' },
+  media_storage_warning: { en: 'For prototype testing only. Do not commit your token into GitHub files.', ko: '프로토타입 테스트용입니다. 토큰을 GitHub 파일에 직접 올리면 안 됩니다.', ja: 'プロトタイプテスト用です。トークンをGitHubファイルに直接コミットしないでください。' },
+  media_storage_save_token: { en: 'Save Token', ko: '토큰 저장', ja: 'トークン保存' },
+  media_storage_clear_token: { en: 'Clear', ko: '삭제', ja: '削除' },
+  media_storage_test: { en: 'Test', ko: '연결 테스트', ja: '接続テスト' },
+  media_storage_audio_file: { en: 'Audio file test', ko: '음성 파일 테스트', ja: '音声ファイルテスト' },
+  media_storage_video_file: { en: 'Video file test', ko: '영상 파일 테스트', ja: '動画ファイルテスト' },
+  media_storage_upload_audio: { en: 'Upload Audio Source', ko: '음성 소스 직접 업로드', ja: '音声ソース直接アップロード' },
+  media_storage_upload_video: { en: 'Upload Video Source', ko: '영상 소스 직접 업로드', ja: '動画ソース直接アップロード' },
   quest_active: { en: 'Active Quest', ko: '진행 중인 퀘스트', ja: '進行中のクエスト' },
   quest_steps_title: { en: '<i class="fa-solid fa-list-check"></i> Quest Milestones', ko: '<i class="fa-solid fa-list-check"></i> 퀘스트 미션 단계', ja: '<i class="fa-solid fa-list-check"></i> クエスト進行ステップ' },
   radar_title: { en: '<i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar', ko: '<i class="fa-solid fa-satellite-dish"></i> GPS 근접 레이더', ja: '<i class="fa-solid fa-satellite-dish"></i> GPS近接レーダー' },
@@ -114,6 +129,38 @@ const LocalizationDictionary = {
   profile_save: { en: 'Save Profile', ko: '저장하기', ja: '保存する' },
   profile_saved_toast: { en: 'Profile updated!', ko: '프로필이 저장되었습니다!', ja: 'プロフィールを保存しました！' },
   profile_open_toast: { en: 'Opening profile manager...', ko: '프로필 관리 화면을 엽니다.', ja: 'プロフィール管理を開きます。' },
+
+  // Map page UI
+  map_top_badge: { en: 'Live Travel Map', ko: '실시간 여행 지도', ja: 'ライブ旅行マップ' },
+  map_route_title: { en: 'Gyeongbokgung Local Tour', ko: '경복궁 로컬 투어', ja: '景福宮ローカルツアー' },
+  map_route_desc: { en: 'View GPS, guide points, and personal memos in one place.', ko: 'GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.', ja: 'GPS位置、ガイド地点、メモを一画面で確認できます。' },
+  map_stat_stops: { en: 'Stops', ko: '코스', ja: '地点' },
+  map_stat_memos: { en: 'Memos', ko: '메모', ja: 'メモ' },
+  map_stat_gps: { en: 'GPS', ko: 'GPS', ja: 'GPS' },
+  map_mini_guide: { en: 'Recommended Guide', ko: '추천 가이드', ja: 'おすすめガイド' },
+  map_control_gps: { en: 'Live GPS', ko: '실시간 GPS', ja: 'リアルGPS' },
+  map_control_gps_on: { en: 'Tracking', ko: '추적 중', ja: '追跡中' },
+  map_control_memo: { en: 'Memo', ko: '메모', ja: 'メモ' },
+  map_control_sim: { en: 'Walk Test', ko: '걷기 테스트', ja: '歩行テスト' },
+  map_control_sim_on: { en: 'Testing', ko: '테스트 중', ja: 'テスト中' },
+  map_control_recenter: { en: 'Center', ko: '내 위치', ja: '中央へ' },
+  map_legend_current: { en: 'Me', ko: '나', ja: '自分' },
+  map_legend_audio: { en: 'Audio', ko: '음성', ja: '音声' },
+  map_legend_video: { en: 'Video', ko: '영상', ja: '動画' },
+  map_legend_coupon: { en: 'Coupon', ko: '쿠폰', ja: 'クーポン' },
+  map_legend_memo: { en: 'Memo', ko: '메모', ja: 'メモ' },
+  map_current_status: { en: 'Current Map Status', ko: '현재 지도 상태', ja: '現在の地図状態' },
+  map_coords_waiting: { en: 'Turn on GPS to show your coordinates.', ko: 'GPS를 켜면 좌표가 표시됩니다.', ja: 'GPSをオンにすると座標が表示されます。' },
+  map_accuracy_waiting: { en: 'Location accuracy will appear here.', ko: '위치 정확도가 여기에 표시됩니다.', ja: '位置精度がここに表示されます。' },
+  // Real GPS & location memo
+  gps_waiting: { en: 'Waiting for GPS...', ko: 'GPS 대기 중...', ja: 'GPS待機中...' },
+  gps_locating: { en: 'Finding my location...', ko: '내 위치를 찾는 중...', ja: '現在地を取得中...' },
+  gps_my_location: { en: 'My current location', ko: '내 현재 위치', ja: '現在地' },
+  memo_modal_title: { en: 'Leave a Memo Here', ko: '이 위치에 메모 남기기', ja: 'この場所にメモを残す' },
+  memo_modal_desc: { en: 'Save a short note at your current GPS location.', ko: '현재 GPS 위치에 짧은 텍스트 메모를 저장합니다.', ja: '現在のGPS位置に短いテキストメモを保存します。' },
+  memo_text_placeholder: { en: 'Write a memo for this place...', ko: '이 장소에 남길 메모를 적어주세요...', ja: 'この場所に残すメモを書いてください...' },
+  memo_cancel: { en: 'Cancel', ko: '취소', ja: 'キャンセル' },
+  memo_save: { en: 'Save Memo', ko: '메모 저장', ja: 'メモを保存' },
   nav_map: { en: 'Map', ko: '지도', ja: '地図' },
   nav_explore: { en: 'Explore', ko: '피드', ja: 'フィード' },
   nav_rewards: { en: 'Rewards', ko: '쿠폰&이벤트', ja: '特典＆イベント' },
@@ -141,6 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.init === 'function') {
     window.TravelogRewardsModule.init();
+  }
+  if (window.TravelogMediaStorageModule && typeof window.TravelogMediaStorageModule.init === 'function') {
+    window.TravelogMediaStorageModule.init();
   }
   if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.init === 'function') {
     window.TravelogCreatorModule.init();
@@ -259,6 +309,7 @@ function triggerModuleLanguageUpdate() {
     window.TravelogMapModule,
     window.TravelogExploreModule,
     window.TravelogRewardsModule,
+    window.TravelogMediaStorageModule,
     window.TravelogCreatorModule,
     window.TravelogAdventureModule
   ];
@@ -286,14 +337,14 @@ const AVATAR_PRESETS = {
 };
 
 const PROFILE_SAMPLE_AVATARS = [
-  { id: 'hanok', icon: '🏯', bg1: '#E28743', bg2: '#F2E58A', labelKo: '한옥', labelEn: 'Hanok', labelJa: '韓屋' },
-  { id: 'compass', icon: '🧭', bg1: '#002855', bg2: '#70A2B7', labelKo: '나침반', labelEn: 'Compass', labelJa: 'コンパス' },
-  { id: 'camera', icon: '📷', bg1: '#E91E63', bg2: '#E8B4B8', labelKo: '카메라', labelEn: 'Camera', labelJa: 'カメラ' },
-  { id: 'mountain', icon: '⛰️', bg1: '#4A7F4D', bg2: '#AFD499', labelKo: '산길', labelEn: 'Mountain', labelJa: '山道' },
-  { id: 'ocean', icon: '🌊', bg1: '#70A2B7', bg2: '#A8DFEC', labelKo: '바다', labelEn: 'Ocean', labelJa: '海' },
-  { id: 'cafe', icon: '☕', bg1: '#9B6A45', bg2: '#F1D7B0', labelKo: '카페', labelEn: 'Cafe', labelJa: 'カフェ' },
-  { id: 'train', icon: '🚆', bg1: '#002855', bg2: '#E28743', labelKo: '기차', labelEn: 'Train', labelJa: '電車' },
-  { id: 'night', icon: '🌙', bg1: '#1A2340', bg2: '#8EA8C3', labelKo: '야경', labelEn: 'Night', labelJa: '夜景' }
+  { id: 'hanok', icon: '🏯', bg1: '#E28743', bg2: '#F2E58A', labelKo: '한옥', labelEn: 'Hanok', labelJa: '韓屋', imagePath: 'assets/images/profile/profile-hanok.svg' },
+  { id: 'compass', icon: '🧭', bg1: '#002855', bg2: '#70A2B7', labelKo: '나침반', labelEn: 'Compass', labelJa: 'コンパス', imagePath: 'assets/images/profile/profile-compass.svg' },
+  { id: 'camera', icon: '📷', bg1: '#E91E63', bg2: '#E8B4B8', labelKo: '카메라', labelEn: 'Camera', labelJa: 'カメラ', imagePath: 'assets/images/profile/profile-camera.svg' },
+  { id: 'mountain', icon: '⛰️', bg1: '#4A7F4D', bg2: '#AFD499', labelKo: '산길', labelEn: 'Mountain', labelJa: '山道', imagePath: 'assets/images/profile/profile-mountain.svg' },
+  { id: 'ocean', icon: '🌊', bg1: '#70A2B7', bg2: '#A8DFEC', labelKo: '바다', labelEn: 'Ocean', labelJa: '海', imagePath: 'assets/images/profile/profile-ocean.svg' },
+  { id: 'cafe', icon: '☕', bg1: '#9B6A45', bg2: '#F1D7B0', labelKo: '카페', labelEn: 'Cafe', labelJa: 'カフェ', imagePath: 'assets/images/profile/profile-cafe.svg' },
+  { id: 'train', icon: '🚆', bg1: '#002855', bg2: '#E28743', labelKo: '기차', labelEn: 'Train', labelJa: '電車', imagePath: 'assets/images/profile/profile-train.svg' },
+  { id: 'night', icon: '🌙', bg1: '#1A2340', bg2: '#8EA8C3', labelKo: '야경', labelEn: 'Night', labelJa: '夜景', imagePath: 'assets/images/profile/profile-night.svg' }
 ];
 
 let verifiedNickname = '';
@@ -311,6 +362,26 @@ function initOnboarding() {
   }
 }
 
+
+function safelyGoToProfileStep(provider) {
+  TravelogState.userProfile.authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
+  showOnboardingScreen('profile');
+  focusNicknameInput();
+}
+
+function attachActivationHandler(element, handler) {
+  if (!element || element.dataset.travelogActivationBound === 'true') return;
+  element.dataset.travelogActivationBound = 'true';
+  ['click', 'pointerup', 'touchend'].forEach(eventName => {
+    element.addEventListener(eventName, (event) => {
+      if (eventName !== 'click') {
+        event.preventDefault();
+      }
+      handler(event);
+    }, { passive: false });
+  });
+}
+
 function bindOnboardingEvents() {
   const loginButtons = [
     { id: 'login-google-btn', provider: 'Google' },
@@ -322,16 +393,12 @@ function bindOnboardingEvents() {
   loginButtons.forEach(({ id, provider }) => {
     const btn = document.getElementById(id);
     if (!btn) return;
-    btn.addEventListener('click', () => {
-      TravelogState.userProfile.authProvider = provider;
-      showOnboardingScreen('profile');
-      focusNicknameInput();
-    });
+    attachActivationHandler(btn, () => safelyGoToProfileStep(provider));
   });
 
   const backBtn = document.getElementById('onboarding-back-btn');
   if (backBtn) {
-    backBtn.addEventListener('click', () => showOnboardingScreen('login'));
+    attachActivationHandler(backBtn, () => showOnboardingScreen('login'));
   }
 
   const nicknameInput = document.getElementById('onboarding-nickname-input');
@@ -341,7 +408,8 @@ function bindOnboardingEvents() {
   if (nicknameInput) {
     nicknameInput.addEventListener('input', () => {
       verifiedNickname = '';
-      startBtn.disabled = true;
+      const draftNickname = nicknameInput.value.trim();
+      startBtn.disabled = draftNickname.length < 2;
       hideNicknameFeedback();
     });
 
@@ -354,11 +422,11 @@ function bindOnboardingEvents() {
   }
 
   if (nicknameCheckBtn) {
-    nicknameCheckBtn.addEventListener('click', verifyNickname);
+    attachActivationHandler(nicknameCheckBtn, verifyNickname);
   }
 
   if (startBtn) {
-    startBtn.addEventListener('click', completeOnboarding);
+    attachActivationHandler(startBtn, completeOnboarding);
   }
 
   document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
@@ -375,6 +443,7 @@ function bindOnboardingEvents() {
 
   bindProfileManagerEvents();
   renderProfileSampleAvatars();
+  installOnboardingSafetyNet();
 }
 
 function showOnboardingScreen(screenName) {
@@ -382,8 +451,20 @@ function showOnboardingScreen(screenName) {
   const profileScreen = document.getElementById('onboarding-screen-profile');
   if (!loginScreen || !profileScreen) return;
 
-  loginScreen.classList.toggle('active', screenName === 'login');
-  profileScreen.classList.toggle('active', screenName === 'profile');
+  const isLogin = screenName === 'login';
+  loginScreen.classList.toggle('active', isLogin);
+  profileScreen.classList.toggle('active', !isLogin);
+
+  // 모바일 브라우저에서 class 전환이 늦게 반영되거나 이전 스타일이 남는 경우를 막기 위한 하드 보정입니다.
+  loginScreen.style.display = isLogin ? 'flex' : 'none';
+  loginScreen.style.pointerEvents = isLogin ? 'auto' : 'none';
+  profileScreen.style.display = isLogin ? 'none' : 'flex';
+  profileScreen.style.pointerEvents = isLogin ? 'none' : 'auto';
+
+  document.querySelectorAll('.step-dots span').forEach((dot, index) => {
+    const shouldActivate = isLogin ? index === 0 : index === 1;
+    dot.classList.toggle('active', shouldActivate);
+  });
 }
 
 function focusNicknameInput() {
@@ -393,25 +474,50 @@ function focusNicknameInput() {
   }, 120);
 }
 
+
+function installOnboardingSafetyNet() {
+  if (window.__travelogOnboardingSafetyNetInstalled) return;
+  window.__travelogOnboardingSafetyNetInstalled = true;
+
+  document.addEventListener('click', (event) => {
+    const loginButton = event.target.closest('#login-google-btn, #login-naver-btn, #login-email-btn, #login-guest-btn');
+    if (loginButton) {
+      const providerMap = {
+        'login-google-btn': 'Google',
+        'login-naver-btn': 'Naver',
+        'login-email-btn': 'Email',
+        'login-guest-btn': 'Guest'
+      };
+      safelyGoToProfileStep(providerMap[loginButton.id] || 'Guest');
+      return;
+    }
+
+    const backButton = event.target.closest('#onboarding-back-btn');
+    if (backButton) {
+      showOnboardingScreen('login');
+      return;
+    }
+
+    const checkButton = event.target.closest('#nickname-check-btn');
+    if (checkButton) {
+      verifyNickname();
+      return;
+    }
+
+    const startButton = event.target.closest('#start-app-btn');
+    if (startButton && !startButton.disabled) {
+      completeOnboarding();
+    }
+  }, true);
+}
+
+window.TravelogGoOnboardingProfile = safelyGoToProfileStep;
+window.TravelogShowOnboardingScreen = showOnboardingScreen;
+window.TravelogVerifyNickname = verifyNickname;
+window.TravelogCompleteOnboarding = completeOnboarding;
+
 function createSampleAvatarDataUri(sample) {
-  const safeIcon = escapeHtml(sample.icon);
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${sample.bg1}"/>
-          <stop offset="100%" stop-color="${sample.bg2}"/>
-        </linearGradient>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,0.22)"/>
-        </filter>
-      </defs>
-      <rect width="160" height="160" rx="80" fill="url(#g)"/>
-      <circle cx="116" cy="34" r="34" fill="rgba(255,255,255,0.24)"/>
-      <circle cx="42" cy="122" r="42" fill="rgba(255,255,255,0.14)"/>
-      <text x="80" y="96" text-anchor="middle" font-size="58" font-family="Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif" filter="url(#shadow)">${safeIcon}</text>
-    </svg>`;
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  return sample.imagePath || '';
 }
 
 function escapeHtml(value) {
@@ -430,7 +536,7 @@ function getSampleAvatarById(id) {
 
 function getSampleAvatarData(id) {
   const sample = getSampleAvatarById(id);
-  return createSampleAvatarDataUri(sample);
+  return sample.imagePath || createSampleAvatarDataUri(sample);
 }
 
 function getLocalizedSampleLabel(sample) {
