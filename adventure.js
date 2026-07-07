@@ -3,6 +3,14 @@
 // ==========================================
 
 const TravelogAdventureModule = (() => {
+  function t(ko, en, ja) {
+    return window.TravelogApp && typeof window.TravelogApp.t === 'function' ? window.TravelogApp.t(ko, en, ja) : ko;
+  }
+
+  function pick(source, baseKey) {
+    return window.TravelogApp && typeof window.TravelogApp.pickLocalized === 'function' ? window.TravelogApp.pickLocalized(source, baseKey) : (source?.[`${baseKey}Ko`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ja`] || '');
+  }
+
   let currentStepIndex = 0;
   
   // Quest Step Configurations
@@ -11,10 +19,12 @@ const TravelogAdventureModule = (() => {
       id: 'step-1',
       titleEn: "The Stone Bridge Guardians",
       titleKo: "영제교의 상상속 수호신",
+      titleJa: "永済橋の想像上の守り神",
       targetLat: 37.5772,
       targetLng: 126.9768,
       riddleEn: "What mythical hornless dragon guards the stone bridge canal? (Hint: haetae)",
       riddleKo: "영제교 다리 아래에서 천하의 물길을 지키는 상상의 동물 이름은? (힌트: 해태)",
+      riddleJa: "永済橋の下で水路を守る想像上の動物の名前は？（ヒント：ヘテ）",
       answers: ["해태", "haetae", "천록", "cheonrok"],
       status: 'active' // 'active', 'completed', 'locked'
     },
@@ -22,10 +32,12 @@ const TravelogAdventureModule = (() => {
       id: 'step-2',
       titleEn: "Main Throne Court Rank Stones",
       titleKo: "근정전 조정 품계석의 비밀",
+      titleJa: "勤政殿前庭の品階石の秘密",
       targetLat: 37.5786,
       targetLng: 126.9772,
       riddleEn: "How many total rank stone pillars stand in the courtyard? (Answer in numbers: e.g., 18)",
       riddleKo: "근정전 앞뜰 품계석의 개수는 총 몇 개일까요? (숫자로 입력: 예, 18)",
+      riddleJa: "勤政殿の前庭にある品階石は全部でいくつでしょう？（数字で入力：例 18）",
       answers: ["18", "십팔", "열여덟"],
       status: 'locked'
     },
@@ -33,10 +45,12 @@ const TravelogAdventureModule = (() => {
       id: 'step-3',
       titleEn: "Gyeonghoeru Floating Columns",
       titleKo: "경회루 누각을 받치는 기둥",
+      titleJa: "慶会楼を支える石柱",
       targetLat: 37.5798,
       targetLng: 126.9760,
       riddleEn: "How many total stone columns support the floor of Gyeonghoeru? (Answer in numbers: e.g., 48)",
       riddleKo: "연못 위에 둥둥 떠 있는 경회루 누각을 떠받치는 돌기둥의 총 개수는? (숫자로 입력: 예, 48)",
+      riddleJa: "池の上に浮かぶ慶会楼を支える石柱は全部で何本でしょう？（数字で入力：例 48）",
       answers: ["48", "마흔여덟", "마흔여덟개"],
       status: 'locked'
     }
@@ -56,22 +70,21 @@ const TravelogAdventureModule = (() => {
   function renderQuestSteps() {
     const listEl = document.getElementById('quest-steps-list');
     listEl.innerHTML = '';
-    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     questSteps.forEach((step, index) => {
       const item = document.createElement('div');
       item.className = `quest-step-item glass-panel ${step.status}`;
       
-      const title = lang === 'ko' ? step.titleKo : step.titleEn;
+      const title = pick(step, 'title');
       let statusIcon = '<i class="fa-solid fa-lock"></i>';
-      let statusDesc = lang === 'ko' ? '잠김' : 'Locked';
+      let statusDesc = t('잠김', 'Locked', 'ロック中');
 
       if (step.status === 'active') {
         statusIcon = '<i class="fa-solid fa-location-arrow fa-fade"></i>';
-        statusDesc = lang === 'ko' ? '진행 중 (위치 탐색)' : 'Active (Navigate)';
+        statusDesc = t('진행 중 (위치 탐색)', 'Active (Navigate)', '進行中（位置探索）');
       } else if (step.status === 'completed') {
         statusIcon = '<i class="fa-solid fa-circle-check"></i>';
-        statusDesc = lang === 'ko' ? '완료됨' : 'Completed';
+        statusDesc = t('완료됨', 'Completed', '完了');
       }
 
       item.innerHTML = `
@@ -114,13 +127,12 @@ const TravelogAdventureModule = (() => {
     const unlockBox = document.getElementById('clue-unlock-box');
     const lockedBox = document.getElementById('clue-locked-box');
     const clueText = document.getElementById('clue-text-display');
-    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     // If within 15 meters, unlock the riddle console
     if (distance <= 15) {
       unlockBox.style.display = 'block';
       lockedBox.style.display = 'none';
-      clueText.textContent = lang === 'ko' ? currentStep.riddleKo : currentStep.riddleEn;
+      clueText.textContent = pick(currentStep, 'riddle');
     } else {
       unlockBox.style.display = 'none';
       lockedBox.style.display = 'block';
@@ -134,7 +146,7 @@ const TravelogAdventureModule = (() => {
     if (window.TravelogMapModule) {
       // Teleport user pin directly to the clue target
       window.TravelogMapModule.teleportUser(currentStep.targetLat, currentStep.targetLng);
-      window.TravelogApp.showToast(window.TravelogApp.getLanguage() === 'ko' ? '단서 장소로 이동하였습니다!' : 'Teleported to clue site!');
+      window.TravelogApp.showToast(t('단서 장소로 이동하였습니다!', 'Teleported to clue site!', '手がかり地点へ移動しました！'));
     }
   }
 
@@ -147,7 +159,6 @@ const TravelogAdventureModule = (() => {
     const currentStep = questSteps[currentStepIndex];
     const solutionInput = document.getElementById('puzzle-solution-input');
     const userAnswer = solutionInput.value.trim().toLowerCase();
-    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
 
     const isCorrect = currentStep.answers.some(ans => userAnswer.includes(ans.toLowerCase()));
 
@@ -164,7 +175,7 @@ const TravelogAdventureModule = (() => {
       if (currentStepIndex < questSteps.length) {
         // Unlock next step
         questSteps[currentStepIndex].status = 'active';
-        window.TravelogApp.showToast(lang === 'ko' ? '정답입니다! +150 포인트 획득. 다음 단서로 이동하세요!' : 'Correct! +150 pts. Move to next clue!');
+        window.TravelogApp.showToast(t('정답입니다! +150 포인트 획득. 다음 단서로 이동하세요!', 'Correct! +150 pts. Move to next clue!', '正解です！+150ポイント獲得。次の手がかりへ進みましょう！'));
         
         // Relocate radar target
         const userLoc = window.TravelogMapModule ? window.TravelogMapModule.getUserLocation() : { lat: 37.5750, lng: 126.9768 };
@@ -176,20 +187,19 @@ const TravelogAdventureModule = (() => {
       
       renderQuestSteps();
     } else {
-      window.TravelogApp.showToast(lang === 'ko' ? '틀렸습니다! 주변을 다시 둘러보고 입력해 보세요.' : 'Wrong answer! Look around and try again.');
+      window.TravelogApp.showToast(t('틀렸습니다! 주변을 다시 둘러보고 입력해 보세요.', 'Wrong answer! Look around and try again.', '違います！周辺をもう一度見て入力してみましょう。'));
     }
   }
 
   function triggerGrandVictory() {
-    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
-    
+
     // Add Grand Prize
     window.TravelogApp.addPoints(300);
     window.TravelogApp.claimCoupon({
       id: 'quest-treasure-coupon',
       tag: 'GRAND MYSTERY',
       value: 'ALL-PASS FREE',
-      desc: lang === 'ko' ? '경복궁 왕실 문화관 무료 종일 입장권' : 'Gyeongbokgung Royal Palace Culture Center Full-day Pass'
+      desc: t('경복궁 왕실 문화관 무료 종일 입장권', 'Gyeongbokgung Royal Palace Culture Center Full-day Pass', '景福宮王室文化館 終日無料入場券')
     });
 
     const victoryModal = document.createElement('div');
@@ -206,10 +216,10 @@ const TravelogAdventureModule = (() => {
       justify-content: center;
     `;
 
-    const titleText = lang === 'ko' ? '경복궁 역사 탐정단 완주!' : 'Seoul Palaces Mystery Cleared!';
-    const bodyText = lang === 'ko' ? '모든 단서를 해독하고 경복궁 밑에 잠든 역사의 비밀을 풀었습니다! 궁궐의 기운을 받아 새로운 혜택을 획득하였습니다.' : 'You have deciphered all clues and unlocked the lost royal secrets of Gyeongbokgung! You earned royal treasures.';
-    const prizeText = lang === 'ko' ? '최종 보상: +300 포인트 & 궁궐 올패스 프리 쿠폰' : 'Final Reward: +300 pts & Royal All-Pass Free Coupon';
-    const closeBtnText = lang === 'ko' ? '보상 지갑으로 가기' : 'View Coupon Wallet';
+    const titleText = t('경복궁 역사 탐정단 완주!', 'Seoul Palaces Mystery Cleared!', '景福宮歴史探偵団クリア！');
+    const bodyText = t('모든 단서를 해독하고 경복궁 밑에 잠든 역사의 비밀을 풀었습니다! 궁궐의 기운을 받아 새로운 혜택을 획득하였습니다.', 'You have deciphered all clues and unlocked the lost royal secrets of Gyeongbokgung! You earned royal treasures.', 'すべての手がかりを解読し、景福宮に眠る歴史の秘密を解き明かしました！新しい特典を獲得しました。');
+    const prizeText = t('최종 보상: +300 포인트 & 궁궐 올패스 프리 쿠폰', 'Final Reward: +300 pts & Royal All-Pass Free Coupon', '最終報酬：+300ポイント＆宮殿オールパス無料クーポン');
+    const closeBtnText = t('보상 지갑으로 가기', 'View Coupon Wallet', 'クーポンウォレットを見る');
 
     victoryModal.innerHTML = `
       <div class="glass-panel" style="padding: 40px; text-align: center; max-width: 440px; width: 90%; background-image: radial-gradient(circle at 10% 20%, rgb(91, 28, 120) 0%, rgb(40, 10, 80) 90%); border: 2px solid var(--accent-pink); box-shadow: var(--shadow-neon-pink);">
@@ -238,7 +248,7 @@ const TravelogAdventureModule = (() => {
       if (currentStepIndex < questSteps.length) {
         const currentStep = questSteps[currentStepIndex];
         const clueText = document.getElementById('clue-text-display');
-        clueText.textContent = lang === 'ko' ? currentStep.riddleKo : currentStep.riddleEn;
+        clueText.textContent = pick(currentStep, 'riddle');
       }
     },
     updateDistanceToClue: updateDistanceToClue,

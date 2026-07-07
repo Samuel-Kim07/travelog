@@ -27,9 +27,10 @@
       
       <div class="header-actions">
         <!-- User Profile Widget (Redesign addition) -->
-        <div id="user-profile-widget" class="profile-widget" style="display: none;">
+        <div id="user-profile-widget" class="profile-widget" style="display: none;" role="button" tabindex="0" aria-label="Open profile manager">
           <div class="profile-widget-avatar" id="header-avatar-container"></div>
           <span id="header-nickname">Traveler</span>
+          <i class="fa-solid fa-gear profile-widget-gear" aria-hidden="true"></i>
         </div>
 
         <!-- User Points Stat -->
@@ -325,7 +326,7 @@
         <div class="adventure-layout">
           <!-- Left Column: Quest details & current milestones -->
           <div class="adventure-console">
-            <div class="quest-banner" style="background-image: url('https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&q=80&w=600');">
+            <div class="quest-banner" style="background-image: url('assets/images/quests/seoul-palace-mystery.jpg');">
               <div class="quest-status-badge" data-localize="quest_active">Active Quest</div>
               <div class="quest-banner-content">
                 <h2 style="font-size: 22px; color: white;" id="quest-main-title">Seoul Palaces Mystery</h2>
@@ -413,16 +414,27 @@
       
       <!-- SCREEN 1: LOGIN SIGNUP SELECTION -->
       <div id="onboarding-screen-login" class="onboarding-screen active">
+        <div class="onboarding-step-row">
+          <span class="step-pill" data-localize="onboarding_step_login">1/2단계 · 시작하기</span>
+          <div class="step-dots" aria-hidden="true"><span class="active"></span><span></span></div>
+        </div>
+
         <div class="onboarding-header">
           <i class="fa-solid fa-earth-americas logo-icon"></i>
-          <h2 class="gradient-text">Welcome to Travelog</h2>
+          <h2 class="gradient-text" data-localize="onboarding_title">Travelog에 오신 걸 환영해요</h2>
           <p data-localize="onboarding_subtitle">The global companion for passionate travelers</p>
+        </div>
+
+        <div class="onboarding-feature-row">
+          <span><i class="fa-solid fa-location-dot"></i> <b data-localize="onboarding_feature_guide">GPS 음성 가이드</b></span>
+          <span><i class="fa-solid fa-gift"></i> <b data-localize="onboarding_feature_reward">쿠폰과 퀘스트</b></span>
+          <span><i class="fa-solid fa-microphone-lines"></i> <b data-localize="onboarding_feature_creator">가이드 제작 스튜디오</b></span>
         </div>
         
         <div class="login-button-container">
           <!-- Google Login -->
           <button class="login-btn-google" id="login-google-btn">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google Logo">
+            <img src="assets/icons/google-g-logo.svg" alt="Google Logo">
             <span data-localize="login_google">Continue with Google</span>
           </button>
           
@@ -437,11 +449,25 @@
             <i class="fa-solid fa-envelope"></i>
             <span data-localize="login_email">Continue with Email</span>
           </button>
+
+          <!-- Guest Login, common in travel/discovery apps for low-friction entry -->
+          <button class="login-btn-guest" id="login-guest-btn">
+            <i class="fa-solid fa-suitcase-rolling"></i>
+            <span data-localize="login_guest">게스트로 먼저 둘러보기</span>
+          </button>
         </div>
+
+        <p class="onboarding-privacy-note" data-localize="onboarding_privacy_hint">현재 프로토타입에서는 실제 로그인 정보를 전송하지 않고 다음 설정 단계로 이동합니다.</p>
       </div>
 
       <!-- SCREEN 2: PROFILE SETUP (NICKNAME & AVATAR) -->
       <div id="onboarding-screen-profile" class="onboarding-screen">
+        <div class="onboarding-step-row">
+          <button id="onboarding-back-btn" class="onboarding-back-btn"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
+          <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
+          <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
+        </div>
+
         <div class="onboarding-header">
           <h2 class="gradient-text" data-localize="onboarding_profile_title">Set Up Your Profile</h2>
           <p data-localize="onboarding_profile_subtitle">Create your travel identity to start exploring</p>
@@ -475,7 +501,7 @@
           <div class="nickname-form-section">
             <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;" data-localize="nickname_label">Create Nickname</label>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-              <input type="text" id="onboarding-nickname-input" placeholder="e.g. wanderer" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
+              <input type="text" id="onboarding-nickname-input" placeholder="예: 여행고래" data-localize-placeholder="nickname_placeholder" style="flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 10px 14px; border-radius: 12px; font-size: 14px;">
               <button class="btn-rect secondary" id="nickname-check-btn" style="padding: 10px 16px; font-size: 13px; font-weight: 700; border-radius: 12px;" data-localize="nickname_check">Verify</button>
             </div>
             
@@ -489,6 +515,81 @@
         </div>
       </div>
       
+    </div>
+  </div>
+
+
+  <!-- Profile Manager Modal -->
+  <div id="profile-manager-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" role="dialog" aria-modal="true" aria-labelledby="profile-manager-title">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="profile_manage_badge">프로필 관리</span>
+          <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
+          <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
+        </div>
+        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="profile-manager-body">
+        <div class="profile-manager-preview-panel">
+          <div class="avatar-preview-wrapper profile-large-preview-wrapper">
+            <div id="profile-manager-avatar-preview" class="avatar-preview profile-large-preview">
+              <span id="profile-manager-avatar-emoji">☀️</span>
+            </div>
+            <label for="profile-manager-file-input" class="upload-badge profile-upload-badge" title="Upload Profile Image">
+              <i class="fa-solid fa-camera"></i>
+            </label>
+            <input type="file" id="profile-manager-file-input" accept="image/*" style="display: none;">
+          </div>
+          <button class="btn-rect" id="profile-manager-upload-btn" type="button">
+            <i class="fa-solid fa-image"></i>
+            <span data-localize="profile_use_my_photo">내 사진/이미지 선택</span>
+          </button>
+          <p class="profile-image-note" data-localize="profile_image_note">사진은 이 브라우저에만 저장되는 프로토타입용 데이터입니다.</p>
+        </div>
+
+        <div class="profile-manager-editor-panel">
+          <div class="profile-field-block">
+            <label data-localize="profile_nickname_label">닉네임</label>
+            <input type="text" id="profile-manager-nickname-input" data-localize-placeholder="nickname_placeholder" placeholder="예: 여행고래">
+            <div id="profile-manager-feedback" class="feedback-badge" style="display:none;"></div>
+          </div>
+
+          <div class="profile-field-block">
+            <label data-localize="profile_temp_image_title">임시 이미지 선택</label>
+            <div id="profile-sample-avatar-grid" class="profile-sample-avatar-grid"></div>
+          </div>
+
+          <div class="profile-field-block">
+            <label data-localize="profile_emoji_title">간단 아이콘 선택</label>
+            <div class="avatar-presets profile-emoji-presets">
+              <button class="preset-btn profile-preset-btn" data-profile-preset="sun">☀️</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="wave">🌊</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="leaf">🍃</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="camera">📷</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="compass">🧭</button>
+              <button class="preset-btn profile-preset-btn" data-profile-preset="mountain">⛰️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-manager-actions">
+        <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
+          <i class="fa-solid fa-rotate-left"></i>
+          <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
+        </button>
+        <div class="profile-action-right">
+          <button id="profile-manager-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
+          <button id="profile-manager-save-btn" class="btn-rect" type="button">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span data-localize="profile_save">저장하기</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
