@@ -213,6 +213,13 @@ header {
   text-shadow: 0 4px 10px rgba(112, 162, 183, 0.3);
 }
 
+.logo-ci-icon {
+  height: 32px;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 4px 10px rgba(112, 162, 183, 0.3));
+}
+
 .header-actions {
   display: flex;
   align-items: center;
