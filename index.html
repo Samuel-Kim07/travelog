@@ -22,7 +22,7 @@
     <!-- Header -->
     <header>
       <div class="logo">
-        <img src="assets/images/brand/travelog-ci-symbol.png" alt="Travelog" class="logo-ci-icon">
+        <i class="fa-solid fa-earth-americas"></i>
         <span>Travelog</span>
       </div>
       
@@ -61,7 +61,7 @@
         <div class="map-topbar glass-panel">
           <div class="map-topbar-main">
             <div class="map-brand-icon" aria-hidden="true">
-              <img src="assets/images/brand/travelog-ci-symbol.png" alt="">
+              <img src="assets/images/brand/travelog-ci-symbol.svg" alt="">
             </div>
             <div class="map-topbar-copy">
               <span class="map-kicker" data-localize="map_top_badge">Live Travel Map</span>
@@ -90,7 +90,7 @@
           <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="active-guide">
             <button type="button" class="hud-card-toggle" data-hud-toggle="active-guide" aria-expanded="true">
               <span class="hud-card-title" data-localize="active_guide_title"><i class="fa-solid fa-user-astronaut"></i> Active Guide</span>
-              <svg class="hud-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
             </button>
             <div id="active-guide-box" class="hud-card-body" style="margin-top: 10px;">
               <div class="map-guide-profile">
@@ -117,7 +117,7 @@
           <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="tour-stops">
             <button type="button" class="hud-card-toggle" data-hud-toggle="tour-stops" aria-expanded="true">
               <span class="hud-card-title" data-localize="route_guide_list"><i class="fa-solid fa-map-location-dot"></i> Tour Locations</span>
-              <svg class="hud-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <i class="fa-solid fa-chevron-up hud-toggle-icon" aria-hidden="true"></i>
             </button>
             <div id="tour-stops-list" class="hud-card-body" style="margin-top: 8px; max-height: 140px; overflow-y: auto; font-size: 13px;">
               <!-- Populated dynamically -->
@@ -161,7 +161,7 @@
           <span class="legend-item"><i class="legend-dot legend-memo"></i><span data-localize="map_legend_memo">Memo</span></span>
         </div>
 
-        <!-- Mobile Friendly Bottom Status Sheet -->
+        <!-- Mobile Friendly Bottom Status Sheet (status-only; actions live in the GPS control rail to the right, avoiding duplicate buttons) -->
         <div class="map-bottom-sheet glass-panel">
           <div class="map-sheet-handle" aria-hidden="true"></div>
           <div class="map-sheet-info">
@@ -169,22 +169,12 @@
             <strong id="map-current-coords" data-localize="map_coords_waiting">Turn on GPS to show your coordinates.</strong>
             <small id="map-accuracy-text" data-localize="map_accuracy_waiting">Location accuracy will appear here.</small>
           </div>
-          <div class="map-sheet-actions">
-            <button type="button" class="map-mini-action" onclick="document.getElementById('real-gps-btn')?.click()">
-              <i class="fa-solid fa-location-crosshairs"></i>
-              <span data-localize="map_control_gps">Live GPS</span>
-            </button>
-            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
-              <i class="fa-solid fa-note-sticky"></i>
-              <span data-localize="map_control_memo">Memo</span>
-            </button>
-          </div>
         </div>
 
         <!-- Location Memo Modal -->
         <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
           <div class="location-memo-card glass-panel">
-            <button class="btn-circle memo-close-btn popup-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
+            <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
               <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="memo-modal-header">
@@ -207,7 +197,7 @@
         <div id="audio-overlay" class="floating-overlay-player glass-panel">
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 12px; text-transform: uppercase; color: var(--accent-blue); font-weight: 700;" data-localize="audio_guide">Audio Guide Triggered</span>
-            <button class="btn-circle popup-close-btn popup-close-btn-sm" id="close-audio-btn" aria-label="Close audio player"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
@@ -237,7 +227,7 @@
 
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
-          <button class="btn-circle close-overlay-video popup-close-btn" id="close-video-modal-btn" aria-label="Close video"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
           <div class="video-wrapper guide-video-wrapper">
             <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
               <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
@@ -298,49 +288,33 @@
           <div style="display: flex; flex-direction: column; gap: 24px;">
             
             <!-- Scratch Card Coupon Card -->
-            <div class="coupon-game-card glass-panel collapsible-card expanded" data-card-id="scratch-card">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 data-localize="scratch_title"><i class="fa-solid fa-ticket"></i> Scratch Off Coupon</h3>
-                  <p style="font-size: 12px; margin-top: 4px;" data-localize="scratch_desc">Scratch the silver card to unlock your travel discount!</p>
+            <div class="coupon-game-card glass-panel">
+              <h3 data-localize="scratch_title"><i class="fa-solid fa-ticket"></i> Scratch Off Coupon</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="scratch_desc">Scratch the silver card to unlock your travel discount!</p>
+              
+              <div class="scratch-card-container">
+                <!-- Underlay (Revealed content) -->
+                <div class="scratch-card-underlay">
+                  <span class="coupon-tag" id="scratch-coupon-tag">SEOUL ADVENTURE</span>
+                  <span class="coupon-value" id="scratch-coupon-value">50% OFF</span>
+                  <span class="coupon-desc" id="scratch-coupon-desc">Traditional Hanok Restaurant</span>
                 </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="scratch-card" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+                <!-- Overlay (Scratch layer) -->
+                <canvas id="scratch-canvas" class="scratch-card-overlay"></canvas>
               </div>
-              <div class="card-body">
-                <div class="scratch-card-container">
-                  <!-- Underlay (Revealed content) -->
-                  <div class="scratch-card-underlay">
-                    <span class="coupon-tag" id="scratch-coupon-tag">SEOUL ADVENTURE</span>
-                    <span class="coupon-value" id="scratch-coupon-value">50% OFF</span>
-                    <span class="coupon-desc" id="scratch-coupon-desc">Traditional Hanok Restaurant</span>
-                  </div>
-                  <!-- Overlay (Scratch layer) -->
-                  <canvas id="scratch-canvas" class="scratch-card-overlay"></canvas>
-                </div>
-                
-                <button class="btn-rect" id="reset-scratch-btn"><i class="fa-solid fa-rotate-right"></i> <span data-localize="scratch_reset">Try New Scratch (Cost: 50 pts)</span></button>
-              </div>
+              
+              <button class="btn-rect" id="reset-scratch-btn"><i class="fa-solid fa-rotate-right"></i> <span data-localize="scratch_reset">Try New Scratch (Cost: 50 pts)</span></button>
             </div>
 
             <!-- Spin the Wheel Card -->
-            <div class="coupon-game-card glass-panel collapsible-card expanded" data-card-id="spin-wheel">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 data-localize="spin_title"><i class="fa-solid fa-circle-notch"></i> Daily Travel Spin</h3>
-                  <p style="font-size: 12px; margin-top: 4px;" data-localize="spin_desc">Spin the wheel to win coupons, travel points, or gifts!</p>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="spin-wheel" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div class="wheel-container">
-                  <div class="wheel-pointer"></div>
-                  <canvas id="wheel-canvas" width="280" height="280"></canvas>
-                  <button class="wheel-spin-btn" id="spin-btn">SPIN</button>
-                </div>
+            <div class="coupon-game-card glass-panel">
+              <h3 data-localize="spin_title"><i class="fa-solid fa-circle-notch"></i> Daily Travel Spin</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="spin_desc">Spin the wheel to win coupons, travel points, or gifts!</p>
+              
+              <div class="wheel-container">
+                <div class="wheel-pointer"></div>
+                <canvas id="wheel-canvas" width="280" height="280"></canvas>
+                <button class="wheel-spin-btn" id="spin-btn">SPIN</button>
               </div>
             </div>
 
@@ -348,37 +322,19 @@
 
           <!-- Right Column: Local Events & Quests Calendar -->
           <div class="events-column">
-            <div class="glass-panel collapsible-card expanded" data-card-id="events-calendar" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 16px;" data-localize="events_calendar_title"><i class="fa-solid fa-calendar-days"></i> Global Travel Events & Quests</h3>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="events-calendar" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div style="display: flex; flex-direction: column; gap: 16px;" id="events-list-container">
-                  <!-- Dynamic Events List -->
-                </div>
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 16px;" data-localize="events_calendar_title"><i class="fa-solid fa-calendar-days"></i> Global Travel Events & Quests</h3>
+              <div style="display: flex; flex-direction: column; gap: 16px;" id="events-list-container">
+                <!-- Dynamic Events List -->
               </div>
             </div>
             
-            <div class="glass-panel collapsible-card expanded" data-card-id="coupon-wallet-panel" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 12px;" data-localize="my_coupons_title"><i class="fa-solid fa-box-archive"></i> My Coupon Wallet</h3>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="coupon-wallet-panel" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div id="coupon-wallet" style="display: flex; flex-direction: column; gap: 10px;">
-                  <!-- Owned coupons listing -->
-                  <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;" id="empty-wallet-msg" data-localize="empty_wallet">
-                    No coupons claimed yet. Scratch cards or spin the wheel to win!
-                  </div>
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 12px;" data-localize="my_coupons_title"><i class="fa-solid fa-box-archive"></i> My Coupon Wallet</h3>
+              <div id="coupon-wallet" style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Owned coupons listing -->
+                <div style="text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0;" id="empty-wallet-msg" data-localize="empty_wallet">
+                  No coupons claimed yet. Scratch cards or spin the wheel to win!
                 </div>
               </div>
             </div>
@@ -391,139 +347,107 @@
         <div class="creator-layout">
           <!-- Left Column: Guide Node Builder -->
           <div class="studio-panel">
-            <div class="glass-panel collapsible-card expanded" data-card-id="tour-builder" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 8px;" data-localize="builder_title"><i class="fa-solid fa-route"></i> Map Tour Guide Builder</h3>
-                  <p style="font-size: 13px; margin-bottom: 16px;" data-localize="builder_desc">Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.</p>
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 8px;" data-localize="builder_title"><i class="fa-solid fa-route"></i> Map Tour Guide Builder</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="builder_desc">Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.</p>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div>
+                  <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_tour_name">Tour Guide Name</label>
+                  <input type="text" id="new-tour-name" value="My Awesome Walking Tour" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: var(--radius-sm);">
                 </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="tour-builder" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                  <div>
-                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_tour_name">Tour Guide Name</label>
-                    <input type="text" id="new-tour-name" value="My Awesome Walking Tour" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: var(--radius-sm);">
+                
+                <div>
+                  <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_select_coords">Selected Map Pins</label>
+                  <div id="creator-coordinates-list" style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px; min-height: 100px; max-height: 180px; overflow-y: auto; font-size: 12px;">
+                    <div style="color: var(--text-muted); text-align: center; margin-top: 30px;" id="no-pins-msg" data-localize="no_pins_placeholder">Go to Map Tab and click on the map to place pins!</div>
                   </div>
-                  
-                  <div>
-                    <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_select_coords">Selected Map Pins</label>
-                    <div id="creator-coordinates-list" style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px; min-height: 100px; max-height: 180px; overflow-y: auto; font-size: 12px;">
-                      <div style="color: var(--text-muted); text-align: center; margin-top: 30px;" id="no-pins-msg" data-localize="no_pins_placeholder">Go to Map Tab and click on the map to place pins!</div>
-                    </div>
-                  </div>
-                  
-                  <div style="display: flex; gap: 12px; margin-top: 10px;">
-                    <button class="btn-rect" style="flex: 1;" id="save-tour-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-localize="save_tour">Publish Custom Guide</span></button>
-                    <button class="btn-rect secondary" id="clear-pins-btn"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_pins">Reset Pins</span></button>
-                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 10px;">
+                  <button class="btn-rect" style="flex: 1;" id="save-tour-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-localize="save_tour">Publish Custom Guide</span></button>
+                  <button class="btn-rect secondary" id="clear-pins-btn"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_pins">Reset Pins</span></button>
                 </div>
               </div>
             </div>
 
             <!-- Dynamic Audio Recorder Simulation -->
-            <div class="voice-recording-card glass-panel collapsible-card expanded" data-card-id="voice-recorder">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 data-localize="recorder_title"><i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder</h3>
-                  <p style="font-size: 12px;" data-localize="recorder_desc">Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.</p>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="voice-recorder" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+            <div class="voice-recording-card glass-panel">
+              <h3 data-localize="recorder_title"><i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder</h3>
+              <p style="font-size: 12px;" data-localize="recorder_desc">Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.</p>
+              
+              <div class="record-btn-container">
+                <button class="record-btn" id="record-audio-btn"><i class="fa-solid fa-microphone"></i></button>
+                <span id="record-status-text" style="font-size: 13px; font-weight: 600;" data-localize="recorder_ready">Click Mic to Start Recording</span>
+                <span id="record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
               </div>
-              <div class="card-body">
-                <div class="record-btn-container">
-                  <button class="record-btn" id="record-audio-btn"><i class="fa-solid fa-microphone"></i></button>
-                  <span id="record-status-text" style="font-size: 13px; font-weight: 600;" data-localize="recorder_ready">Click Mic to Start Recording</span>
-                  <span id="record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
-                </div>
-                
-                <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px;">
-                  <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="start" data-localize="script_start">"Starting Tour!"</button>
-                  <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="turn" data-localize="script_turn">"Go Left Here..."</button>
-                  <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="eat" data-localize="script_eat">"Best Bistro is here!"</button>
-                  <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="morning" data-localize="script_morning">"Good Morning!"</button>
-                </div>
+              
+              <div style="display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px;">
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="start" data-localize="script_start">"Starting Tour!"</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="turn" data-localize="script_turn">"Go Left Here..."</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="eat" data-localize="script_eat">"Best Bistro is here!"</button>
+                <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="morning" data-localize="script_morning">"Good Morning!"</button>
               </div>
             </div>
           </div>
 
           <!-- Right Column: Voice Market -->
           <div class="studio-panel">
-            <div class="glass-panel collapsible-card expanded" data-card-id="voice-market" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 4px;" data-localize="market_title"><i class="fa-solid fa-cart-shopping"></i> Voice Sample Market</h3>
-                  <p style="font-size: 13px; margin-bottom: 16px;" data-localize="market_desc">Don't want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.</p>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="voice-market" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div class="voice-market-grid" id="voice-market-container">
-                  <!-- Voice Market Cards dynamically generated -->
-                </div>
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;" data-localize="market_title"><i class="fa-solid fa-cart-shopping"></i> Voice Sample Market</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="market_desc">Don't want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.</p>
+              
+              <div class="voice-market-grid" id="voice-market-container">
+                <!-- Voice Market Cards dynamically generated -->
               </div>
             </div>
 
-            <div class="glass-panel github-storage-panel collapsible-card expanded" data-card-id="github-storage" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
-                  <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
+            <div class="glass-panel github-storage-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
+
+              <div class="storage-config-box">
+                <div class="storage-row">
+                  <span data-localize="media_storage_repo">Repository</span>
+                  <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
                 </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="github-storage" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+                <div class="storage-row">
+                  <span data-localize="media_storage_audio_path">Audio path</span>
+                  <code id="github-audio-path">assets/icons/Audio</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_video_path">Video path</span>
+                  <code id="github-video-path">assets/icons/Video</code>
+                </div>
+                <div class="storage-row">
+                  <span data-localize="media_storage_token_status">Token status</span>
+                  <span id="github-token-status" class="storage-status-pill">No token</span>
+                </div>
               </div>
-              <div class="card-body">
-                <div class="storage-config-box">
-                  <div class="storage-row">
-                    <span data-localize="media_storage_repo">Repository</span>
-                    <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
-                  </div>
-                  <div class="storage-row">
-                    <span data-localize="media_storage_audio_path">Audio path</span>
-                    <code id="github-audio-path">assets/icons/Audio</code>
-                  </div>
-                  <div class="storage-row">
-                    <span data-localize="media_storage_video_path">Video path</span>
-                    <code id="github-video-path">assets/icons/Video</code>
-                  </div>
-                  <div class="storage-row">
-                    <span data-localize="media_storage_token_status">Token status</span>
-                    <span id="github-token-status" class="storage-status-pill">No token</span>
-                  </div>
-                </div>
 
-                <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
-                <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
-                <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
-                <div class="storage-action-row">
-                  <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
-                  <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
-                  <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
-                </div>
-
-                <div class="media-upload-test-grid">
-                  <div class="media-upload-card">
-                    <label data-localize="media_storage_audio_file">Audio file test</label>
-                    <input type="file" id="media-audio-file" accept="audio/*">
-                    <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
-                  </div>
-                  <div class="media-upload-card">
-                    <label data-localize="media_storage_video_file">Video file test</label>
-                    <input type="file" id="media-video-file" accept="video/*">
-                    <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
-                  </div>
-                </div>
-
-                <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
+              <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
+              <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
+              <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
+              <div class="storage-action-row">
+                <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
+                <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
+                <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
               </div>
+
+              <div class="media-upload-test-grid">
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_audio_file">Audio file test</label>
+                  <input type="file" id="media-audio-file" accept="audio/*">
+                  <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
+                </div>
+                <div class="media-upload-card">
+                  <label data-localize="media_storage_video_file">Video file test</label>
+                  <input type="file" id="media-video-file" accept="video/*">
+                  <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
+                </div>
+              </div>
+
+              <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
             </div>
           </div>
         </div>
@@ -543,60 +467,43 @@
             </div>
 
             <!-- Steps Progress Checklist -->
-            <div class="glass-panel collapsible-card expanded" data-card-id="quest-milestones" style="padding: 24px;">
-              <div class="card-toggle-row">
-                <div class="card-toggle-text">
-                  <h3 style="margin-bottom: 16px;" data-localize="quest_steps_title"><i class="fa-solid fa-list-check"></i> Quest Milestones</h3>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="quest-milestones" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
-              </div>
-              <div class="card-body">
-                <div class="quest-steps" id="quest-steps-list">
-                  <!-- Dynamically populated -->
-                </div>
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 16px;" data-localize="quest_steps_title"><i class="fa-solid fa-list-check"></i> Quest Milestones</h3>
+              <div class="quest-steps" id="quest-steps-list">
+                <!-- Dynamically populated -->
               </div>
             </div>
           </div>
 
           <!-- Right Column: Interactive Clue Radar -->
           <div class="adventure-console">
-            <div class="adventure-tracker-card glass-panel collapsible-card expanded" data-card-id="gps-radar">
-              <div class="card-toggle-row" style="width:100%;">
-                <div class="card-toggle-text">
-                  <h3 data-localize="radar_title"><i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar</h3>
-                  <p style="font-size: 12px; margin-top: 4px;" data-localize="radar_desc">Simulate walking on the Map tab to get closer to the coordinate clues. When inside 10m, clues unlock!</p>
-                </div>
-                <button type="button" class="card-toggle-btn" data-card-toggle="gps-radar" aria-expanded="true" aria-label="Collapse panel">
-                  <svg class="card-toggle-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M0.5 11L7.5 3.3L15 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+            <div class="adventure-tracker-card glass-panel">
+              <h3 data-localize="radar_title"><i class="fa-solid fa-satellite-dish"></i> GPS Proximity Radar</h3>
+              <p style="font-size: 12px; margin-top: 4px;" data-localize="radar_desc">Simulate walking on the Map tab to get closer to the coordinate clues. When inside 10m, clues unlock!</p>
+              
+              <!-- Radar visualizer -->
+              <div class="radar-spinner">
+                <div class="radar-dist" id="radar-distance-value">84m</div>
               </div>
-              <div class="card-body" style="width:100%; display:flex; flex-direction:column; align-items:center;">
-                <!-- Radar visualizer -->
-                <div class="radar-spinner">
-                  <div class="radar-dist" id="radar-distance-value">84m</div>
+              
+              <div style="width: 100%; border-top: 1px solid var(--glass-border); padding-top: 16px;">
+                <div id="clue-unlock-box" style="display: none;">
+                  <h4 style="color: var(--accent-blue); font-size: 15px; margin-bottom: 8px;" data-localize="clue_unlocked_title"><i class="fa-solid fa-lock-open"></i> Clue Location Reached!</h4>
+                  <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; border: 1px dashed var(--accent-blue);" id="clue-text-display">
+                    "Find the stone lantern near the west pavilion..."
+                  </div>
+                  <!-- Mini puzzle input -->
+                  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="puzzle-solution-input" placeholder="Enter password/answer..." style="flex:1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;" data-localize-placeholder="puzzle_placeholder">
+                    <button class="btn-rect" id="solve-puzzle-btn" style="padding: 8px 16px; font-size: 13px;" data-localize="solve">Solve</button>
+                  </div>
                 </div>
                 
-                <div style="width: 100%; border-top: 1px solid var(--glass-border); padding-top: 16px;">
-                  <div id="clue-unlock-box" style="display: none;">
-                    <h4 style="color: var(--accent-blue); font-size: 15px; margin-bottom: 8px;" data-localize="clue_unlocked_title"><i class="fa-solid fa-lock-open"></i> Clue Location Reached!</h4>
-                    <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 12px; border: 1px dashed var(--accent-blue);" id="clue-text-display">
-                      "Find the stone lantern near the west pavilion..."
-                    </div>
-                    <!-- Mini puzzle input -->
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                      <input type="text" id="puzzle-solution-input" placeholder="Enter password/answer..." style="flex:1; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px;" data-localize-placeholder="puzzle_placeholder">
-                      <button class="btn-rect" id="solve-puzzle-btn" style="padding: 8px 16px; font-size: 13px;" data-localize="solve">Solve</button>
-                    </div>
-                  </div>
-                  
-                  <div id="clue-locked-box">
-                    <p style="font-size: 13px; color: var(--text-muted);" data-localize="radar_clue_hint">Proceed to the active map icon marked in Pink to trigger coordinates.</p>
-                    <button class="btn-rect" id="sim-teleport-clue-btn" style="margin-top: 12px; width: 100%; background: var(--grad-pink-purple);" data-localize="teleport_btn">
-                      <i class="fa-solid fa-bolt"></i> Teleport to Clue GPS Spot
-                    </button>
-                  </div>
+                <div id="clue-locked-box">
+                  <p style="font-size: 13px; color: var(--text-muted);" data-localize="radar_clue_hint">Proceed to the active map icon marked in Pink to trigger coordinates.</p>
+                  <button class="btn-rect" id="sim-teleport-clue-btn" style="margin-top: 12px; width: 100%; background: var(--grad-pink-purple);" data-localize="teleport_btn">
+                    <i class="fa-solid fa-bolt"></i> Teleport to Clue GPS Spot
+                  </button>
                 </div>
               </div>
             </div>
@@ -636,12 +543,7 @@
   <!-- Onboarding Full-Screen Overlay (Redesign Addition) -->
   <div id="onboarding-overlay" class="onboarding-backdrop">
     <div class="onboarding-card glass-panel arch-card">
-
-      <!-- Skip / Close Onboarding -->
-      <button type="button" id="onboarding-skip-btn" class="popup-close-btn onboarding-skip-btn" aria-label="Skip onboarding" title="건너뛰기">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
-
+      
       <!-- SCREEN 1: LOGIN SIGNUP SELECTION -->
       <div id="onboarding-screen-login" class="onboarding-screen active">
         <div class="onboarding-step-row">
@@ -758,7 +660,7 @@
           <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
           <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
         </div>
-        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn popup-close-btn" aria-label="Close profile manager">
+        <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
@@ -831,6 +733,5 @@
   <script src="creator.js" defer></script>
   <script src="adventure.js" defer></script>
   <script src="app.js" defer></script>
-  <script src="panel-toggle.js" defer></script>
 </body>
 </html>
