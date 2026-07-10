@@ -827,23 +827,84 @@ const TravelogMapModule = (() => {
     window.TravelogApp.showToast(t('현재 위치에 메모를 저장했습니다.', 'Memo saved at your current location.', '現在地にメモを保存しました。'));
   }
 
+  const MEMO_GROUP_RADIUS_METERS = 12;
+
+  function groupMemosByLocation(memos) {
+    const groups = [];
+    memos.forEach((memo) => {
+      const existing = groups.find(g => getDistanceInMeters(g.lat, g.lng, memo.lat, memo.lng) <= MEMO_GROUP_RADIUS_METERS);
+      if (existing) {
+        existing.memos.push(memo);
+      } else {
+        groups.push({ lat: memo.lat, lng: memo.lng, memos: [memo] });
+      }
+    });
+    return groups;
+  }
+
+  function createMemoMarkerIcon(count) {
+    const badge = count > 1 ? `<span class="memo-pin-badge">${count > 9 ? '9+' : count}</span>` : '';
+    return L.divIcon({
+      html: `<div class="custom-pin pin-memo" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; position:relative;"><i class="fa-solid fa-note-sticky"></i>${badge}</div>`,
+      className: 'custom-leaflet-marker',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+  }
+
+  function buildSingleMemoPopupHtml(memo) {
+    const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
+    return `
+      <div class="memo-popup">
+        <h4>${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
+        <p>${escapeHtml(memo.text)}</p>
+        <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
+        <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
+      </div>
+    `;
+  }
+
+  function buildMemoGroupPopupHtml(group) {
+    const itemsHtml = group.memos.map((memo, index) => {
+      const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
+      const rawSnippet = memo.text.length > 22 ? `${memo.text.slice(0, 22)}…` : memo.text;
+      return `
+        <div class="memo-accordion-item">
+          <button type="button" class="memo-accordion-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <span class="memo-accordion-index">${index + 1}</span>
+            <span class="memo-accordion-snippet">${escapeHtml(rawSnippet)}</span>
+            <i class="fa-solid fa-chevron-down memo-accordion-caret" aria-hidden="true"></i>
+          </button>
+          <div class="memo-accordion-body">
+            <p>${escapeHtml(memo.text)}</p>
+            <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
+            <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="memo-popup memo-popup-group">
+        <h4>${t('내 위치 메모', 'My Location Memos', '現在地メモ')} · ${group.memos.length}${t('개', '', '件')}</h4>
+        <div class="memo-accordion-list">${itemsHtml}</div>
+      </div>
+    `;
+  }
+
   function renderUserMemoMarkers() {
     updateMapOverview();
     if (!memoMarkersLayer || typeof L === 'undefined') return;
     memoMarkersLayer.clearLayers();
 
-    userMemoItems.forEach((memo) => {
-      const memoIcon = createHtmlIcon('fa-solid fa-note-sticky', 'pin-memo');
-      const marker = L.marker([memo.lat, memo.lng], { icon: memoIcon });
-      const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
-      marker.bindPopup(`
-        <div class="memo-popup">
-          <h4>${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
-          <p>${escapeHtml(memo.text)}</p>
-          <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
-          <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
-        </div>
-      `);
+    const groups = groupMemosByLocation(userMemoItems);
+
+    groups.forEach((group) => {
+      const marker = L.marker([group.lat, group.lng], { icon: createMemoMarkerIcon(group.memos.length) });
+      const popupHtml = group.memos.length > 1
+        ? buildMemoGroupPopupHtml(group)
+        : buildSingleMemoPopupHtml(group.memos[0]);
+      marker.bindPopup(popupHtml, { maxWidth: 260 });
       memoMarkersLayer.addLayer(marker);
     });
   }

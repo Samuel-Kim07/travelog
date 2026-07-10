@@ -661,6 +661,105 @@ nav.bottom-nav {
   cursor: pointer;
 }
 
+/* Memo count badge shown on the pin when several memos share a spot */
+.memo-pin-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #A34E54;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+}
+
+/* Multi-memo popup: tap a row to expand it accordion-style */
+.memo-popup-group h4 {
+  margin-bottom: 8px;
+}
+.memo-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 230px;
+  overflow-y: auto;
+}
+.memo-accordion-item {
+  border: 1px solid rgba(112, 162, 183, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+}
+.memo-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.memo-accordion-index {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #FFE9A7;
+  color: #6B4A00;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.memo-accordion-snippet {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2B3A42;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.memo-accordion-caret {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #70A2B7;
+  transition: transform 0.2s ease;
+}
+.memo-accordion-item.expanded .memo-accordion-caret {
+  transform: rotate(180deg);
+}
+.memo-accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 10px;
+  transition: max-height 0.25s ease, padding 0.2s ease;
+}
+.memo-accordion-item.expanded .memo-accordion-body {
+  max-height: 280px;
+  padding: 0 10px 10px;
+}
+.memo-accordion-body p {
+  margin: 4px 0 6px;
+}
+.memo-accordion-body small {
+  margin-bottom: 6px;
+}
+
 .location-memo-modal {
   position: fixed;
   inset: 0;
@@ -690,6 +789,10 @@ nav.bottom-nav {
   width: 30px;
   height: 30px;
   font-size: 12px;
+}
+.memo-close-btn .icon-x {
+  display: block;
+  color: inherit;
 }
 .memo-modal-header {
   display: flex;
