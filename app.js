@@ -5,6 +5,7 @@
 const TravelogState = {
   language: 'ko', // 'ko', 'en', or 'ja'
   points: 550,
+  coins: 1250, // 트레블 코인 기본값
   ownedCoupons: [],
   userProfile: {
     isOnboarded: false,
@@ -14,6 +15,18 @@ const TravelogState = {
     avatarValue: '☀️',
     avatarPresetId: 'sun'
   },
+  // 사용자가 획득한 가이드 목록 및 위젯 노출 여부
+  userGuides: [
+    { id: 'guide-gyeongbok', name: '경복궁 역사/문화 가이드 투어', author: '민호 (로컬 가이드)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', isWidget: true },
+    { id: 'guide-kyoto', name: '교토 대나무숲 청정 힐링 걷기', author: '사쿠라 (로컬 가이드)', rating: '4.8', bg: 'assets/images/blogs/blog-kyoto-temple-bamboo.svg', isWidget: true },
+    { id: 'guide-switzerland', name: '스위스 인터라켄 융프라우 코스', author: '한스 (스타 가이드)', rating: '5.0', bg: 'assets/images/blogs/blog-switzerland-interlaken.svg', isWidget: false },
+    { id: 'guide-paris', name: '파리 센강 일몰 산책로', author: '소피 (스타 가이드)', rating: '4.9', bg: 'assets/images/explore/vlog-paris-seine-sunset.svg', isWidget: false }
+  ],
+  messages: [
+    { id: 1, sender: '로컬 가이드 민호', date: '2026-07-21', body: '안녕하세요! 경복궁 가이드 투어에 참여해주셔서 감사합니다. 도움이 필요하시면 언제든 쪽지 주세요!', unread: true },
+    { id: 2, sender: '여행고래 (스타 가이드)', date: '2026-07-20', body: '수원 화성 퀘스트 꿀팁 알려드립니다! 북문 근처 매점 뒤의 힌트를 찾아보세요.', unread: true },
+    { id: 3, sender: '트레블로그 시스템', date: '2026-07-19', body: '신규 가입 환영! 무료 1,250 코인이 지급되었습니다.', unread: false }
+  ],
   activeGuide: {
     id: 'guide-minho',
     nameEn: 'Minho (Seoul Local)',
@@ -35,6 +48,36 @@ const TravelogState = {
 // UI Localization Dictionary
 const LocalizationDictionary = {
   pts: { en: 'pts', ko: '포인트', ja: 'ポイント' },
+  nav_home: { en: 'Home', ko: '홈', ja: 'ホーム' },
+  home_welcome: { en: 'Welcome!', ko: '반갑습니다!', ja: 'ようこそ！' },
+  home_coin_balance: { en: 'Travel Coin Balance', ko: '보유 트레블 코인', ja: '保有トラベルコイン' },
+  home_charge_ad: { en: 'Ad Charge (+50)', ko: '광고 충전 (+50)', ja: '広告チャージ (+50)' },
+  home_charge_pay: { en: 'Store', ko: '유료 충전', ja: '有料チャージ' },
+  home_widget_title: { en: 'My Guide Chest', ko: '내 가이드 보관함 (위젯)', ja: 'マイガイド保管箱 (ウィジェット)' },
+  home_widget_edit: { en: 'Edit Widgets', ko: '위젯 편집', ja: 'ウィジェット編集' },
+  home_widget_desc: { en: 'Add or remove quick launch widgets of purchased or event guides.', ko: '구매 또는 선물받은 여행 가이드 중 자주 보거나 보관하고 싶은 가이드 위젯을 더하고 뺄 수 있습니다.', ja: '購入または獲得したガイドのうち、ホーム에 배치할 위젯을 설정할 수 있습니다.' },
+  home_rec_title: { en: 'Recommended Guides', ko: '추천 가이드', ja: 'おすすめのガイド' },
+  home_today_title: { en: "Today's Logs", ko: '오늘의 가이드 (오늘의 로그)', ja: '今日のログ（おすすめガイド）' },
+  home_today_info: { en: '30-Day selection block applied', ko: '오로 30일 룰 적용', ja: '30日ローテーション適用' },
+  home_star_title: { en: 'Star Guides', ko: '스타 가이드', ja: 'スターガイド' },
+  home_event_title: { en: 'Event & Quest Guides', ko: '이벤트 및 퀘스트 가이드', ja: 'イベント＆クエストガイド' },
+  ad_promo_1: { en: 'Jeju Air Earlybird tickets open! 10% Extra Discount ✈️', ko: '제주항공 특별 공동구매 티켓 오픈! 즉시 10% 추가 할인 ✈️', ja: 'チェジュ航空アーリーバードオープン！10%追加割引 ✈️' },
+  ad_promo_2: { en: 'Travelog Pass: Unlimited audio guides 👑', ko: '트레블로그 패스 구독 시 글로벌 도슨트 오디오 가이드 무제한 무료 👑', ja: 'Travelogパス購読でグローバル音声ガイドが完全無料 👑' },
+  ad_promo_3: { en: 'Suwon Hwaseong Quest: Complete to get Starbucks Coupon 🎁', ko: '수원 화성 성곽 보물찾기 퀘스트 완료 시 즉시 편의점 5천원권 100% 지급 🎁', ja: '水原華城クエスト完了でコンビニ500円券プレゼント 🎁' },
+  msg_badge: { en: 'Inbox', ko: '쪽지함', ja: 'メッセージ' },
+  msg_title: { en: 'My Inbox', ko: '받은 쪽지함', ja: 'メッセージボックス' },
+  msg_desc: { en: 'Messages from guides and system.', ko: '로컬 가이드와 시스템에서 보낸 소식입니다.', ja: 'ガイドやシステムからのメッセージです。' },
+  confirm: { en: 'Confirm', ko: '확인', ja: '確認' },
+  ad_sim_title: { en: 'Sponsor Ad Playing', ko: '스폰서 광고 재생 중', ja: 'スポンサー広告再生中' },
+  ad_sim_desc: { en: 'Earn 50 coins after watching the full ad.', ko: '광고를 끝까지 시청하시면 50 트레블 코인이 지급됩니다.', ja: '最後まで視聴すると50コインがプレゼントされます。' },
+  ad_skip: { en: 'Close', ko: '닫기', ja: '閉じる' },
+  pay_badge: { en: 'Coin Shop', ko: '코인 숍', ja: 'コインショップ' },
+  pay_title: { en: 'Buy Travel Coins', ko: '트레블 코인 유료 충전', ja: 'トラベルコイン有料チャージ' },
+  pay_desc: { en: 'Spend on premium audio guides.', ko: '프리미엄 로컬 오디오 가이드 구입에 사용하세요.', ja: 'プレミアム音声ガイドの購入に使えます。' },
+  widget_badge: { en: 'Home Widgets', ko: '홈 위젯 설정', ja: 'ホームウィジェット設定' },
+  widget_config_title: { en: 'Edit Widgets', ko: '보관함 위젯 편집', ja: '保管箱ウィジェット編集' },
+  widget_config_desc: { en: 'Choose which guides to show on Home dashboard.', ko: '홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.', ja: '홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.' },
+  widget_limit_hint: { en: 'Max 4 recommended', ko: '최대 4개까지 노출 권장', ja: '最大4個までの表示を推奨' },
   active_guide_title: { en: '<i class="fa-solid fa-user-astronaut"></i> Active Guide', ko: '<i class="fa-solid fa-user-astronaut"></i> 현재 가이드', ja: '<i class="fa-solid fa-user-astronaut"></i> 現在のガイド' },
   intro_video: { en: '<i class="fa-solid fa-circle-play"></i> Intro Video', ko: '<i class="fa-solid fa-circle-play"></i> 소개 영상', ja: '<i class="fa-solid fa-circle-play"></i> 紹介動画' },
   greeting: { en: '<i class="fa-solid fa-volume-high"></i> Greeting', ko: '<i class="fa-solid fa-volume-high"></i> 인사말 듣기', ja: '<i class="fa-solid fa-volume-high"></i> あいさつ' },
@@ -54,13 +97,19 @@ const LocalizationDictionary = {
   spin_desc: { en: 'Spin the wheel to win coupons, travel points, or gifts!', ko: '룰렛을 돌려 할인 쿠폰, 여행 포인트 및 특별 경품을 받으세요!', ja: 'ルーレットを回してクーポン、旅ポイント、特別ギフトを獲得しましょう！' },
   events_calendar_title: { en: '<i class="fa-solid fa-calendar-days"></i> Global Travel Events & Quests', ko: '<i class="fa-solid fa-calendar-days"></i> 글로벌 이벤트 & 오프라인 퀘스트', ja: '<i class="fa-solid fa-calendar-days"></i> グローバルイベント＆オフラインクエスト' },
   my_coupons_title: { en: '<i class="fa-solid fa-box-archive"></i> My Coupon Wallet', ko: '<i class="fa-solid fa-box-archive"></i> 내 쿠폰 지갑', ja: '<i class="fa-solid fa-box-archive"></i> マイクーポンウォレット' },
-  empty_wallet: { en: 'No coupons claimed yet. Scratch cards or spin the wheel to win!', ko: '보유한 쿠폰이 없습니다. 스크래치와 룰렛에서 획득해 보세요!', ja: 'まだクーポンがありません。スクラッチやルーレットで獲得しましょう！' },
+  gdrive_storage_title: { en: '<i class="fa-brands fa-google-drive"></i> Google Drive Storage', ko: '<i class="fa-brands fa-google-drive"></i> 구글 드라이브 오픈 저장소', ja: '<i class="fa-brands fa-google-drive"></i> Googleドライブオープン保存先' },
+  gdrive_storage_desc: { en: 'Upload recorded guides, scripts, and video guides to your Google Drive open folder.', ko: '스튜디오에서 제작한 음성 가이드(오디오), 코스 설명(메모), 비디오 파일을 공유 드라이브 오픈 폴더로 즉시 업로드하세요.', ja: 'スタジオで制作した音声ガイド、コース説明、動画ファイルをGoogleドライブのオープンフォルダにアップロードします。' },
+  gdrive_owner: { en: 'Storage Owner', ko: '저장소 소유자', ja: '保存先所有者' },
+  gdrive_dest: { en: 'Target Folder', ko: '대상 폴더', ja: '対象フォルダ' },
+  gdrive_open_btn: { en: 'Open Drive Folder', ko: '오픈 드라이브 폴더 열기', ja: 'Googleドライブフォルダを開く' },
+  gdrive_download_data_label: { en: 'Download Creation Data', ko: '제작 데이터 다운로드', ja: '制作データのダウンロード' },
+  gdrive_download_json: { en: 'Download Guide Data (.json)', ko: '가이드 데이터 (.json) 다운로드', ja: 'ガイドデータ (.json) 다운로드' },
   builder_title: { en: '<i class="fa-solid fa-route"></i> Map Tour Guide Builder', ko: '<i class="fa-solid fa-route"></i> 지도 투어 가이드 빌더', ja: '<i class="fa-solid fa-route"></i> 地図ツアーガイドビルダー' },
   builder_desc: { en: 'Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.', ko: '나만의 맞춤 가이드를 만드세요! 지도 탭을 클릭하여 핀을 생성한 뒤, 음성 파일을 녹음하거나 스크립트를 작성하여 가이드로 퍼블리싱해보세요.', ja: '自分だけのカスタムガイドを作りましょう！地図タブでピンを置き、音声や案内文を登録できます。' },
   builder_tour_name: { en: 'Tour Guide Name', ko: '투어 가이드 이름', ja: 'ツアーガイド名' },
   builder_select_coords: { en: 'Selected Map Pins', ko: '선택된 지도 핀 목록', ja: '選択した地図ピン' },
   no_pins_placeholder: { en: 'Go to Map Tab and click on the map to place pins!', ko: '지도 탭으로 이동하여 원하는 위치를 클릭해 핀을 배치하세요!', ja: '地図タブで好きな場所をクリックしてピンを配置してください！' },
-  save_tour: { en: '<i class="fa-solid fa-floppy-disk"></i> Publish Custom Guide', ko: '<i class="fa-solid fa-floppy-disk"></i> 가이드 정식 등록하기', ja: '<i class="fa-solid fa-floppy-disk"></i> カスタムガイドを公開' },
+  save_tour: { en: '<i class="fa-solid fa-cloud-arrow-up"></i> Publish Guide', ko: '<i class="fa-solid fa-cloud-arrow-up"></i> 출간하기', ja: '<i class="fa-solid fa-cloud-arrow-up"></i> ガイドを公開' },
   clear_pins: { en: '<i class="fa-solid fa-trash-can"></i> Reset Pins', ko: '<i class="fa-solid fa-trash-can"></i> 선택 핀 초기화', ja: '<i class="fa-solid fa-trash-can"></i> ピンをリセット' },
   recorder_title: { en: '<i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder', ko: '<i class="fa-solid fa-microphone-lines"></i> 가이드 음성 녹음 스튜디오', ja: '<i class="fa-solid fa-microphone-lines"></i> ガイド音声録音スタジオ' },
   recorder_desc: { en: 'Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.', ko: '등록한 핀 위치에 도달했을 때 재생될 자세한 음성을 녹음하세요. 아래 템플릿 문구를 읽으시면 쉽습니다.', ja: '登録したピンの場所で再生される案内音声を録音できます。下のテンプレートを読むだけでも作れます。' },
@@ -201,6 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Set default language
   setLanguage('ko');
+
+  // Initialize Home Tab UI & Events
+  initHomeTab();
 });
 
 // Tab Navigation logic
@@ -225,6 +277,10 @@ function initNavigation() {
       });
 
       // Special Tab-Specific Handlers
+      if (targetTab === 'home-tab') {
+        renderHomeTab();
+      }
+
       if (targetTab === 'map-tab' && window.TravelogMapModule) {
         window.TravelogMapModule.invalidateSize(); // Force Leaflet redraw
       }
@@ -234,6 +290,409 @@ function initNavigation() {
       }
     });
   });
+}
+
+// ==========================================
+// TAB 0: HOME TAB BUSINESS LOGIC
+// ==========================================
+let adRollingIntervalId = null;
+
+const RECOMMEND_GUIDES_DATA = {
+  recommended: [
+    { id: 'rec-1', name: '서울 북촌한옥마을 반나절 도보 투어', author: '지민 (로컬 가이드)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', badge: '인기' },
+    { id: 'rec-2', name: '부산 해운대 해변 열차 낭만 여행', author: '준호 (로컬 가이드)', rating: '4.8', bg: 'assets/images/profile/profile-ocean.svg', badge: '강추' },
+    { id: 'rec-3', name: '제주 우도 전기자전거 환상 투어', author: '수진 (로컬 가이드)', rating: '4.7', bg: 'assets/images/profile/profile-compass.svg', badge: '신규' }
+  ],
+  today: [
+    { id: 'today-1', name: '경복궁 역사/문화 가이드 투어', author: '민호 (서울 토박이)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', badge: '오늘의 로그' },
+    { id: 'today-2', name: '경주 첨성대 달빛 야경 산책', author: '혜진 (로컬 가이드)', rating: '4.7', bg: 'assets/images/profile/profile-night.svg', badge: '오로 선정' }
+  ],
+  star: [
+    { id: 'star-1', name: '제주도 서귀포 감성 카페 투어', author: '로하 (스타 크리에이터)', rating: '5.0', bg: 'assets/images/profile/profile-cafe.svg', badge: 'STAR' },
+    { id: 'star-2', name: '강릉 안목해변 커피거리 도보 투어', author: '커피러버 (스타 크리에이터)', rating: '4.9', bg: 'assets/images/profile/profile-cafe.svg', badge: 'STAR' }
+  ],
+  event: [
+    { id: 'event-1', name: '수원 화성 성곽 보물찾기 퀘스트', author: '트레블로그 이벤트', rating: '4.8', bg: 'assets/images/adventure/quest-seoul-palace-mystery.svg', badge: '선물 증정' },
+    { id: 'event-2', name: '인천 송도 미래도시 야경 퀘스트', author: '송도 관광공사', rating: '4.6', bg: 'assets/images/profile/profile-night.svg', badge: '포인트 2배' }
+  ]
+};
+
+function initHomeTab() {
+  // Bind Dashboard actions
+  const profileTrigger = document.getElementById('home-profile-trigger');
+  if (profileTrigger) {
+    profileTrigger.addEventListener('click', () => {
+      openProfileManagerModal();
+    });
+  }
+
+  const msgTrigger = document.getElementById('msg-box-trigger');
+  if (msgTrigger) {
+    msgTrigger.addEventListener('click', openMessageBox);
+  }
+
+  const msgCloseBtn = document.getElementById('msg-box-close-btn');
+  const msgConfirmBtn = document.getElementById('msg-box-confirm-btn');
+  if (msgCloseBtn) msgCloseBtn.addEventListener('click', closeMessageBox);
+  if (msgConfirmBtn) msgConfirmBtn.addEventListener('click', closeMessageBox);
+
+  // Bind Coins Actions
+  const adBtn = document.getElementById('charge-ad-btn');
+  if (adBtn) adBtn.addEventListener('click', startAdChargeSimulation);
+
+  const payBtn = document.getElementById('charge-pay-btn');
+  if (payBtn) payBtn.addEventListener('click', openCoinShop);
+
+  const shopCloseBtn = document.getElementById('pay-charge-close-btn');
+  const shopCancelBtn = document.getElementById('pay-charge-cancel-btn');
+  if (shopCloseBtn) shopCloseBtn.addEventListener('click', closeCoinShop);
+  if (shopCancelBtn) shopCancelBtn.addEventListener('click', closeCoinShop);
+
+  document.querySelectorAll('.coin-package-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const amount = parseInt(item.getAttribute('data-amount'), 10);
+      buyCoinPackage(amount);
+    });
+  });
+
+  // Bind Widget Configuration Dialog Actions
+  const widgetEditBtn = document.getElementById('widget-edit-btn');
+  if (widgetEditBtn) widgetEditBtn.addEventListener('click', openWidgetConfig);
+
+  const widgetCloseBtn = document.getElementById('widget-config-close-btn');
+  const widgetSaveBtn = document.getElementById('widget-config-save-btn');
+  if (widgetCloseBtn) widgetCloseBtn.addEventListener('click', closeWidgetConfig);
+  if (widgetSaveBtn) widgetSaveBtn.addEventListener('click', saveWidgetConfig);
+
+  // Start banner ad rotation
+  startAdRolling();
+  
+  // Initial rendering
+  renderHomeTab();
+}
+
+function renderHomeTab() {
+  // 1. Sync User Profile details
+  const nicknameEl = document.getElementById('home-user-nickname');
+  const avatarEl = document.getElementById('home-user-avatar');
+  const emojiEl = document.getElementById('home-user-emoji');
+  
+  if (nicknameEl) {
+    nicknameEl.textContent = TravelogState.userProfile.nickname || TravelogState.userProfile.authProvider || 'Traveler';
+  }
+  if (avatarEl) {
+    applyAvatarToElements(TravelogState.userProfile, avatarEl, emojiEl);
+  }
+
+  // 2. Sync Coin amount & message badge
+  const coinValEl = document.getElementById('home-coin-value');
+  if (coinValEl) {
+    coinValEl.textContent = Number(TravelogState.coins).toLocaleString();
+  }
+  
+  const unreadMsgCount = TravelogState.messages.filter(m => m.unread).length;
+  const badgeEl = document.getElementById('home-msg-badge');
+  if (badgeEl) {
+    badgeEl.textContent = unreadMsgCount;
+    badgeEl.style.display = unreadMsgCount > 0 ? 'block' : 'none';
+  }
+
+  // 3. Render Widget Guides blocks
+  renderGuideWidgets();
+
+  // 4. Render recommendation lists
+  renderGuidesScrollList('rec-guides-list', RECOMMEND_GUIDES_DATA.recommended);
+  renderGuidesScrollList('today-guides-list', RECOMMEND_GUIDES_DATA.today);
+  renderGuidesScrollList('star-guides-list', RECOMMEND_GUIDES_DATA.star);
+  renderGuidesScrollList('event-guides-list', RECOMMEND_GUIDES_DATA.event);
+}
+
+function renderGuideWidgets() {
+  const container = document.getElementById('home-widget-grid');
+  if (!container) return;
+
+  const activeWidgets = TravelogState.userGuides.filter(g => g.isWidget);
+
+  if (activeWidgets.length === 0) {
+    container.innerHTML = `
+      <div class="widget-empty-state">
+        <i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; color: var(--text-secondary);"></i>
+        <span data-localize="empty_widgets">등록된 위젯 가이드가 없습니다. 우측 상단 편집을 눌러 보관함을 추가하세요.</span>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = activeWidgets.map(guide => {
+    return `
+      <div class="widget-block" id="widget-${guide.id}">
+        <div class="widget-block-bg" style="background-image: url('${guide.bg}')"></div>
+        <div>
+          <h4 class="widget-block-title">${escapeHtml(guide.name)}</h4>
+          <span class="widget-block-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
+        </div>
+        <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
+          <i class="fa-solid fa-circle-play"></i> <span data-localize="start_guide">가이드 시작</span>
+        </button>
+      </div>`;
+  }).join('');
+}
+
+function renderGuidesScrollList(containerId, listData) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = listData.map(item => {
+    return `
+      <div class="guide-card" onclick="window.startGuideFromHome('${item.id}')">
+        <div class="guide-card-bg" style="background-image: url('${item.bg}')"></div>
+        <div class="guide-card-content">
+          <h5 class="guide-card-title">${escapeHtml(item.name)}</h5>
+          <span class="guide-card-author"><i class="fa-solid fa-user-astronaut"></i> ${escapeHtml(item.author)}</span>
+          <div class="guide-card-footer">
+            <span class="guide-card-rating"><i class="fa-solid fa-star"></i> ${item.rating}</span>
+            <span class="guide-card-badge">${item.badge}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// MessageBox Logic
+function openMessageBox() {
+  const modal = document.getElementById('msg-box-modal');
+  const container = document.getElementById('msg-list-container');
+  if (!modal || !container) return;
+
+  container.innerHTML = TravelogState.messages.map(msg => {
+    return `
+      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage(${msg.id})">
+        <div class="msg-item-header">
+          <span class="msg-item-sender">${escapeHtml(msg.sender)}</span>
+          <span class="msg-item-date">${msg.date}</span>
+        </div>
+        <p class="msg-item-body">${escapeHtml(msg.body)}</p>
+      </div>`;
+  }).join('');
+
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeMessageBox() {
+  const modal = document.getElementById('msg-box-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+  renderHomeTab();
+}
+
+window.readMessage = function(id) {
+  const msg = TravelogState.messages.find(m => m.id === id);
+  if (msg && msg.unread) {
+    msg.unread = false;
+    openMessageBox(); // Re-render to clear unread highlight
+  }
+};
+
+// Ad Reward Coin Simulation
+function startAdChargeSimulation() {
+  const modal = document.getElementById('ad-charge-modal');
+  const progressBar = document.getElementById('ad-progress-bar');
+  const timerText = document.getElementById('ad-timer-text');
+  const skipBtn = document.getElementById('ad-skip-btn');
+  if (!modal || !progressBar || !timerText || !skipBtn) return;
+
+  progressBar.style.width = '0%';
+  timerText.textContent = '10s';
+  skipBtn.style.display = 'none';
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+
+  let duration = 10;
+  const interval = setInterval(() => {
+    duration--;
+    timerText.textContent = `${duration}s`;
+    progressBar.style.width = `${((10 - duration) / 10) * 100}%`;
+
+    if (duration <= 0) {
+      clearInterval(interval);
+      timerText.innerHTML = '<span style="color:#4caf50;"><i class="fa-solid fa-circle-check"></i> 충전 완료! (+50 COIN)</span>';
+      TravelogState.coins += 50;
+      updatePointsDisplay(); // Update pts if linked
+      
+      // Reveal skip close btn
+      skipBtn.style.display = 'block';
+      skipBtn.disabled = false;
+      skipBtn.textContent = localizedText('닫기', 'Close', '閉じる');
+      skipBtn.onclick = () => {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+        renderHomeTab();
+      };
+      
+      showToast(localizedText('50 트레블 코인이 충전되었습니다!', 'Earned 50 Travel Coins!', '50トラベルコインを獲得しました！'));
+    }
+  }, 1000);
+}
+
+// Paid Coin Shop Logic
+function openCoinShop() {
+  const modal = document.getElementById('pay-charge-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeCoinShop() {
+  const modal = document.getElementById('pay-charge-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function buyCoinPackage(amount) {
+  closeCoinShop();
+  showToast(localizedText('결제를 진행하고 있습니다...', 'Processing payment...', '決済を進行中です...'));
+  
+  setTimeout(() => {
+    TravelogState.coins += amount;
+    showToast(localizedText(`${amount} 코인이 성공적으로 충전되었습니다!`, `Charged ${amount} Coins successfully!`, `${amount}コインがチャージされました！`));
+    renderHomeTab();
+  }, 1500);
+}
+
+// Home Widgets Configurator
+function openWidgetConfig() {
+  const modal = document.getElementById('widget-config-modal');
+  const container = document.getElementById('widget-checkbox-list');
+  if (!modal || !container) return;
+
+  container.innerHTML = TravelogState.userGuides.map(guide => {
+    return `
+      <label class="widget-checkbox-item">
+        <input type="checkbox" id="chk-${guide.id}" ${guide.isWidget ? 'checked' : ''}>
+        <div class="widget-checkbox-label">
+          <span class="widget-checkbox-name">${escapeHtml(guide.name)}</span>
+          <span class="widget-checkbox-author">${escapeHtml(guide.author)}</span>
+        </div>
+      </label>`;
+  }).join('');
+
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeWidgetConfig() {
+  const modal = document.getElementById('widget-config-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function saveWidgetConfig() {
+  TravelogState.userGuides.forEach(guide => {
+    const chk = document.getElementById(`chk-${guide.id}`);
+    if (chk) {
+      guide.isWidget = chk.checked;
+    }
+  });
+
+  closeWidgetConfig();
+  showToast(localizedText('위젯 보관함 설정이 완료되었습니다!', 'Widgets configuration saved!', 'ウィジェットの保管箱の設定が完了しました！'));
+  renderHomeTab();
+}
+
+// Launcher to Guide Map Tab
+window.startGuideFromHome = function(guideId) {
+  // Check if we have that guide in lists or default fallback Gyeongbokgung
+  let selectedGuideInfo = null;
+
+  // Search userGuides
+  const foundUser = TravelogState.userGuides.find(g => g.id === guideId);
+  if (foundUser) {
+    selectedGuideInfo = foundUser;
+  } else {
+    // Search recommeded lists
+    for (const cat in RECOMMEND_GUIDES_DATA) {
+      const match = RECOMMEND_GUIDES_DATA[cat].find(g => g.id === guideId);
+      if (match) {
+        selectedGuideInfo = match;
+        break;
+      }
+    }
+  }
+
+  // Switch to Gyeongbokgung stops for this prototype demo guide triggers
+  TravelogState.activeGuide = {
+    id: guideId,
+    nameEn: selectedGuideInfo ? selectedGuideInfo.author + ' Tour' : 'Gyeongbokgung Historical Tour',
+    nameKo: selectedGuideInfo ? selectedGuideInfo.name : '경복궁 역사/문화 가이드 투어',
+    nameJa: selectedGuideInfo ? selectedGuideInfo.name + ' ツアー' : '景福宮 歴史・文化ツアー',
+    descEn: 'Historical exploration tour guide.',
+    descKo: selectedGuideInfo ? selectedGuideInfo.author + '의 특별 가이드 코스' : '경복궁 역사와 가치에 얽힌 로컬 이야기',
+    descJa: '歴史・文化解説付きガイドツアー。',
+    stops: [
+      { nameEn: "Gwanghwamun Gate", nameKo: "광화문", nameJa: "光化門", lat: 37.5760, lng: 126.9768, triggerRadius: 25 },
+      { nameEn: "Heungnyemun Court", nameKo: "흥례문 뜰", nameJa: "興礼門の庭", lat: 37.5772, lng: 126.9768, triggerRadius: 20 },
+      { nameEn: "Geongjeongjeon Main Hall", nameKo: "근정전", nameJa: "勤政殿", lat: 37.5786, lng: 126.9772, triggerRadius: 20 },
+      { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30 }
+    ]
+  };
+
+  // Redraw Map layer and load stops
+  if (window.TravelogMapModule) {
+    window.TravelogMapModule.renderTour();
+  }
+
+  // Perform programmatic tab switch to Map
+  const mapNavBtn = document.querySelector('.nav-item[data-tab="map-tab"]');
+  if (mapNavBtn) {
+    // We don't have map-tab directly in the navbar because we replaced it.
+    // Instead we can programmatically active the map tab content.
+    const navItems = document.querySelectorAll('.nav-item');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    navItems.forEach(n => n.classList.remove('active'));
+    tabContents.forEach(tab => {
+      tab.classList.remove('active');
+      if (tab.id === 'map-tab') {
+        tab.classList.add('active');
+      }
+    });
+
+    if (window.TravelogMapModule) {
+      window.TravelogMapModule.invalidateSize();
+    }
+    showToast(localizedText('가이드 지도를 로드했습니다. 투어를 시작하세요!', 'Guide map loaded. Start your tour!', 'ガイドマップを読み込みました。ツアーを開始してください！'));
+  } else {
+    // If map-tab nav button exists (e.g. in the updated 5 tab with Map)
+    const mapBtn = document.querySelector('[data-tab="map-tab"]');
+    if (mapBtn) mapBtn.click();
+  }
+};
+
+// Rolling Ad timer
+function startAdRolling() {
+  if (adRollingIntervalId) clearInterval(adRollingIntervalId);
+
+  adRollingIntervalId = setInterval(() => {
+    const rollingBanner = document.getElementById('home-ad-rolling');
+    if (!rollingBanner) return;
+
+    const slides = rollingBanner.querySelectorAll('.ad-slide');
+    if (slides.length <= 1) return;
+
+    let activeIndex = -1;
+    slides.forEach((slide, i) => {
+      if (slide.classList.contains('active')) activeIndex = i;
+    });
+
+    if (activeIndex !== -1) {
+      slides[activeIndex].classList.remove('active');
+      const nextIndex = (activeIndex + 1) % slides.length;
+      slides[nextIndex].classList.add('active');
+    }
+  }, 4000);
 }
 
 // Language logic
@@ -925,6 +1384,10 @@ function saveProfileManagerChanges() {
   verifiedNickname = nickname;
   saveProfile();
   renderUserProfileWidget();
+  
+  // Update Home Tab display immediately
+  renderHomeTab();
+
   closeProfileManagerModal();
   showToast(LocalizationDictionary.profile_saved_toast[TravelogState.language] || LocalizationDictionary.profile_saved_toast.ko);
 }
@@ -973,6 +1436,7 @@ function completeOnboarding() {
   TravelogState.userProfile.isOnboarded = true;
   saveProfile();
   renderUserProfileWidget();
+  renderHomeTab();
   hideOnboardingOverlay(false);
 
   window.setTimeout(() => {

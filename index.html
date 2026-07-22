@@ -52,8 +52,135 @@
     <!-- Main Workspace Tab Contents -->
     <main>
       
+      <!-- TAB 0: HOME TAB (Personalized Dashboard & Recommendation) -->
+      <section id="home-tab" class="tab-content active">
+        <div class="home-layout">
+          
+          <!-- User Profile & Travel Coin Panel -->
+          <div class="home-dashboard-card glass-panel">
+            <div class="dashboard-header">
+              <div class="user-info-group" id="home-profile-trigger" role="button" tabindex="0" title="내 프로필 관리 열기">
+                <div class="user-avatar-circle" id="home-user-avatar">
+                  <span id="home-user-emoji">☀️</span>
+                </div>
+                <div class="user-name-wrapper">
+                  <span class="user-welcome" data-localize="home_welcome">반갑습니다!</span>
+                  <h3 id="home-user-nickname">Traveler</h3>
+                </div>
+              </div>
+              <div class="message-box-btn" id="msg-box-trigger" role="button" tabindex="0" title="쪽지함 보기">
+                <i class="fa-solid fa-envelope"></i>
+                <span class="msg-badge" id="home-msg-badge">3</span>
+              </div>
+            </div>
+            
+            <div class="dashboard-divider"></div>
+            
+            <div class="coin-wallet-group">
+              <div class="coin-balance-title">
+                <span data-localize="home_coin_balance">보유 트레블 코인</span>
+                <div class="coin-amount">
+                  <i class="fa-solid fa-coins coin-icon"></i>
+                  <span id="home-coin-value">1,250</span> <small>COIN</small>
+                </div>
+              </div>
+              <div class="coin-charge-actions">
+                <button class="btn-rect charge-btn ad-charge" id="charge-ad-btn">
+                  <i class="fa-solid fa-film"></i>
+                  <span data-localize="home_charge_ad">광고 충전 (+50)</span>
+                </button>
+                <button class="btn-rect charge-btn pay-charge" id="charge-pay-btn">
+                  <i class="fa-solid fa-wallet"></i>
+                  <span data-localize="home_charge_pay">유료 충전</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guide Block Widget Section -->
+          <div class="home-widget-section glass-panel">
+            <div class="section-title-bar">
+              <h3><i class="fa-solid fa-suitcase-rolling"></i> <span data-localize="home_widget_title">내 가이드 보관함 (위젯)</span></h3>
+              <button class="btn-rect secondary edit-widget-btn" id="widget-edit-btn">
+                <i class="fa-solid fa-sliders"></i> <span data-localize="home_widget_edit">위젯 편집</span>
+              </button>
+            </div>
+            <p class="widget-desc" data-localize="home_widget_desc">구매 또는 선물받은 여행 가이드 중 자주 보거나 보관하고 싶은 가이드 위젯을 더하고 뺄 수 있습니다.</p>
+            
+            <div class="widget-blocks-grid" id="home-widget-grid">
+              <!-- Populated dynamically via app.js -->
+            </div>
+          </div>
+
+          <!-- Curated Guides Category Grid -->
+          <div class="home-recommend-container">
+            
+            <!-- Category 1: Recommended Guides -->
+            <div class="recommend-section">
+              <div class="recommend-title-row">
+                <h4>✨ <span data-localize="home_rec_title">추천 가이드</span></h4>
+              </div>
+              <div class="recommend-scroll-row" id="rec-guides-list">
+                <!-- Dynamically populated cards -->
+              </div>
+            </div>
+
+            <!-- Category 2: Today's Logs (오늘의 가이드 - 오로) -->
+            <div class="recommend-section">
+              <div class="recommend-title-row">
+                <h4>🔥 <span data-localize="home_today_title">오늘의 가이드 (오늘의 로그)</span></h4>
+                <span class="recommend-info-tag" title="더욱 공정하고 폭넓은 기회를 주기 위해 한 번 선정된 유저는 30일간 제외됩니다." data-localize="home_today_info">오로 30일 룰 적용</span>
+              </div>
+              <div class="recommend-scroll-row" id="today-guides-list">
+                <!-- Dynamically populated cards -->
+              </div>
+            </div>
+
+            <!-- Category 3: Star Guides -->
+            <div class="recommend-section">
+              <div class="recommend-title-row">
+                <h4>⭐ <span data-localize="home_star_title">스타 가이드</span></h4>
+              </div>
+              <div class="recommend-scroll-row" id="star-guides-list">
+                <!-- Dynamically populated cards -->
+              </div>
+            </div>
+
+            <!-- Category 4: Event & Quest Guides -->
+            <div class="recommend-section">
+              <div class="recommend-title-row">
+                <h4>🎁 <span data-localize="home_event_title">이벤트 및 퀘스트 가이드</span></h4>
+              </div>
+              <div class="recommend-scroll-row" id="event-guides-list">
+                <!-- Dynamically populated cards -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Lower Banner Ad -->
+          <div class="home-ad-banner-wrapper">
+            <div class="home-ad-banner glass-panel" id="home-ad-rolling">
+              <div class="ad-slide active">
+                <span class="ad-tag" style="background: var(--accent-blue);">PROMOTION</span>
+                <span class="ad-title" data-localize="ad_promo_1">제주항공 특별 공동구매 티켓 오픈! 즉시 10% 추가 할인 ✈️</span>
+              </div>
+              <div class="ad-slide">
+                <span class="ad-tag" style="background: var(--accent-purple);">MEMBERSHIP</span>
+                <span class="ad-title" data-localize="ad_promo_2">트레블로그 패스 구독 시 글로벌 도슨트 오디오 가이드 무제한 무료 👑</span>
+              </div>
+              <div class="ad-slide">
+                <span class="ad-tag" style="background: var(--accent-pink);">NEW EVENT</span>
+                <span class="ad-title" data-localize="ad_promo_3">수원 화성 성곽 보물찾기 퀘스트 완료 시 즉시 편의점 5천원권 100% 지급 🎁</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       <!-- TAB 1: MAP TAB -->
-      <section id="map-tab" class="tab-content active">
+      <section id="map-tab" class="tab-content">
         <!-- Leaflet Map Canvas -->
         <div id="map-container"></div>
 
@@ -161,7 +288,7 @@
           <span class="legend-item"><i class="legend-dot legend-memo"></i><span data-localize="map_legend_memo">Memo</span></span>
         </div>
 
-        <!-- Mobile Friendly Bottom Status Sheet (status-only; actions live in the GPS control rail to the right, avoiding duplicate buttons) -->
+        <!-- Mobile Friendly Bottom Status Sheet -->
         <div class="map-bottom-sheet glass-panel">
           <div class="map-sheet-handle" aria-hidden="true"></div>
           <div class="map-sheet-info">
@@ -169,15 +296,23 @@
             <strong id="map-current-coords" data-localize="map_coords_waiting">Turn on GPS to show your coordinates.</strong>
             <small id="map-accuracy-text" data-localize="map_accuracy_waiting">Location accuracy will appear here.</small>
           </div>
+          <div class="map-sheet-actions">
+            <button type="button" class="map-mini-action" onclick="document.getElementById('real-gps-btn')?.click()">
+              <i class="fa-solid fa-location-crosshairs"></i>
+              <span data-localize="map_control_gps">Live GPS</span>
+            </button>
+            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
+              <i class="fa-solid fa-note-sticky"></i>
+              <span data-localize="map_control_memo">Memo</span>
+            </button>
+          </div>
         </div>
 
         <!-- Location Memo Modal -->
         <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
           <div class="location-memo-card glass-panel">
             <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
-              <svg class="icon-x" viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
-              </svg>
+              <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="memo-modal-header">
               <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
@@ -391,65 +526,82 @@
                 <button class="btn-rect secondary" style="padding: 6px 12px; font-size: 11px; flex-shrink: 0;" data-script="morning" data-localize="script_morning">"Good Morning!"</button>
               </div>
             </div>
+
+            <!-- Voice Recording List Card -->
+            <div class="glass-panel" style="padding: 24px; margin-top: 16px;">
+              <h3 style="margin-bottom: 8px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 녹음된 음성 리스트</h3>
+              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">녹음 완료된 음성 파일 리스트입니다. 각 음성이 재생될 지도상의 코스 핀 번호를 지정해 주세요.</p>
+              <div id="creator-audio-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
+                <div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">아직 녹음된 음성이 없습니다. 위에서 녹음을 시작해 보세요!</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Right Column: Voice Market -->
+          <!-- Right Column: Video Recording & Video List -->
           <div class="studio-panel">
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;" data-localize="market_title"><i class="fa-solid fa-cart-shopping"></i> Voice Sample Market</h3>
-              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="market_desc">Don't want to record your own voice? Purchase high-quality synthesized voice packages to read your scripts automatically.</p>
+              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 가이드 영상 녹화 스튜디오</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;">가이드에 첨부할 짧은 클립 영상을 직접 촬영하여 지정 핀 코스에 맞춤 가이드를 구성하세요.</p>
               
-              <div class="voice-market-grid" id="voice-market-container">
-                <!-- Voice Market Cards dynamically generated -->
+              <div class="record-btn-container" style="background: rgba(0,0,0,0.4); border-radius: var(--radius-md); padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--glass-border); margin-bottom: 16px;">
+                <!-- Camera preview / Simulation container -->
+                <div id="camera-preview-box" style="width: 100%; height: 140px; background: #000; border-radius: var(--radius-sm); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                  <video id="webcam-video" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
+                  <div id="camera-placeholder" style="color: var(--text-muted); text-align: center; font-size: 12px;">
+                    <i class="fa-solid fa-camera" style="font-size: 32px; margin-bottom: 8px; display: block; color: var(--text-secondary);"></i>
+                    카메라 미리보기 꺼짐
+                  </div>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 15px; width: 100%; justify-content: center; margin-top: 10px;">
+                  <button class="record-btn" id="record-video-btn" style="background: var(--accent-blue); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: none; color: white;"><i class="fa-solid fa-video"></i></button>
+                  <div style="display: flex; flex-direction: column;">
+                    <span id="video-record-status-text" style="font-size: 13px; font-weight: 600;">녹화 버튼 클릭</span>
+                    <span id="video-record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recorded Video List -->
+              <h4 style="font-size: 13px; margin-bottom: 8px; font-weight: 700;"><i class="fa-solid fa-clapperboard" style="color: var(--accent-blue);"></i> 녹화된 영상 리스트</h4>
+              <div id="creator-video-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto; border-top: 1px solid var(--glass-border); padding-top: 10px;">
+                <div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">아직 녹화된 영상이 없습니다.</div>
               </div>
             </div>
 
-            <div class="glass-panel github-storage-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;" data-localize="media_storage_title"><i class="fa-brands fa-github"></i> GitHub Media Storage</h3>
-              <p style="font-size: 13px; margin-bottom: 16px;" data-localize="media_storage_desc">Save generated audio/video as playable compressed media files directly in the Travelog GitHub repository.</p>
+            <!-- Guide Publisher Control Panel -->
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-cloud-arrow-up" style="color: #4285F4;"></i> 가이드 최종 출간 제어판</h3>
+              <p style="font-size: 13px; margin-bottom: 16px;">작성한 가이드 핀 정보와 연동 완료한 오디오/비디오 에셋을 종합하여 클라우드에 최종 출간합니다.</p>
 
-              <div class="storage-config-box">
-                <div class="storage-row">
-                  <span data-localize="media_storage_repo">Repository</span>
-                  <strong id="github-repo-path">Samuel-Kim07/travelog · main</strong>
+              <!-- Status indicator -->
+              <div class="storage-config-box" style="margin-bottom: 16px; font-size: 12px; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--glass-border);">
+                <div class="storage-row" style="display: flex; justify-content: space-between; padding: 4px 0;">
+                  <span>지정 핀 개수</span>
+                  <strong id="publish-pins-count">0개</strong>
                 </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_audio_path">Audio path</span>
-                  <code id="github-audio-path">assets/icons/Audio</code>
+                <div class="storage-row" style="display: flex; justify-content: space-between; padding: 4px 0;">
+                  <span>연동된 음성 가이드</span>
+                  <strong id="publish-audios-count">0개</strong>
                 </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_video_path">Video path</span>
-                  <code id="github-video-path">assets/icons/Video</code>
-                </div>
-                <div class="storage-row">
-                  <span data-localize="media_storage_token_status">Token status</span>
-                  <span id="github-token-status" class="storage-status-pill">No token</span>
+                <div class="storage-row" style="display: flex; justify-content: space-between; padding: 4px 0;">
+                  <span>연동된 영상 가이드</span>
+                  <strong id="publish-videos-count">0개</strong>
                 </div>
               </div>
 
-              <label class="storage-label" for="github-token-input" data-localize="media_storage_token_label">GitHub token for test upload</label>
-              <input type="password" id="github-token-input" class="storage-input" placeholder="github_pat_..." autocomplete="off">
-              <p class="storage-warning" data-localize="media_storage_warning">For prototype testing only. Do not commit your token into GitHub files.</p>
-              <div class="storage-action-row">
-                <button class="btn-rect" id="github-token-save-btn" style="font-size: 12px;"><i class="fa-solid fa-key"></i> <span data-localize="media_storage_save_token">Save Token</span></button>
-                <button class="btn-rect secondary" id="github-token-clear-btn" style="font-size: 12px;"><i class="fa-solid fa-trash"></i> <span data-localize="media_storage_clear_token">Clear</span></button>
-                <button class="btn-rect secondary" id="github-connection-test-btn" style="font-size: 12px;"><i class="fa-solid fa-plug"></i> <span data-localize="media_storage_test">Test</span></button>
+              <!-- Google Drive Open Link -->
+              <div style="background: rgba(52, 168, 83, 0.1); border: 1px solid rgba(52, 168, 83, 0.3); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <span style="display: block; font-weight: 700; color: #34A853;">Google Drive Cloud</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">공유 오픈 드라이브 저장소</span>
+                </div>
+                <a href="https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=sharing" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i class="fa-brands fa-google-drive"></i> 폴더 열기</a>
               </div>
 
-              <div class="media-upload-test-grid">
-                <div class="media-upload-card">
-                  <label data-localize="media_storage_audio_file">Audio file test</label>
-                  <input type="file" id="media-audio-file" accept="audio/*">
-                  <button class="btn-rect" id="upload-audio-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-audio"></i> <span data-localize="media_storage_upload_audio">Upload Audio Source</span></button>
-                </div>
-                <div class="media-upload-card">
-                  <label data-localize="media_storage_video_file">Video file test</label>
-                  <input type="file" id="media-video-file" accept="video/*">
-                  <button class="btn-rect" id="upload-video-file-btn" style="width:100%; justify-content:center; font-size:12px;"><i class="fa-solid fa-file-video"></i> <span data-localize="media_storage_upload_video">Upload Video Source</span></button>
-                </div>
-              </div>
-
-              <div id="github-upload-log" class="github-upload-log" aria-live="polite"></div>
+              <button class="btn-rect" id="publish-final-tour-btn" style="width: 100%; justify-content: center; font-size: 14px; background: var(--grad-pink-purple);">
+                <i class="fa-solid fa-cloud-arrow-up"></i> <span>최종 출간하기</span>
+              </button>
             </div>
           </div>
         </div>
@@ -517,13 +669,13 @@
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
-      <div class="nav-item active" data-tab="map-tab">
-        <i class="fa-solid fa-map"></i>
-        <span data-localize="nav_map">Map</span>
+      <div class="nav-item active" data-tab="home-tab">
+        <i class="fa-solid fa-house"></i>
+        <span data-localize="nav_home">홈</span>
       </div>
       <div class="nav-item" data-tab="explore-tab">
         <i class="fa-solid fa-compass"></i>
-        <span data-localize="nav_explore">Explore</span>
+        <span data-localize="nav_explore">피드</span>
       </div>
       
       <!-- Gamified highlight middle button -->
@@ -533,11 +685,11 @@
       
       <div class="nav-item" data-tab="rewards-tab">
         <i class="fa-solid fa-gift"></i>
-        <span data-localize="nav_rewards">Rewards</span>
+        <span data-localize="nav_rewards">쿠폰&이벤트</span>
       </div>
       <div class="nav-item" data-tab="creator-tab">
         <i class="fa-solid fa-sliders"></i>
-        <span data-localize="nav_creator">Creator</span>
+        <span data-localize="nav_creator">스튜디오</span>
       </div>
     </nav>
   </div>
@@ -724,6 +876,140 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+
+  <!-- Message Box Modal -->
+  <div id="msg-box-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" style="max-width: 420px;">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="msg_badge">쪽지함</span>
+          <h2 class="gradient-text" data-localize="msg_title">받은 쪽지함</h2>
+          <p data-localize="msg_desc">로컬 가이드와 시스템에서 보낸 소식입니다.</p>
+        </div>
+        <button id="msg-box-close-btn" class="btn-circle profile-close-btn" aria-label="Close message box">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="profile-manager-body" style="display: block; max-height: 320px; overflow-y: auto; padding: 10px 0;">
+        <div id="msg-list-container" class="msg-list">
+          <!-- Dynamically populated via app.js -->
+        </div>
+      </div>
+      <div class="profile-manager-actions" style="justify-content: flex-end;">
+        <button id="msg-box-confirm-btn" class="btn-rect" type="button" data-localize="confirm">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ad Reward Video Simulation Modal -->
+  <div id="ad-charge-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" style="max-width: 400px; text-align: center; padding: 30px;">
+      <div style="font-size: 40px; color: var(--accent-blue); margin-bottom: 15px;">
+        <i class="fa-solid fa-circle-play fa-pulse"></i>
+      </div>
+      <h2 class="gradient-text" data-localize="ad_sim_title">스폰서 광고 재생 중</h2>
+      <p style="font-size: 13px; margin: 10px 0 20px 0;" data-localize="ad_sim_desc">광고를 끝까지 시청하시면 50 트레블 코인이 지급됩니다.</p>
+      
+      <div class="ad-progress-bar-container" style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 15px;">
+        <div id="ad-progress-bar" style="background: var(--accent-blue); height: 100%; width: 0%; transition: width 0.2s linear;"></div>
+      </div>
+      
+      <div id="ad-timer-text" style="font-weight: 700; font-size: 18px; margin-bottom: 20px; color: var(--text-primary);">
+        10s
+      </div>
+      
+      <button id="ad-skip-btn" class="btn-rect secondary" style="margin: 0 auto; display: none;" data-localize="ad_skip" disabled>닫기</button>
+    </div>
+  </div>
+
+  <!-- Paid Coin Charge Modal -->
+  <div id="pay-charge-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" style="max-width: 420px;">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="pay_badge">코인 숍</span>
+          <h2 class="gradient-text" data-localize="pay_title">트레블 코인 유료 충전</h2>
+          <p data-localize="pay_desc">프리미엄 로컬 오디오 가이드 구입에 사용하세요.</p>
+        </div>
+        <button id="pay-charge-close-btn" class="btn-circle profile-close-btn" aria-label="Close pay shop">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="profile-manager-body" style="display: block; padding: 10px 0;">
+        <div class="coin-package-grid" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+          
+          <div class="coin-package-item glass-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-radius: 12px; cursor: pointer; border: 1px solid var(--glass-border);" data-amount="100" data-price="₩ 1,200">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-coins" style="color: #FFD700; font-size: 18px;"></i>
+              <strong style="color: white; font-size: 15px;">100 <span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">COIN</span></strong>
+            </div>
+            <button class="btn-rect" style="padding: 6px 12px; font-size: 12px;">₩ 1,200</button>
+          </div>
+
+          <div class="coin-package-item glass-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-radius: 12px; cursor: pointer; border: 1px solid var(--glass-border);" data-amount="500" data-price="₩ 5,500">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-coins" style="color: #FFD700; font-size: 20px;"></i>
+              <strong style="color: white; font-size: 15px;">500 <span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">COIN</span> <span style="background:var(--accent-pink); font-size:10px; padding:2px 6px; border-radius:8px; margin-left:5px;">+9% 보너스</span></strong>
+            </div>
+            <button class="btn-rect" style="padding: 6px 12px; font-size: 12px;">₩ 5,500</button>
+          </div>
+
+          <div class="coin-package-item glass-panel" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-radius: 12px; cursor: pointer; border: 1px solid var(--glass-border);" data-amount="1200" data-price="₩ 12,000">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <i class="fa-solid fa-coins" style="color: #FFD700; font-size: 22px;"></i>
+              <strong style="color: white; font-size: 15px;">1,200 <span style="font-size:12px; font-weight:normal; color:var(--text-secondary);">COIN</span> <span style="background:var(--accent-blue); font-size:10px; padding:2px 6px; border-radius:8px; margin-left:5px;">+20% 보너스</span></strong>
+            </div>
+            <button class="btn-rect" style="padding: 6px 12px; font-size: 12px;">₩ 12,000</button>
+          </div>
+
+        </div>
+      </div>
+      <div class="profile-manager-actions" style="justify-content: flex-end;">
+        <button id="pay-charge-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Widget Configuration Editor Modal -->
+  <div id="widget-config-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card" style="max-width: 420px;">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="widget_badge">홈 위젯 설정</span>
+          <h2 class="gradient-text" data-localize="widget_config_title">보관함 위젯 편집</h2>
+          <p data-localize="widget_config_desc">홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.</p>
+        </div>
+        <button id="widget-config-close-btn" class="btn-circle profile-close-btn" aria-label="Close widget config">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="profile-manager-body" style="display: block; max-height: 300px; overflow-y: auto; padding: 10px 0;">
+        <div id="widget-checkbox-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Dynamically populated checkbox items -->
+        </div>
+      </div>
+      <div class="profile-manager-actions">
+        <span style="font-size: 11px; color: var(--text-muted); align-self: center;" data-localize="widget_limit_hint">최대 4개까지 노출 권장</span>
+        <button id="widget-config-save-btn" class="btn-rect" type="button">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span data-localize="profile_save">저장하기</span>
+        </button>
+      </div>
+    </div>
+  <!-- Guide Publishing Progress Modal -->
+  <div id="publish-loading-modal" class="profile-manager-modal" style="z-index: 3000;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
+      <div id="publish-loading-spinner" style="font-size: 50px; color: var(--accent-blue);">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+      </div>
+      <div id="publish-success-icon" style="font-size: 50px; color: #4caf50; display: none;">
+        <i class="fa-solid fa-circle-check"></i>
+      </div>
+      <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간중입니다...</h2>
+      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">제작한 가이드 설정과 녹음 음성 데이터를 준비 중입니다.</p>
     </div>
   </div>
 

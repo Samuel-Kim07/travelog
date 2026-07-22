@@ -22,59 +22,37 @@ const TravelogCreatorModule = (() => {
   let currentRecordingMimeType = '';
   let recordingMode = 'simulated';
 
-  // Voice Market items
-  const voiceMarketItems = [
-    {
-      id: 'voice-minho',
-      nameEn: "Minho (Seoul Local)",
-      nameKo: "민호 (서울 토박이)",
-      nameJa: "ミンホ（ソウル地元ガイド）",
-      typeEn: "Friendly & Historic",
-      typeKo: "친근한 역사 가이드",
-      typeJa: "親しみやすい歴史ガイド",
-      cost: 0,
-      owned: true,
-      avatar: "M",
-      audioName: "minho_intro"
-    },
-    {
-      id: 'voice-watson',
-      nameEn: "Detective Watson",
-      nameKo: "셜록 왓슨",
-      nameJa: "探偵ワトソン",
-      typeEn: "Mysterious & Clever",
-      typeKo: "미스터리 추리 성우",
-      typeJa: "ミステリー推理ボイス",
-      cost: 150,
-      owned: false,
-      avatar: "W",
-      audioName: "watson_riddle"
-    },
-    {
-      id: 'voice-chloe',
-      nameEn: "Excited Chloe",
-      nameKo: "발랄한 클로이",
-      nameJa: "元気なクロエ",
-      typeEn: "Energetic & Foodie",
-      typeKo: "에너제틱 맛집 가이드",
-      typeJa: "元気なグルメガイド",
-      cost: 200,
-      owned: false,
-      avatar: "C",
-      audioName: "chloe_food"
-    }
-  ];
+  // Audio list storage
+  let recordedAudios = [];
+
+  // Video recording state & list storage
+  let isVideoRecording = false;
+  let videoRecordInterval = null;
+  let videoRecordSeconds = 0;
+  let videoMediaRecorder = null;
+  let recordedVideoChunks = [];
+  let videoStream = null;
+  let recordedVideos = [];
 
   function init() {
     renderCoordinatesList();
-    renderVoiceMarket();
+    renderAudioList();
+    renderVideoList();
+    updatePublishPanelCounts();
 
     // Bind Planner actions
     document.getElementById('clear-pins-btn').addEventListener('click', clearPins);
     document.getElementById('save-tour-btn').addEventListener('click', saveTour);
 
+    // Bind Final Publish Action
+    const finalPublishBtn = document.getElementById('publish-final-tour-btn');
+    if (finalPublishBtn) {
+      finalPublishBtn.addEventListener('click', saveTour);
+    }
+
     // Recording actions
     document.getElementById('record-audio-btn').addEventListener('click', toggleRecording);
+    document.getElementById('record-video-btn').addEventListener('click', toggleVideoRecording);
 
     // Script template clicks
     const scriptBtns = document.querySelectorAll('[data-script]');
@@ -140,6 +118,9 @@ const TravelogCreatorModule = (() => {
       `;
       listEl.appendChild(row);
     });
+
+    updatePublishPanelCounts();
+    refreshMediaPinSelectors();
   }
 
   function removeCoordinate(index) {
@@ -154,23 +135,13 @@ const TravelogCreatorModule = (() => {
     });
 
     renderCoordinatesList();
-    // Redraw map Baseline
-    if (window.TravelogMapModule) {
-      window.TravelogMapModule.clearCreatorPins();
-      customPins.forEach(p => {
-        // Redraw remaining pins
-        // In this mockup, clearing maps redraws baseline. Custom pins redraw by creator.js coordination
-      });
-    }
   }
 
   function clearPins() {
-    
     if (window.TravelogMapModule) {
       window.TravelogMapModule.clearCreatorPins();
     }
     renderCoordinatesList();
-    
     window.TravelogApp.showToast(t('등록된 핀들이 초기화되었습니다.', 'All custom pins reset.', '登録されたピンをリセットしました。'));
   }
 
@@ -183,16 +154,137 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
-    // Award rewards
-    window.TravelogApp.addPoints(150);
-    window.TravelogApp.showToast(t(`가이드 [${tourName}] 등록 성공! 크리에이터 보상 +150포인트!`, `Tour guide [${tourName}] published successfully! Creator reward +150 pts!`, `ガイド［${tourName}］を公開しました！クリエイター報酬 +150ポイント！`));
-    
-    // Reset pins
-    clearPins();
+    // 출간 재확인 팝업
+    const confirmPublish = window.confirm(t('정말 출간 하시겠습니까?', 'Are you sure you want to publish?', '本当に公開しますか？'));
+    if (!confirmPublish) return;
+
+    // 로딩 모달 띄우기
+    const loadingModal = document.getElementById('publish-loading-modal');
+    const statusTitle = document.getElementById('publish-status-title');
+    const statusDesc = document.getElementById('publish-status-desc');
+    const spinner = document.getElementById('publish-loading-spinner');
+    const successIcon = document.getElementById('publish-success-icon');
+
+    if (loadingModal) {
+      statusTitle.textContent = t('출간중입니다...', 'Publishing guide...', '公開中...');
+      statusDesc.textContent = t('제작한 가이드 설정과 녹음 음성 및 비디오 데이터를 준비 중입니다.', 'Preparing guide configurations and recorded media assets.', '作成したガイド設定と録音・動画データを準備しています。');
+      spinner.style.display = 'block';
+      successIcon.style.display = 'none';
+      loadingModal.classList.add('active');
+    }
+
+    // 2초 로딩 시뮬레이션
+    setTimeout(() => {
+      // 1) 가이드 설정 JSON 다운로드
+      downloadCurrentGuideData();
+
+      // 2) 녹음된 음성 파일들 다운로드
+      recordedAudios.forEach(audio => {
+        const url = URL.createObjectURL(audio.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = audio.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // 3) 녹화된 비디오 파일들 다운로드
+      recordedVideos.forEach(video => {
+        const url = URL.createObjectURL(video.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = video.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // 출간 성공 상태로 모달 업데이트
+      if (loadingModal) {
+        statusTitle.textContent = t('축하합니다. 출간 되었습니다', 'Congratulations. Published successfully', 'おめでとうございます。公開されました');
+        statusDesc.textContent = t('가이드 데이터가 공유 폴더 연동 파일로 정상 빌드되었습니다.', 'Guide data files built and ready for cloud sync.', 'ガイドデータが正常にビルド되었습니다.');
+        spinner.style.display = 'none';
+        successIcon.style.display = 'block';
+      }
+
+      // 2초 대기 후 팝업 닫고 마무리
+      setTimeout(() => {
+        if (loadingModal) {
+          loadingModal.classList.remove('active');
+        }
+
+        // Open Google Drive Folder
+        window.open('https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=sharing', '_blank');
+
+        // Award rewards
+        window.TravelogApp.addPoints(150);
+        window.TravelogApp.showToast(t(`가이드 [${tourName}] 출간 완료! 크리에이터 보상 +150포인트!`, `Tour guide [${tourName}] published successfully! Creator reward +150 pts!`, `ガイド［${tourName}］を公開しました！クリエイター報酬 +150ポイント！`));
+
+        // Reset all states
+        recordedAudios = [];
+        recordedVideos = [];
+        clearPins();
+        
+        renderAudioList();
+        renderVideoList();
+        updatePublishPanelCounts();
+      }, 2000);
+
+    }, 2000);
+  }
+
+  function downloadCurrentGuideData() {
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const tourName = document.getElementById('new-tour-name')?.value || 'My Walking Tour';
+
+    if (customPins.length === 0) {
+      return;
+    }
+
+    const data = {
+      tourName: tourName,
+      created_at: new Date().toISOString(),
+      creator: window.TravelogApp.getState().userProfile.nickname || 'Travelog Creator',
+      pins: customPins.map((pin, index) => {
+        const inputRows = document.querySelectorAll('.coordinate-row');
+        const inputRow = inputRows ? inputRows[index] : null;
+        const scriptInput = inputRow ? inputRow.querySelector('input') : null;
+
+        // Collect media mapped to this specific stop index
+        const linkedAudios = recordedAudios.filter(a => parseInt(a.stopIndex, 10) === index).map(a => a.name);
+        const linkedVideos = recordedVideos.filter(v => parseInt(v.stopIndex, 10) === index).map(v => v.name);
+
+        return {
+          id: pin.id,
+          nameKo: pin.nameKo,
+          nameEn: pin.nameEn,
+          nameJa: pin.nameJa,
+          lat: pin.lat,
+          lng: pin.lng,
+          script: scriptInput ? scriptInput.value.trim() : '',
+          audios: linkedAudios,
+          videos: linkedVideos
+        };
+      })
+    };
+
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${tourName.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_guide_data.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   // ==========================================
-  // Audio Recorder Simulation
+  // Audio Recorder & List
   // ==========================================
   async function toggleRecording() {
     if (isRecording) {
@@ -266,7 +358,7 @@ const TravelogCreatorModule = (() => {
     isRecording = false;
     btn.classList.remove('recording');
     btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
-    statusText.textContent = t('녹음 처리 중입니다. GitHub 저장소 업로드를 준비합니다...', 'Processing recording and preparing GitHub upload...', '録音を処理し、GitHub保存の準備をしています...');
+    statusText.textContent = t('녹음 처리 중입니다...', 'Processing recording...', '録音を処理しています...');
 
     if (recordingMode === 'real' && mediaRecorder && mediaRecorder.state !== 'inactive') {
       mediaRecorder.stop();
@@ -277,7 +369,7 @@ const TravelogCreatorModule = (() => {
     setTimeout(() => {
       timerText.textContent = "00:00";
       statusText.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクをクリックして録音開始');
-    }, 5000);
+    }, 3000);
   }
 
   async function handleRecordedAudioReady() {
@@ -306,117 +398,328 @@ const TravelogCreatorModule = (() => {
     }
     mediaRecorder = null;
 
-    const metadata = {
-      title: selectedScriptText || 'Travelog guide audio',
-      durationSeconds: recordSeconds,
-      source: recordingMode,
-      extension: finalExtension,
-      mimeType: audioBlob.type,
-      createdAt: new Date().toISOString(),
-      guideName: document.getElementById('new-tour-name')?.value || ''
-    };
+    const tourName = document.getElementById('new-tour-name')?.value || 'My_Walking_Tour';
+    const cleanTourName = tourName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `guide_audio_${cleanTourName}_${Date.now()}.${finalExtension}`;
 
-    window.TravelogApp.showToast(t('오디오 녹음본이 생성되었습니다.', 'Audio clip saved successfully.', '音声クリップを保存しました。'));
-    statusText.textContent = t('녹음 완료! GitHub 저장소로 업로드를 시도합니다.', 'Recording complete! Trying to upload to GitHub storage.', '録音完了！GitHub保存先へアップロードします。');
+    // Add to recordedAudios list
+    recordedAudios.push({
+      id: Date.now(),
+      name: filename,
+      blob: audioBlob,
+      stopIndex: -1
+    });
 
-    if (window.TravelogMediaStorageModule && typeof window.TravelogMediaStorageModule.autoUploadAudio === 'function') {
-      try {
-        await window.TravelogMediaStorageModule.autoUploadAudio(audioBlob, metadata);
-      } catch (error) {
-        console.warn('Automatic GitHub audio upload failed.', error);
-      }
-    }
+    window.TravelogApp.showToast(t('음성 녹음 완료! 리스트에 추가되었습니다.', 'Audio recording finished and added to list!', '音声録音完了！リストに追加されました。'));
+    
+    renderAudioList();
+    updatePublishPanelCounts();
   }
 
-  // ==========================================
-  // Voice Market Store
-  // ==========================================
-  function renderVoiceMarket() {
-    const container = document.getElementById('voice-market-container');
+  function renderAudioList() {
+    const container = document.getElementById('creator-audio-list');
+    if (!container) return;
     container.innerHTML = '';
 
-    voiceMarketItems.forEach((voice, index) => {
-      const card = document.createElement('div');
-      card.className = 'voice-card glass-panel';
-      
-      const name = pick(voice, 'name');
-      const type = pick(voice, 'type');
-      const buyText = voice.owned ? t('보유함', 'Owned', '所有中') : `${voice.cost} pts`;
-      const btnClass = voice.owned ? 'owned' : '';
+    if (recordedAudios.length === 0) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">${t('아직 녹음된 음성이 없습니다. 위에서 녹음을 시작해 보세요!', 'No recorded audios yet. Click Mic above to start!', 'まだ録音された音声がありません。')}</div>`;
+      return;
+    }
 
-      card.innerHTML = `
-        <div class="voice-header">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <div class="voice-avatar">${voice.avatar}</div>
-            <div class="voice-details">
-              <h4>${name}</h4>
-              <span>${type}</span>
-            </div>
-          </div>
-          <div class="voice-player" onclick="TravelogCreatorModule.previewVoice(${index})">
-            <i class="fa-solid fa-volume-high"></i>
-            <span>${t('미리듣기', 'Listen', '試聴')}</span>
-          </div>
+    recordedAudios.forEach((audio, idx) => {
+      const itemEl = document.createElement('div');
+      itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; gap: 8px;';
+      
+      const selectHtml = getStopSelectHtml(audio.stopIndex);
+
+      itemEl.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent-pink);">${idx + 1}. ${audio.name}</div>
         </div>
-        
-        <button class="voice-buy-btn ${btnClass}" onclick="TravelogCreatorModule.buyVoice(${index})">
-          <i class="fa-solid fa-coins"></i>
-          <span>${buyText}</span>
-        </button>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          ${selectHtml}
+          <button class="btn-circle" style="width: 24px; height: 24px; font-size: 10px; background: rgba(255,50,50,0.1); border-color: rgba(255,50,50,0.15); color: var(--accent-pink);" onclick="TravelogCreatorModule.deleteAudio(${audio.id})">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
       `;
-      container.appendChild(card);
+
+      // Bind select change
+      const select = itemEl.querySelector('select');
+      if (select) {
+        select.addEventListener('change', (e) => {
+          audio.stopIndex = e.target.value === 'none' ? -1 : parseInt(e.target.value, 10);
+          updatePublishPanelCounts();
+        });
+      }
+
+      container.appendChild(itemEl);
     });
   }
 
-  function previewVoice(index) {
-    const voice = voiceMarketItems[index];
-    const lang = window.TravelogApp ? window.TravelogApp.getLanguage() : 'ko';
-    
-    // Trigger simulated text-to-speech warning
-    const ttsTexts = {
-      'voice-minho': {
-        ko: "반갑습니다! 오늘 저와 함께 서울 종로 한바퀴 어떠신가요?",
-        en: "Welcome! Ready to walk around Jongno, Seoul with me today?",
-        ja: "こんにちは！今日は私と一緒にソウル鍾路を歩いてみませんか？"
-      },
-      'voice-watson': {
-        ko: "단서는 바로 당신 발밑에 있군요. 침착하게 암호를 대어 보시죠.",
-        en: "The clue is right beneath your feet. Stay calm and solve the riddle.",
-        ja: "手がかりはあなたの足元にあります。落ち着いて謎を解いてみましょう。"
-      },
-      'voice-chloe': {
-        ko: "와 대박! 여기 맛집은 진짜 꼭 먹어봐야 해요! 바로 입장해볼까요?!",
-        en: "Oh my gosh! This cafe is absolutely incredible! Shall we check it out?!",
-        ja: "わあ、すごい！ここは絶対に食べてみるべきお店です！入ってみましょうか？"
-      }
-    };
-
-    const textToSpeak = ttsTexts[voice.id][window.TravelogApp.getLanguage()] || ttsTexts[voice.id].en;
-    window.TravelogApp.showToast(`[${voice.nameEn} TTS] "${textToSpeak}"`);
+  function deleteAudio(id) {
+    recordedAudios = recordedAudios.filter(a => a.id !== id);
+    renderAudioList();
+    updatePublishPanelCounts();
   }
 
-  function buyVoice(index) {
-    const voice = voiceMarketItems[index];
-
-    if (voice.owned) return;
-
-    // Deduct points
-    if (window.TravelogApp.deductPoints(voice.cost)) {
-      voice.owned = true;
-      renderVoiceMarket();
-      window.TravelogApp.showToast(t(`[${voice.nameKo}] 보이스 팩을 구매하였습니다!`, `Purchased [${voice.nameEn}] voice pack!`, `［${voice.nameJa}］ボイスパックを購入しました！`));
+  // ==========================================
+  // Video Recorder & List
+  // ==========================================
+  async function toggleVideoRecording() {
+    if (isVideoRecording) {
+      stopVideoRecording();
+    } else {
+      await startVideoRecording();
     }
+  }
+
+  async function startVideoRecording() {
+    const btn = document.getElementById('record-video-btn');
+    const statusText = document.getElementById('video-record-status-text');
+    const timerText = document.getElementById('video-record-timer');
+    const videoEl = document.getElementById('webcam-video');
+    const placeholder = document.getElementById('camera-placeholder');
+
+    isVideoRecording = true;
+    recordedVideoChunks = [];
+    recordingMode = 'simulated';
+    btn.classList.add('recording');
+    btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
+    statusText.textContent = t('가이드 영상을 녹화 중입니다...', 'Recording video guide...', 'ビデオガイドを録画中です...');
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (videoEl) {
+          videoEl.srcObject = videoStream;
+          videoEl.style.display = 'block';
+        }
+        if (placeholder) placeholder.style.display = 'none';
+
+        videoMediaRecorder = new MediaRecorder(videoStream, { mimeType: 'video/webm' });
+        videoMediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) recordedVideoChunks.push(event.data);
+        };
+        videoMediaRecorder.onstop = handleRecordedVideoReady;
+        videoMediaRecorder.start();
+        recordingMode = 'real';
+      } else {
+        statusText.textContent = t('브라우저 카메라 미지원 (테스트 비디오로 저장)', 'Webcam unsupported (Test video will be saved)', 'カメラ非対応（テストビデオを保存）');
+      }
+    } catch (error) {
+      console.warn('Camera userMedia unavailable. Falling back to simulated video.', error);
+      statusText.textContent = t('카메라 미작동 (테스트 비디오로 저장)', 'Camera unavailable (Test video will be saved)', 'カメラを使用できないため、テストビデオとして保存します。');
+    }
+
+    videoRecordSeconds = 0;
+    timerText.textContent = "00:00";
+    clearInterval(videoRecordInterval);
+    videoRecordInterval = setInterval(() => {
+      videoRecordSeconds++;
+      const minutes = Math.floor(videoRecordSeconds / 60);
+      const secs = videoRecordSeconds % 60;
+      const displayMin = minutes < 10 ? `0${minutes}` : minutes;
+      const displaySec = secs < 10 ? `0${secs}` : secs;
+      timerText.textContent = `${displayMin}:${displaySec}`;
+    }, 1000);
+  }
+
+  function stopVideoRecording() {
+    const btn = document.getElementById('record-video-btn');
+    const statusText = document.getElementById('video-record-status-text');
+    const timerText = document.getElementById('video-record-timer');
+    const videoEl = document.getElementById('webcam-video');
+    const placeholder = document.getElementById('camera-placeholder');
+
+    clearInterval(videoRecordInterval);
+    isVideoRecording = false;
+    btn.classList.remove('recording');
+    btn.innerHTML = `<i class="fa-solid fa-video"></i>`;
+    statusText.textContent = t('녹화 완료 처리 중...', 'Processing video recording...', '録画を処理しています...');
+
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      videoStream = null;
+    }
+    if (videoEl) {
+      videoEl.srcObject = null;
+      videoEl.style.display = 'none';
+    }
+    if (placeholder) placeholder.style.display = 'flex';
+
+    if (recordingMode === 'real' && videoMediaRecorder && videoMediaRecorder.state !== 'inactive') {
+      videoMediaRecorder.stop();
+    } else {
+      handleRecordedVideoReady();
+    }
+
+    setTimeout(() => {
+      timerText.textContent = "00:00";
+      statusText.textContent = t('녹화 버튼 클릭', 'Click record button', '録画ボタンをクリック');
+    }, 3000);
+  }
+
+  async function handleRecordedVideoReady() {
+    let videoBlob;
+    if (recordedVideoChunks.length > 0) {
+      videoBlob = new Blob(recordedVideoChunks, { type: 'video/webm' });
+    } else {
+      const simulatedText = [
+        'Travelog simulated video guide source',
+        `duration_seconds=${videoRecordSeconds}`,
+        `created_at=${new Date().toISOString()}`
+      ].join('\n');
+      videoBlob = new Blob([simulatedText], { type: 'text/plain' });
+    }
+
+    const ext = videoBlob.type.includes('text/plain') ? 'txt' : 'webm';
+    const tourName = document.getElementById('new-tour-name')?.value || 'My_Walking_Tour';
+    const cleanTourName = tourName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `guide_video_${cleanTourName}_${Date.now()}.${ext}`;
+
+    recordedVideos.push({
+      id: Date.now(),
+      name: filename,
+      blob: videoBlob,
+      stopIndex: -1
+    });
+
+    window.TravelogApp.showToast(t('영상 녹화 완료! 리스트에 추가되었습니다.', 'Video recording finished and added to list!', '動画録画完了！リストに追加されました。'));
+    
+    renderVideoList();
+    updatePublishPanelCounts();
+  }
+
+  function renderVideoList() {
+    const container = document.getElementById('creator-video-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (recordedVideos.length === 0) {
+      container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">${t('아직 녹화된 영상이 없습니다.', 'No recorded videos yet.', 'まだ録画された動画がありません。')}</div>`;
+      return;
+    }
+
+    recordedVideos.forEach((video, idx) => {
+      const itemEl = document.createElement('div');
+      itemEl.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; gap: 8px;';
+      
+      const selectHtml = getStopSelectHtml(video.stopIndex);
+
+      itemEl.innerHTML = `
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent-blue);">${idx + 1}. ${video.name}</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          ${selectHtml}
+          <button class="btn-circle" style="width: 24px; height: 24px; font-size: 10px; background: rgba(255,50,50,0.1); border-color: rgba(255,50,50,0.15); color: var(--accent-pink);" onclick="TravelogCreatorModule.deleteVideo(${video.id})">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      `;
+
+      // Bind select change
+      const select = itemEl.querySelector('select');
+      if (select) {
+        select.addEventListener('change', (e) => {
+          video.stopIndex = e.target.value === 'none' ? -1 : parseInt(e.target.value, 10);
+          updatePublishPanelCounts();
+        });
+      }
+
+      container.appendChild(itemEl);
+    });
+  }
+
+  function deleteVideo(id) {
+    recordedVideos = recordedVideos.filter(v => v.id !== id);
+    renderVideoList();
+    updatePublishPanelCounts();
+  }
+
+  // ==========================================
+  // Helper UI Utilities
+  // ==========================================
+  function getStopSelectHtml(stopIndexValue) {
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    let optionsHtml = `<option value="none">${t('핀 미연동', 'No link', '未連携')}</option>`;
+    
+    customPins.forEach((pin, index) => {
+      const isSelected = stopIndexValue === index ? 'selected' : '';
+      optionsHtml += `<option value="${index}" ${isSelected}>Stop #${index + 1}</option>`;
+    });
+
+    return `
+      <select style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer;">
+        ${optionsHtml}
+      </select>
+    `;
+  }
+
+  function refreshMediaPinSelectors() {
+    // Refresh all select boxes inside audio and video lists without re-rendering everything
+    const audioSelects = document.querySelectorAll('#creator-audio-list select');
+    audioSelects.forEach((select, idx) => {
+      const currentVal = recordedAudios[idx] ? recordedAudios[idx].stopIndex : -1;
+      select.outerHTML = getStopSelectHtml(currentVal);
+    });
+
+    const videoSelects = document.querySelectorAll('#creator-video-list select');
+    videoSelects.forEach((select, idx) => {
+      const currentVal = recordedVideos[idx] ? recordedVideos[idx].stopIndex : -1;
+      select.outerHTML = getStopSelectHtml(currentVal);
+    });
+
+    // Re-bind listeners after outerHTML replacement
+    const audioItems = document.querySelectorAll('#creator-audio-list > div');
+    audioItems.forEach((item, idx) => {
+      const select = item.querySelector('select');
+      if (select && recordedAudios[idx]) {
+        select.addEventListener('change', (e) => {
+          recordedAudios[idx].stopIndex = e.target.value === 'none' ? -1 : parseInt(e.target.value, 10);
+          updatePublishPanelCounts();
+        });
+      }
+    });
+
+    const videoItems = document.querySelectorAll('#creator-video-list > div');
+    videoItems.forEach((item, idx) => {
+      const select = item.querySelector('select');
+      if (select && recordedVideos[idx]) {
+        select.addEventListener('change', (e) => {
+          recordedVideos[idx].stopIndex = e.target.value === 'none' ? -1 : parseInt(e.target.value, 10);
+          updatePublishPanelCounts();
+        });
+      }
+    });
+  }
+
+  function updatePublishPanelCounts() {
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const pinsCountEl = document.getElementById('publish-pins-count');
+    const audiosCountEl = document.getElementById('publish-audios-count');
+    const videosCountEl = document.getElementById('publish-videos-count');
+
+    const linkedAudiosCount = recordedAudios.filter(a => a.stopIndex !== -1).length;
+    const linkedVideosCount = recordedVideos.filter(v => v.stopIndex !== -1).length;
+
+    if (pinsCountEl) pinsCountEl.textContent = `${customPins.length}개`;
+    if (audiosCountEl) audiosCountEl.textContent = `${linkedAudiosCount}개 (총 ${recordedAudios.length}개)`;
+    if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 (총 ${recordedVideos.length}개)`;
   }
 
   return {
     init: init,
     onLanguageChange: () => {
       renderCoordinatesList();
-      renderVoiceMarket();
+      renderAudioList();
+      renderVideoList();
+      updatePublishPanelCounts();
     },
     removeCoordinate: removeCoordinate,
-    previewVoice: previewVoice,
-    buyVoice: buyVoice,
+    deleteAudio: deleteAudio,
+    deleteVideo: deleteVideo,
     renderCoordinatesList: renderCoordinatesList
   };
 })();
