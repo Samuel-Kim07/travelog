@@ -737,11 +737,12 @@ const TravelogMapModule = (() => {
   }
 
   function handleMemoButtonClick() {
-    if (!hasRealGpsLocation) {
-      requestCurrentLocation((loc) => openMemoModal(loc));
-      return;
+    const loc = getCurrentLatLng();
+    if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
+      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng);
+    } else {
+      console.warn('TravelogCreatorModule or openPinTypeSelectModal not loaded.');
     }
-    openMemoModal(getCurrentLatLng());
   }
 
   function initMemoModalEvents() {

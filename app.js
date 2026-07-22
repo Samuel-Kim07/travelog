@@ -301,6 +301,9 @@ function initNavigation() {
           tab.classList.add('active');
         }
       });
+      if (window.updateMapLayoutForMode) {
+        window.updateMapLayoutForMode('create');
+      }
       if (window.TravelogMapModule) {
         window.TravelogMapModule.invalidateSize();
       }
@@ -667,6 +670,10 @@ window.startGuideFromHome = function(guideId) {
       tab.classList.add('active');
     }
   });
+
+  if (window.updateMapLayoutForMode) {
+    window.updateMapLayoutForMode('run');
+  }
 
   // Redraw Map layer, load stops, and trigger walk simulation
   if (window.TravelogMapModule) {
@@ -1585,6 +1592,27 @@ function showToast(message) {
     toast.style.transform = 'translateX(-50%) translateY(-20px)';
   }, 2500);
 }
+
+window.updateMapLayoutForMode = function(mode) {
+  const activeGuideCard = document.querySelector('[data-hud-id="active-guide"]');
+  const tourLocationsCard = document.querySelector('[data-hud-id="tour-stops"]');
+  const bottomSheet = document.querySelector('.map-bottom-sheet');
+  const legendPanel = document.querySelector('.map-legend-panel');
+
+  if (bottomSheet) {
+    bottomSheet.style.display = 'none';
+  }
+
+  if (mode === 'create') {
+    if (activeGuideCard) activeGuideCard.style.display = 'none';
+    if (tourLocationsCard) tourLocationsCard.style.display = 'none';
+    if (legendPanel) legendPanel.style.display = 'none';
+  } else {
+    if (activeGuideCard) activeGuideCard.style.display = 'block';
+    if (tourLocationsCard) tourLocationsCard.style.display = 'block';
+    if (legendPanel) legendPanel.style.display = 'flex';
+  }
+};
 
 // Share functions globally on window object
 window.TravelogApp = {

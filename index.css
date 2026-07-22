@@ -3542,7 +3542,8 @@ nav.bottom-nav {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 800px;
+  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -4184,5 +4185,21 @@ nav.bottom-nav {
   to {
     transform: rotate(360deg);
   }
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+textarea,
+select {
+  color: #373737 !important;
+  background-color: #f8fafc !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #888888 !important;
 }
 
