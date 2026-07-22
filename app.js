@@ -639,35 +639,35 @@ window.startGuideFromHome = function(guideId) {
     ]
   };
 
-  // Redraw Map layer and load stops
+  // Perform programmatic tab switch to Map
+  const navItems = document.querySelectorAll('.nav-item');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  navItems.forEach(n => n.classList.remove('active'));
+  tabContents.forEach(tab => {
+    tab.classList.remove('active');
+    if (tab.id === 'map-tab') {
+      tab.classList.add('active');
+    }
+  });
+
+  // Redraw Map layer, load stops, and trigger walk simulation
   if (window.TravelogMapModule) {
     window.TravelogMapModule.renderTour();
-  }
-
-  // Perform programmatic tab switch to Map
-  const mapNavBtn = document.querySelector('.nav-item[data-tab="map-tab"]');
-  if (mapNavBtn) {
-    // We don't have map-tab directly in the navbar because we replaced it.
-    // Instead we can programmatically active the map tab content.
-    const navItems = document.querySelectorAll('.nav-item');
-    const tabContents = document.querySelectorAll('.tab-content');
-
-    navItems.forEach(n => n.classList.remove('active'));
-    tabContents.forEach(tab => {
-      tab.classList.remove('active');
-      if (tab.id === 'map-tab') {
-        tab.classList.add('active');
+    window.TravelogMapModule.invalidateSize();
+    
+    // Automatically trigger GPS Simulation Walk Test to start the tour immediately!
+    window.setTimeout(() => {
+      const simBtn = document.getElementById('gps-simulation-btn');
+      if (simBtn) {
+        const isSimulating = simBtn.classList.contains('active') || (document.getElementById('simulation-status-pill') && document.getElementById('simulation-status-pill').style.display === 'block');
+        if (!isSimulating) {
+          simBtn.click();
+        }
       }
-    });
+    }, 600);
 
-    if (window.TravelogMapModule) {
-      window.TravelogMapModule.invalidateSize();
-    }
-    showToast(localizedText('가이드 지도를 로드했습니다. 투어를 시작하세요!', 'Guide map loaded. Start your tour!', 'ガイドマップを読み込みました。ツアーを開始してください！'));
-  } else {
-    // If map-tab nav button exists (e.g. in the updated 5 tab with Map)
-    const mapBtn = document.querySelector('[data-tab="map-tab"]');
-    if (mapBtn) mapBtn.click();
+    showToast(localizedText('가이드 지도를 로드하고 투어 걷기 테스트를 시작합니다!', 'Guide map loaded and walk test started!', 'ガイドマップを読み込み、歩行テストを開始します！'));
   }
 };
 
