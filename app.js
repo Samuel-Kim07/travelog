@@ -290,6 +290,23 @@ function initNavigation() {
       }
     });
   });
+
+  const goMapBtn = document.getElementById('go-to-map-builder-btn');
+  if (goMapBtn) {
+    goMapBtn.addEventListener('click', () => {
+      navItems.forEach(n => n.classList.remove('active'));
+      tabContents.forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.id === 'map-tab') {
+          tab.classList.add('active');
+        }
+      });
+      if (window.TravelogMapModule) {
+        window.TravelogMapModule.invalidateSize();
+      }
+      showToast(localizedText('지도 화면이 활성화되었습니다. 핀 생성 버튼을 눌러 미디어를 기록하세요!', 'Map activated. Click pin generation button to record media!', 'マップが有効になりました。'));
+    });
+  }
 }
 
 // ==========================================
@@ -1431,6 +1448,9 @@ function completeOnboarding() {
   if (!verifiedNickname || verifiedNickname !== nickname) {
     if (!verifyNickname()) return;
   }
+
+  const permissionChk = document.getElementById('onboarding-permission-chk');
+  TravelogState.userProfile.storagePermissionGranted = permissionChk ? permissionChk.checked : false;
 
   TravelogState.userProfile.nickname = verifiedNickname || nickname;
   TravelogState.userProfile.isOnboarded = true;

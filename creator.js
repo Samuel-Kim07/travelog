@@ -34,6 +34,26 @@ const TravelogCreatorModule = (() => {
   let videoStream = null;
   let recordedVideos = [];
 
+  // Temporary coordinate caching for field captures
+  let tempPinLat = 0;
+  let tempPinLng = 0;
+
+  // Field Voice Memo States
+  let voiceMemoChunks = [];
+  let voiceMemoRecorder = null;
+  let voiceMemoStream = null;
+  let voiceMemoBlob = null;
+  let voiceMemoSeconds = 0;
+  let voiceMemoInterval = null;
+
+  // Field Video Memo States
+  let videoMemoChunks = [];
+  let videoMemoRecorder = null;
+  let videoMemoStream = null;
+  let videoMemoBlob = null;
+  let videoMemoSeconds = 0;
+  let videoMemoInterval = null;
+
   function init() {
     renderCoordinatesList();
     renderAudioList();
@@ -61,14 +81,61 @@ const TravelogCreatorModule = (() => {
         const text = btn.getAttribute('data-script');
         selectedScriptText = btn.textContent.trim();
         
-        // Feed text into simulator
         window.TravelogApp.showToast(t('스크립트 템플릿 로드 완료', 'Script template loaded', 'スクリプトテンプレートを読み込みました'));
         
-        // Change recording label to guide user
         const statusText = document.getElementById('record-status-text');
         statusText.textContent = t(`읽어주세요: ${btn.textContent}`, `Read aloud: ${btn.textContent}`, `読み上げてください：${btn.textContent}`);
       });
     });
+
+    // 1) 핀 미디어 타입 선택 모달 바인딩
+    const typeSelectModal = document.getElementById('pin-type-select-modal');
+    if (typeSelectModal) {
+      document.getElementById('btn-select-audio-memo').addEventListener('click', () => {
+        typeSelectModal.classList.remove('active');
+        openVoiceMemoModal();
+      });
+      document.getElementById('btn-select-video-memo').addEventListener('click', () => {
+        typeSelectModal.classList.remove('active');
+        openVideoMemoModal();
+      });
+      document.getElementById('btn-select-text-memo').addEventListener('click', () => {
+        typeSelectModal.classList.remove('active');
+        openTextMemoModal();
+      });
+      document.getElementById('btn-close-type-select').addEventListener('click', () => {
+        typeSelectModal.classList.remove('active');
+      });
+    }
+
+    // 2) 음성 메모 모달 레코딩 바인딩
+    const voiceComplete = document.getElementById('voice-memo-complete');
+    if (voiceComplete) {
+      document.getElementById('voice-memo-record').addEventListener('click', startVoiceMemoRecording);
+      document.getElementById('voice-memo-stop').addEventListener('click', stopVoiceMemoRecording);
+      document.getElementById('voice-memo-play').addEventListener('click', playVoiceMemoRecording);
+      document.getElementById('voice-memo-reset').addEventListener('click', resetVoiceMemoRecording);
+      voiceComplete.addEventListener('click', completeVoiceMemoRecording);
+    }
+
+    // 3) 영상 메모 모달 레코딩 바인딩
+    const videoComplete = document.getElementById('video-memo-complete');
+    if (videoComplete) {
+      document.getElementById('video-memo-record').addEventListener('click', startVideoMemoRecording);
+      document.getElementById('video-memo-stop').addEventListener('click', stopVideoMemoRecording);
+      document.getElementById('video-memo-play').addEventListener('click', playVideoMemoRecording);
+      document.getElementById('video-memo-reset').addEventListener('click', resetVideoMemoRecording);
+      videoComplete.addEventListener('click', completeVideoMemoRecording);
+    }
+
+    // 4) 텍스트 메모 모달 바인딩
+    const textComplete = document.getElementById('text-memo-complete');
+    if (textComplete) {
+      document.getElementById('text-memo-cancel').addEventListener('click', () => {
+        document.getElementById('text-memo-modal').classList.remove('active');
+      });
+      textComplete.addEventListener('click', completeTextMemoRecording);
+    }
   }
 
   // ==========================================
@@ -146,6 +213,12 @@ const TravelogCreatorModule = (() => {
   }
 
   function saveTour() {
+    const storageGranted = window.TravelogApp ? window.TravelogApp.getState().userProfile.storagePermissionGranted : false;
+    if (!storageGranted) {
+      alert(t('기기 내 저장 권한이 수락되지 않아 가이드 출간이 불가능합니다. 처음 프로필 설정에서 권한을 수락해 주세요!', 'Storage permission is required to publish guides. Please allow access in profile settings.', '機器内の保存権限が許可されていないため、ガイドを公開できません。'));
+      return;
+    }
+
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const tourName = document.getElementById('new-tour-name').value;
 
@@ -709,8 +782,325 @@ const TravelogCreatorModule = (() => {
     if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 (총 ${recordedVideos.length}개)`;
   }
 
+  // ==========================================
+  // Field Capture Modals Logic
+  // ==========================================
+  function openPinTypeSelectModal(lat, lng) {
+    tempPinLat = lat;
+    tempPinLng = lng;
+    const modal = document.getElementById('pin-type-select-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  // 1) Audio Field Capture
+  function openVoiceMemoModal() {
+    const modal = document.getElementById('voice-memo-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    voiceMemoChunks = [];
+    voiceMemoBlob = null;
+    voiceMemoSeconds = 0;
+    document.getElementById('voice-memo-timer').textContent = "00:00";
+    document.getElementById('voice-memo-status').textContent = t('마이크 버튼을 눌러 녹음 시작', 'Press Record to start audio guide', '録音ボタンを押して録음 시작');
+    
+    // Reset buttons state
+    document.getElementById('voice-memo-record').disabled = false;
+    document.getElementById('voice-memo-stop').disabled = true;
+    document.getElementById('voice-memo-play').disabled = true;
+    document.getElementById('voice-memo-reset').disabled = true;
+    document.getElementById('voice-memo-complete').disabled = true;
+
+    document.getElementById('tape-wheel-left').style.animation = 'none';
+    document.getElementById('tape-wheel-right').style.animation = 'none';
+  }
+
+  async function startVoiceMemoRecording() {
+    document.getElementById('voice-memo-record').disabled = true;
+    document.getElementById('voice-memo-stop').disabled = false;
+    document.getElementById('voice-memo-status').textContent = t('음성을 녹음 중입니다...', 'Recording audio...', '録音中...');
+    
+    // Tape animation
+    document.getElementById('tape-wheel-left').style.animation = 'spin 2s linear infinite';
+    document.getElementById('tape-wheel-right').style.animation = 'spin 2s linear infinite';
+
+    voiceMemoChunks = [];
+    voiceMemoSeconds = 0;
+    clearInterval(voiceMemoInterval);
+    voiceMemoInterval = setInterval(() => {
+      voiceMemoSeconds++;
+      const min = Math.floor(voiceMemoSeconds / 60);
+      const sec = voiceMemoSeconds % 60;
+      document.getElementById('voice-memo-timer').textContent = `${min < 10 ? '0' + min : min}:${sec < 10 ? '0' + sec : sec}`;
+    }, 1000);
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
+        voiceMemoStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceMemoRecorder = new MediaRecorder(voiceMemoStream);
+        voiceMemoRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) voiceMemoChunks.push(e.data);
+        };
+        voiceMemoRecorder.start();
+      }
+    } catch (err) {
+      console.warn('Microphone access denied or unsupported.', err);
+    }
+  }
+
+  function stopVoiceMemoRecording() {
+    document.getElementById('voice-memo-stop').disabled = true;
+    document.getElementById('voice-memo-play').disabled = false;
+    document.getElementById('voice-memo-reset').disabled = false;
+    document.getElementById('voice-memo-complete').disabled = false;
+    document.getElementById('voice-memo-status').textContent = t('녹음 완료! 플레이 버튼으로 확인해 보세요.', 'Recording finished! Press Play to listen.', '録音完了！');
+
+    document.getElementById('tape-wheel-left').style.animation = 'none';
+    document.getElementById('tape-wheel-right').style.animation = 'none';
+    clearInterval(voiceMemoInterval);
+
+    if (voiceMemoRecorder && voiceMemoRecorder.state !== 'inactive') {
+      voiceMemoRecorder.stop();
+      if (voiceMemoStream) {
+        voiceMemoStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    setTimeout(() => {
+      if (voiceMemoChunks.length > 0) {
+        voiceMemoBlob = new Blob(voiceMemoChunks, { type: 'audio/webm' });
+      } else {
+        // Simulated voice source fallback
+        voiceMemoBlob = new Blob(['Travelog field audio memo data'], { type: 'text/plain' });
+      }
+    }, 200);
+  }
+
+  function playVoiceMemoRecording() {
+    if (!voiceMemoBlob) return;
+    const url = URL.createObjectURL(voiceMemoBlob);
+    const audio = new Audio(url);
+    audio.play();
+    window.TravelogApp.showToast(t('녹음된 가이드 음성을 재생합니다...', 'Playing guide audio...', '録音されたガイド音声を再生します...'));
+  }
+
+  function resetVoiceMemoRecording() {
+    openVoiceMemoModal();
+  }
+
+  function completeVoiceMemoRecording() {
+    document.getElementById('voice-memo-modal').classList.remove('active');
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
+    }
+
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const newStopIdx = customPins.length - 1;
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `voice_memo_${cleanTourName}_${Date.now()}.${voiceMemoBlob && voiceMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
+
+    recordedAudios.push({
+      id: Date.now(),
+      name: filename,
+      blob: voiceMemoBlob || new Blob(['Travelog default simulated audio'], { type: 'text/plain' }),
+      stopIndex: newStopIdx
+    });
+
+    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Audio/'에 음성 가이드가 가상 저장되었습니다!", "Voice memo successfully saved in 'Travelog/Audio/' folder!", 'ユーザー端末の「Travelog/Audio/」に保存されました！'));
+
+    renderCoordinatesList();
+    renderAudioList();
+    updatePublishPanelCounts();
+  }
+
+  // 2) Video Field Capture
+  function openVideoMemoModal() {
+    const modal = document.getElementById('video-memo-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    videoMemoChunks = [];
+    videoMemoBlob = null;
+    videoMemoSeconds = 0;
+    document.getElementById('video-memo-timer').style.display = 'none';
+    document.getElementById('video-memo-timer').textContent = "00:00 REC";
+    document.getElementById('video-memo-status').textContent = t('녹화 버튼을 눌러 카메라 촬영 시작', 'Press Record to start video guide', '録画ボタンを押して撮影開始');
+    
+    // Reset buttons state
+    document.getElementById('video-memo-record').disabled = false;
+    document.getElementById('video-memo-stop').disabled = true;
+    document.getElementById('video-memo-play').disabled = true;
+    document.getElementById('video-memo-reset').disabled = true;
+    document.getElementById('video-memo-complete').disabled = true;
+
+    // Reset viewfinder
+    document.getElementById('video-memo-webcam').style.display = 'none';
+    document.getElementById('video-memo-placeholder').style.display = 'block';
+  }
+
+  async function startVideoMemoRecording() {
+    document.getElementById('video-memo-record').disabled = true;
+    document.getElementById('video-memo-stop').disabled = false;
+    document.getElementById('video-memo-status').textContent = t('카메라 가이드 영상을 촬영 중입니다...', 'Recording video...', '動画撮影中...');
+    
+    const webcamEl = document.getElementById('video-memo-webcam');
+    const placeholder = document.getElementById('video-memo-placeholder');
+    const timer = document.getElementById('video-memo-timer');
+
+    if (timer) timer.style.display = 'block';
+
+    videoMemoChunks = [];
+    videoMemoSeconds = 0;
+    clearInterval(videoMemoInterval);
+    videoMemoInterval = setInterval(() => {
+      videoMemoSeconds++;
+      const min = Math.floor(videoMemoSeconds / 60);
+      const sec = videoMemoSeconds % 60;
+      if (timer) timer.textContent = `${min < 10 ? '0' + min : min}:${sec < 10 ? '0' + sec : sec} REC`;
+    }, 1000);
+
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
+        videoMemoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (webcamEl) {
+          webcamEl.srcObject = videoMemoStream;
+          webcamEl.style.display = 'block';
+        }
+        if (placeholder) placeholder.style.display = 'none';
+
+        videoMemoRecorder = new MediaRecorder(videoMemoStream);
+        videoMemoRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) videoMemoChunks.push(e.data);
+        };
+        videoMemoRecorder.start();
+      }
+    } catch (err) {
+      console.warn('Camera access denied or unsupported.', err);
+    }
+  }
+
+  function stopVideoMemoRecording() {
+    document.getElementById('video-memo-stop').disabled = true;
+    document.getElementById('video-memo-play').disabled = false;
+    document.getElementById('video-memo-reset').disabled = false;
+    document.getElementById('video-memo-complete').disabled = false;
+    document.getElementById('video-memo-status').textContent = t('촬영 완료! 저장 혹은 다시 녹화를 선택하세요.', 'Recording finished! Ready to save.', '録画完了！');
+
+    document.getElementById('video-memo-timer').style.display = 'none';
+    clearInterval(videoMemoInterval);
+
+    const webcamEl = document.getElementById('video-memo-webcam');
+    if (webcamEl) {
+      webcamEl.srcObject = null;
+      webcamEl.style.display = 'none';
+    }
+    document.getElementById('video-memo-placeholder').style.display = 'block';
+
+    if (videoMemoRecorder && videoMemoRecorder.state !== 'inactive') {
+      videoMemoRecorder.stop();
+      if (videoMemoStream) {
+        videoMemoStream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    setTimeout(() => {
+      if (videoMemoChunks.length > 0) {
+        videoMemoBlob = new Blob(videoMemoChunks, { type: 'video/webm' });
+      } else {
+        // Simulated video source fallback
+        videoMemoBlob = new Blob(['Travelog field video guide data'], { type: 'text/plain' });
+      }
+    }, 200);
+  }
+
+  function playVideoMemoRecording() {
+    if (!videoMemoBlob) return;
+    window.TravelogApp.showToast(t('촬영된 가이드 비디오를 재생 확인 중...', 'Playing recorded video guide...', '録画されたガイド動画を再生中...'));
+  }
+
+  function resetVideoMemoRecording() {
+    openVideoMemoModal();
+  }
+
+  function completeVideoMemoRecording() {
+    document.getElementById('video-memo-modal').classList.remove('active');
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
+    }
+
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const newStopIdx = customPins.length - 1;
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `video_memo_${cleanTourName}_${Date.now()}.${videoMemoBlob && videoMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
+
+    recordedVideos.push({
+      id: Date.now(),
+      name: filename,
+      blob: videoMemoBlob || new Blob(['Travelog default simulated video'], { type: 'text/plain' }),
+      stopIndex: newStopIdx
+    });
+
+    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Video/'에 영상 가이드가 가상 저장되었습니다!", "Video guide successfully saved in 'Travelog/Video/' folder!", 'ユーザー端末の「Travelog/Video/」に保存されました！'));
+
+    renderCoordinatesList();
+    renderVideoList();
+    updatePublishPanelCounts();
+  }
+
+  // 3) Text Field Capture
+  function openTextMemoModal() {
+    const modal = document.getElementById('text-memo-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    document.getElementById('text-memo-input').value = '';
+  }
+
+  function completeTextMemoRecording() {
+    const memoVal = document.getElementById('text-memo-input').value.trim();
+    if (!memoVal) {
+      window.TravelogApp.showToast(t('메모 내용을 입력해 주세요!', 'Please enter some text description!', '메모 내용을 입력해주세요!'));
+      return;
+    }
+
+    document.getElementById('text-memo-modal').classList.remove('active');
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
+    }
+
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const lastPin = customPins[customPins.length - 1];
+    if (lastPin) {
+      setTimeout(() => {
+        const inputRows = document.querySelectorAll('.coordinate-row');
+        if (inputRows.length > 0) {
+          const lastRow = inputRows[inputRows.length - 1];
+          const scriptInput = lastRow ? lastRow.querySelector('input') : null;
+          if (scriptInput) {
+            scriptInput.value = memoVal;
+          }
+        }
+      }, 100);
+    }
+
+    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Memo/'에 가이드 대본이 저장되었습니다!", "Text script successfully saved in 'Travelog/Memo/' folder!", 'ユーザー端末の「Travelog/Memo/」に保存されました！'));
+
+    renderCoordinatesList();
+    updatePublishPanelCounts();
+  }
+
   return {
     init: init,
+    openPinTypeSelectModal: openPinTypeSelectModal,
     onLanguageChange: () => {
       renderCoordinatesList();
       renderAudioList();

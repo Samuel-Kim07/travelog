@@ -262,6 +262,10 @@
             <span class="map-control-icon" aria-hidden="true">✎</span>
             <span data-localize="map_control_memo">Memo</span>
           </button>
+          <button class="btn-circle map-control-btn" id="create-pin-at-gps-btn" style="background: var(--grad-pink-purple); border-color: transparent;" title="내 위치에서 코스 핀 생성" aria-label="Create Course Pin at My Location">
+            <span class="map-control-icon" style="color: white; font-weight: bold;" aria-hidden="true">+</span>
+            <span style="color: white; font-weight: bold;">핀 생성</span>
+          </button>
           <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
             <span class="map-control-icon" aria-hidden="true">↟</span>
             <span data-localize="map_control_sim">Walk Test</span>
@@ -489,6 +493,9 @@
               <p style="font-size: 13px; margin-bottom: 16px;" data-localize="builder_desc">Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.</p>
               
               <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button type="button" class="btn-rect" id="go-to-map-builder-btn" style="width: 100%; justify-content: center; background: var(--grad-pink-purple); font-weight: 700; height: 38px; border-radius: 8px;">
+                  <i class="fa-solid fa-map-location-dot"></i> 지도에서 코스 핀 & 미디어 추가하러 가기
+                </button>
                 <div>
                   <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;" data-localize="builder_tour_name">Tour Guide Name</label>
                   <input type="text" id="new-tour-name" value="My Awesome Walking Tour" style="width: 100%; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 10px; border-radius: var(--radius-sm);">
@@ -793,6 +800,17 @@
             
             <!-- Feedback Messages -->
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
+
+            <!-- 기기 저장소 수락 체크박스 -->
+            <div style="margin-top: 15px; text-align: left; background: rgba(255,255,255,0.05); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
+              <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                <input type="checkbox" id="onboarding-permission-chk" checked style="margin-top: 2px;">
+                <div>
+                  <strong style="color: white; display: block; margin-bottom: 2px;">기기 내 가이드 폴더 생성 및 접근 수락</strong>
+                  앱에서 생성할 가이드 음성, 영상, 메모 파일들을 스마트폰 로컬 저장소(Travelog/)에 저장하고 관리하기 위해 권한 승인이 필요합니다. (미동의 시 가이드 출간 불가)
+                </div>
+              </label>
+            </div>
             
             <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
               <span data-localize="start_exploring">Start Exploring!</span>
@@ -998,7 +1016,107 @@
           <span data-localize="profile_save">저장하기</span>
         </button>
       </div>
+  </div>
+
+  <!-- 1) 핀 미디어 타입 선택 모달 -->
+  <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+      <div style="font-size: 40px; color: var(--accent-pink); margin-bottom: 12px;"><i class="fa-solid fa-map-pin"></i></div>
+      <h3 style="font-size: 20px; color: white; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+        <button class="btn-rect" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.15); border-color: var(--accent-pink); color: white;">
+          <i class="fa-solid fa-microphone"></i> 음성 메모 생성하기
+        </button>
+        <button class="btn-rect" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.15); border-color: var(--accent-blue); color: white;">
+          <i class="fa-solid fa-video"></i> 영상 메모 생성하기
+        </button>
+        <button class="btn-rect" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 255, 255, 0.05); border-color: var(--glass-border); color: white;">
+          <i class="fa-solid fa-pen-to-square"></i> 텍스트 메모 생성하기
+        </button>
+        <button class="btn-rect secondary" id="btn-close-type-select" style="justify-content: center; height: 40px; margin-top: 10px;">
+          취소
+        </button>
+      </div>
     </div>
+  </div>
+
+  <!-- 2) 음성 메모 팝업 (녹음기 디자인) -->
+  <div id="voice-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+      <h3 style="font-size: 18px; color: white; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
+      <p id="voice-memo-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
+      
+      <!-- Cassette tape style visualization -->
+      <div style="background: rgba(0,0,0,0.5); width: 100%; height: 120px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; position: relative;">
+        <!-- Simulated tape wheels rotating when playing/recording -->
+        <div style="display: flex; gap: 40px;">
+          <div id="tape-wheel-left" style="width: 44px; height: 44px; border: 4px dashed #555; border-radius: 50%;"></div>
+          <div id="tape-wheel-right" style="width: 44px; height: 44px; border: 4px dashed #555; border-radius: 50%;"></div>
+        </div>
+        <div id="voice-memo-timer" style="position: absolute; bottom: 8px; font-family: monospace; font-size: 16px; color: var(--accent-pink); font-weight: bold;">00:00</div>
+      </div>
+
+      <!-- Play, Record, Stop buttons -->
+      <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 24px;">
+        <button class="btn-circle" id="voice-memo-play" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-play"></i></button>
+        <button class="btn-circle" id="voice-memo-record" style="width: 58px; height: 58px; font-size: 20px; background: #ff2e63; border-color: #ff2e63; color: white;"><i class="fa-solid fa-microphone"></i></button>
+        <button class="btn-circle" id="voice-memo-stop" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-square"></i></button>
+      </div>
+
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <button class="btn-rect secondary" id="voice-memo-reset" style="flex: 1; justify-content: center;" disabled><i class="fa-solid fa-rotate-right"></i> 다시 녹음</button>
+        <button class="btn-rect" id="voice-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3) 영상 메모 팝업 (녹화기 디자인) -->
+  <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+      <h3 style="font-size: 18px; color: white; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
+      <p id="video-memo-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
+      
+      <!-- Video Preview Window -->
+      <div style="background: #000; width: 100%; height: 160px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+        <video id="video-memo-webcam" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
+        <div id="video-memo-placeholder" style="color: var(--text-muted); text-align: center; font-size: 11px;">
+          <i class="fa-solid fa-camera" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+          카메라 미리보기 꺼짐
+        </div>
+        <div id="video-memo-timer" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #ff2e63; font-weight: bold; display: none;">00:00 REC</div>
+      </div>
+
+      <!-- Record, Stop, Play controls -->
+      <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 24px;">
+        <button class="btn-circle" id="video-memo-play" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-play"></i></button>
+        <button class="btn-circle" id="video-memo-record" style="width: 58px; height: 58px; font-size: 20px; background: var(--accent-blue); border-color: var(--accent-blue); color: white;"><i class="fa-solid fa-video"></i></button>
+        <button class="btn-circle" id="video-memo-stop" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-square"></i></button>
+      </div>
+
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <button class="btn-rect secondary" id="video-memo-reset" style="flex: 1; justify-content: center;" disabled><i class="fa-solid fa-rotate-right"></i> 다시 녹화</button>
+        <button class="btn-rect" id="video-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4) 텍스트 메모 팝업 -->
+  <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px;">
+      <h3 style="font-size: 18px; color: white; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
+      
+      <textarea id="text-memo-input" placeholder="이 장소에서 도슨트 음성이나 화면 안내창으로 띄워줄 스크립트를 입력하세요..." style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: white; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
+
+      <div style="display: flex; gap: 10px; width: 100%;">
+        <button class="btn-rect secondary" id="text-memo-cancel" style="flex: 1; justify-content: center;">취소</button>
+        <button class="btn-rect" id="text-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);"><i class="fa-solid fa-circle-check"></i> 완료</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Guide Publishing Progress Modal -->
   <div id="publish-loading-modal" class="profile-manager-modal" style="z-index: 3000;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">

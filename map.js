@@ -433,6 +433,11 @@ const TravelogMapModule = (() => {
       memoBtn.addEventListener('click', handleMemoButtonClick);
     }
 
+    const createPinBtn = document.getElementById('create-pin-at-gps-btn');
+    if (createPinBtn) {
+      createPinBtn.addEventListener('click', handleCreatePinAtGpsClick);
+    }
+
     const gpsSimulationBtn = document.getElementById('gps-simulation-btn');
     if (gpsSimulationBtn) {
       gpsSimulationBtn.addEventListener('click', toggleGPSSimulation);
@@ -719,6 +724,15 @@ const TravelogMapModule = (() => {
       stopRealtimeLocationTracking(true);
     } else {
       startRealtimeLocationTracking();
+    }
+  }
+
+  function handleCreatePinAtGpsClick() {
+    const loc = getCurrentLatLng();
+    if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
+      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng);
+    } else {
+      console.warn('TravelogCreatorModule or openPinTypeSelectModal not loaded.');
     }
   }
 
@@ -1220,6 +1234,7 @@ const TravelogMapModule = (() => {
 
   return {
     init: init,
+    addNewCreatorPin: addNewCreatorPin,
     invalidateSize: () => {
       if (map) {
         map.invalidateSize();
