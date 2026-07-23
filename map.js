@@ -33,6 +33,7 @@ const TravelogMapModule = (() => {
   let lastTrackingToastAt = 0;
   let memoDraftLocation = null;
   let userMemoItems = [];
+  let customCreatedMarkers = {};
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
   // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
@@ -49,13 +50,46 @@ const TravelogMapModule = (() => {
   }
 
 
+  function getFilterForColor(colorHex) {
+    if (!colorHex) return 'filter: none;';
+    colorHex = colorHex.toLowerCase();
+    switch (colorHex) {
+      case '#ff2e63': // Neon Pink
+        return 'filter: hue-rotate(330deg) saturate(2);';
+      case '#00adb5': // Neon Blue
+        return 'filter: hue-rotate(180deg) saturate(2);';
+      case '#34a853': // Green
+        return 'filter: hue-rotate(90deg) saturate(2);';
+      case '#ffb703': // Gold
+        return 'filter: hue-rotate(35deg) saturate(2);';
+      case '#8b5cf6': // Purple
+        return 'filter: hue-rotate(240deg) saturate(2);';
+      default:
+        return 'filter: none;';
+    }
+  }
+
   // Custom marker icons using FontAwesome & CSS
-  function createHtmlIcon(iconClass, colorClass) {
+  function createHtmlIcon(iconClass, colorClassOrHex) {
+    let colorFilter = 'filter: none;';
+    
+    if (colorClassOrHex && colorClassOrHex.startsWith('#')) {
+      colorFilter = getFilterForColor(colorClassOrHex);
+    } else if (colorClassOrHex) {
+      if (colorClassOrHex.includes('pink') || colorClassOrHex.includes('quest')) colorFilter = getFilterForColor('#ff2e63');
+      else if (colorClassOrHex.includes('blue') || colorClassOrHex.includes('audio')) colorFilter = getFilterForColor('#00adb5');
+      else if (colorClassOrHex.includes('green') || colorClassOrHex.includes('coupon')) colorFilter = getFilterForColor('#34a853');
+      else if (colorClassOrHex.includes('purple')) colorFilter = getFilterForColor('#8b5cf6');
+      else if (colorClassOrHex.includes('memo')) colorFilter = getFilterForColor('#ffb703');
+    }
+
     return L.divIcon({
-      html: `<div class="custom-pin ${colorClass}" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%;"><i class="${iconClass}"></i></div>`,
+      html: `<div class="custom-pin-wrapper" style="width:36px; height:45px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;">
+               <img src="assets/icons/ui/pin_red.png" style="width:36px; height:36px; object-fit:contain; ${colorFilter}" />
+             </div>`,
       className: 'custom-leaflet-marker',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
+      iconSize: [36, 45],
+      iconAnchor: [18, 36]
     });
   }
 
@@ -409,7 +443,11 @@ const TravelogMapModule = (() => {
       // Check if we are currently in Creator tab
       const creatorTab = document.getElementById('creator-tab');
       if (creatorTab && creatorTab.classList.contains('active')) {
-        addNewCreatorPin(e.latlng.lat, e.latlng.lng);
+        if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
+          window.TravelogCreatorModule.openPinTypeSelectModal(e.latlng.lat, e.latlng.lng);
+        } else {
+          addNewCreatorPin(e.latlng.lat, e.latlng.lng);
+        }
       }
     });
 
@@ -1174,28 +1212,34 @@ const TravelogMapModule = (() => {
   // ==========================================
   // Creator Custom Pins Placement
   // ==========================================
-  function addNewCreatorPin(lat, lng) {
+  function addNewCreatorPin(lat, lng, description = '') {
     // Add coordinates to state
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newIndex = customPins.length + 1;
+    const pinId = `custom-pin-${Date.now()}`;
     
     const newPin = {
-      id: `custom-pin-${newIndex}`,
+      id: pinId,
       nameEn: `Custom Pin #${newIndex}`,
       nameKo: `커스텀 핀 #${newIndex}`,
       nameJa: `カスタムピン #${newIndex}`,
       lat: lat,
-      lng: lng
+      lng: lng,
+      createdAt: new Date().toISOString(),
+      timestamp: Date.now(),
+      color: '#ff2e63',
+      description: description
     };
     
     customPins.push(newPin);
     
     // Draw Pin on Map
     const marker = L.marker([lat, lng], {
-      icon: createHtmlIcon('fa-solid fa-location-crosshairs', 'pin-quest')
+      icon: createHtmlIcon('fa-solid fa-location-crosshairs', newPin.color)
     }).bindPopup(`<b>Custom Pin #${newIndex}</b><br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     
     markersLayer.addLayer(marker);
+    customCreatedMarkers[pinId] = marker;
     
     // Notify Creator Studio
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
@@ -1207,7 +1251,47 @@ const TravelogMapModule = (() => {
 
   function clearCreatorPins() {
     window.TravelogApp.getState().customCreatedPins = [];
+    for (const pinId in customCreatedMarkers) {
+      if (customCreatedMarkers[pinId]) {
+        markersLayer.removeLayer(customCreatedMarkers[pinId]);
+      }
+    }
+    customCreatedMarkers = {};
     renderTour(); // Redraw baseline tour
+  }
+
+  function updateCreatorPinColor(pinId, newColor) {
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const pin = customPins.find(p => p.id === pinId);
+    if (pin) {
+      pin.color = newColor;
+    }
+    const marker = customCreatedMarkers[pinId];
+    if (marker) {
+      marker.setIcon(createHtmlIcon('fa-solid fa-location-crosshairs', newColor));
+    }
+  }
+
+  function removeCreatorPin(pinId) {
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    window.TravelogApp.getState().customCreatedPins = customPins.filter(p => p.id !== pinId);
+    
+    const marker = customCreatedMarkers[pinId];
+    if (marker) {
+      markersLayer.removeLayer(marker);
+      delete customCreatedMarkers[pinId];
+    }
+    
+    // Recalculate names order
+    window.TravelogApp.getState().customCreatedPins.forEach((pin, idx) => {
+      pin.nameEn = `Custom Pin #${idx + 1}`;
+      pin.nameKo = `커스텀 핀 #${idx + 1}`;
+      pin.nameJa = `カスタムピン #${idx + 1}`;
+    });
+
+    if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
+      window.TravelogCreatorModule.renderCoordinatesList();
+    }
   }
 
 
@@ -1236,6 +1320,9 @@ const TravelogMapModule = (() => {
   return {
     init: init,
     addNewCreatorPin: addNewCreatorPin,
+    clearCreatorPins: clearCreatorPins,
+    updateCreatorPinColor: updateCreatorPinColor,
+    removeCreatorPin: removeCreatorPin,
     invalidateSize: () => {
       if (map) {
         map.invalidateSize();

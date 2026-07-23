@@ -11,7 +11,7 @@ const TravelogCreatorModule = (() => {
     return window.TravelogApp && typeof window.TravelogApp.pickLocalized === 'function' ? window.TravelogApp.pickLocalized(source, baseKey) : (source?.[`${baseKey}Ko`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ja`] || '');
   }
 
-  // Voice recording state
+  // Voice & Video state variables
   let isRecording = false;
   let recordInterval = null;
   let recordSeconds = 0;
@@ -22,10 +22,8 @@ const TravelogCreatorModule = (() => {
   let currentRecordingMimeType = '';
   let recordingMode = 'simulated';
 
-  // Audio list storage
   let recordedAudios = [];
 
-  // Video recording state & list storage
   let isVideoRecording = false;
   let videoRecordInterval = null;
   let videoRecordSeconds = 0;
@@ -37,6 +35,15 @@ const TravelogCreatorModule = (() => {
   // Temporary coordinate caching for field captures
   let tempPinLat = 0;
   let tempPinLng = 0;
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
   // Field Voice Memo States
   let voiceMemoChunks = [];
@@ -78,11 +85,8 @@ const TravelogCreatorModule = (() => {
     const scriptBtns = document.querySelectorAll('[data-script]');
     scriptBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const text = btn.getAttribute('data-script');
         selectedScriptText = btn.textContent.trim();
-        
         window.TravelogApp.showToast(t('스크립트 템플릿 로드 완료', 'Script template loaded', 'スクリプトテンプレートを読み込みました'));
-        
         const statusText = document.getElementById('record-status-text');
         statusText.textContent = t(`읽어주세요: ${btn.textContent}`, `Read aloud: ${btn.textContent}`, `読み上げてください：${btn.textContent}`);
       });
@@ -145,11 +149,12 @@ const TravelogCreatorModule = (() => {
     const listEl = document.getElementById('creator-coordinates-list');
     const noPinsMsg = document.getElementById('no-pins-msg');
     
-    // Clear custom items
     const rows = listEl.querySelectorAll('.coordinate-row');
     rows.forEach(r => r.remove());
 
-    const customPins = window.TravelogApp.getState().customCreatedPins;
+    // Sort by creation time (ascending)
+    const customPins = [...window.TravelogApp.getState().customCreatedPins];
+    customPins.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
     if (customPins.length === 0) {
       noPinsMsg.style.display = 'block';
@@ -172,17 +177,65 @@ const TravelogCreatorModule = (() => {
         border-radius: var(--radius-sm);
       `;
       
+      let timeStr = '';
+      if (pin.createdAt) {
+        const d = new Date(pin.createdAt);
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const date = String(d.getDate()).padStart(2, '0');
+        const hour = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        const sec = String(d.getSeconds()).padStart(2, '0');
+        timeStr = `${month}/${date} ${hour}:${min}:${sec}`;
+      }
+
       row.innerHTML = `
-        <span style="font-weight:700; color:var(--accent-blue);">${index + 1}</span>
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:13px;">${pick(pin, 'name')}</div>
-          <div style="font-size:11px; color:var(--text-muted);">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
+        <span class="pin-number-label" style="font-weight:700; color:${pin.color || '#ff2e63'};">${index + 1}</span>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pick(pin, 'name')}</div>
+          <div style="font-size:10px; color:var(--text-muted);">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)} <span style="margin-left:5px; color:#aaa;">(${timeStr})</span></div>
         </div>
-        <input type="text" placeholder="${t('설명 입력...', 'Audio script...', '説明を入力...')}" style="width:120px; font-size:11px; padding:4px; border-radius:4px; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:white;">
-        <button class="btn-circle" style="width:24px; height:24px; font-size:11px; background:rgba(255,50,50,0.1); border-color:rgba(255,50,50,0.2); color:var(--accent-pink);" onclick="TravelogCreatorModule.removeCoordinate(${index})">
+        
+        <!-- Color Select -->
+        <select class="pin-color-picker" style="font-size:11px; padding:3px; border-radius:4px; background:#fff; border:1px solid #ccc; color:#373737 !important; cursor:pointer;">
+          <option value="#ff2e63" style="color:#ff2e63;" ${pin.color === '#ff2e63' ? 'selected' : ''}>🔴 Pink</option>
+          <option value="#00adb5" style="color:#00adb5;" ${pin.color === '#00adb5' ? 'selected' : ''}>🔵 Blue</option>
+          <option value="#34a853" style="color:#34a853;" ${pin.color === '#34a853' ? 'selected' : ''}>🟢 Green</option>
+          <option value="#ffb703" style="color:#ffb703;" ${pin.color === '#ffb703' ? 'selected' : ''}>🟡 Gold</option>
+          <option value="#8b5cf6" style="color:#8b5cf6;" ${pin.color === '#8b5cf6' ? 'selected' : ''}>🟣 Purple</option>
+        </select>
+
+        <input type="text" class="pin-description-input" value="${escapeHtml(pin.description || '')}" placeholder="${t('설명 입력...', 'Audio script...', '説明を入力...')}" style="width:120px; font-size:11px; padding:4px; border-radius:4px; background:#f8fafc; border:1px solid rgba(0,0,0,0.15); color:#373737 !important;">
+        
+        <button class="btn-circle" style="width:24px; height:24px; font-size:11px; background:rgba(255,50,50,0.1); border-color:rgba(255,50,50,0.2); color:var(--accent-pink);" onclick="TravelogCreatorModule.removeCoordinate('${pin.id}')">
           <i class="fa-solid fa-trash-can"></i>
         </button>
       `;
+
+      // Color select listener
+      const colorSelect = row.querySelector('.pin-color-picker');
+      if (colorSelect) {
+        colorSelect.addEventListener('change', (e) => {
+          const newColor = e.target.value;
+          if (window.TravelogMapModule && typeof window.TravelogMapModule.updateCreatorPinColor === 'function') {
+            window.TravelogMapModule.updateCreatorPinColor(pin.id, newColor);
+          }
+          const numSpan = row.querySelector('.pin-number-label');
+          if (numSpan) numSpan.style.color = newColor;
+        });
+      }
+
+      // Description input listener
+      const descInput = row.querySelector('.pin-description-input');
+      if (descInput) {
+        descInput.addEventListener('input', (e) => {
+          pin.description = e.target.value;
+          const origPin = window.TravelogApp.getState().customCreatedPins.find(p => p.id === pin.id);
+          if (origPin) {
+            origPin.description = e.target.value;
+          }
+        });
+      }
+
       listEl.appendChild(row);
     });
 
@@ -190,18 +243,10 @@ const TravelogCreatorModule = (() => {
     refreshMediaPinSelectors();
   }
 
-  function removeCoordinate(index) {
-    const customPins = window.TravelogApp.getState().customCreatedPins;
-    customPins.splice(index, 1);
-    
-    // Remap titles
-    customPins.forEach((pin, idx) => {
-      pin.nameEn = `Custom Pin #${idx + 1}`;
-      pin.nameKo = `커스텀 핀 #${idx + 1}`;
-      pin.nameJa = `カスタムピン #${idx + 1}`;
-    });
-
-    renderCoordinatesList();
+  function removeCoordinate(pinId) {
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.removeCreatorPin === 'function') {
+      window.TravelogMapModule.removeCreatorPin(pinId);
+    }
   }
 
   function clearPins() {
@@ -227,11 +272,9 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
-    // 출간 재확인 팝업
     const confirmPublish = window.confirm(t('정말 출간 하시겠습니까?', 'Are you sure you want to publish?', '本当に公開しますか？'));
     if (!confirmPublish) return;
 
-    // 로딩 모달 띄우기
     const loadingModal = document.getElementById('publish-loading-modal');
     const statusTitle = document.getElementById('publish-status-title');
     const statusDesc = document.getElementById('publish-status-desc');
@@ -240,18 +283,15 @@ const TravelogCreatorModule = (() => {
 
     if (loadingModal) {
       statusTitle.textContent = t('출간중입니다...', 'Publishing guide...', '公開中...');
-      statusDesc.textContent = t('제작한 가이드 설정과 녹음 음성 및 비디오 데이터를 준비 중입니다.', 'Preparing guide configurations and recorded media assets.', '作成したガイド設定と録音・動画データを準備しています。');
+      statusDesc.textContent = t('제작한 가이드 설정과 녹음 음성 및 비디오 데이터를 준비 중입니다.', 'Preparing guide configurations and recorded media assets.', '作成したガイド設定と録음・動画データを準備しています。');
       spinner.style.display = 'block';
       successIcon.style.display = 'none';
       loadingModal.classList.add('active');
     }
 
-    // 2초 로딩 시뮬레이션
     setTimeout(() => {
-      // 1) 가이드 설정 JSON 다운로드
       downloadCurrentGuideData();
 
-      // 2) 녹음된 음성 파일들 다운로드
       recordedAudios.forEach(audio => {
         const url = URL.createObjectURL(audio.blob);
         const a = document.createElement('a');
@@ -263,7 +303,6 @@ const TravelogCreatorModule = (() => {
         URL.revokeObjectURL(url);
       });
 
-      // 3) 녹화된 비디오 파일들 다운로드
       recordedVideos.forEach(video => {
         const url = URL.createObjectURL(video.blob);
         const a = document.createElement('a');
@@ -275,28 +314,23 @@ const TravelogCreatorModule = (() => {
         URL.revokeObjectURL(url);
       });
 
-      // 출간 성공 상태로 모달 업데이트
       if (loadingModal) {
         statusTitle.textContent = t('축하합니다. 출간 되었습니다', 'Congratulations. Published successfully', 'おめでとうございます。公開されました');
-        statusDesc.textContent = t('가이드 데이터가 공유 폴더 연동 파일로 정상 빌드되었습니다.', 'Guide data files built and ready for cloud sync.', 'ガイドデータが正常にビルド되었습니다.');
+        statusDesc.textContent = t('가이드 데이터가 공유 폴더 연동 파일로 정상 빌드되었습니다.', 'Guide data files built and ready for cloud sync.', 'ガイドデータが正常にビルドされました。');
         spinner.style.display = 'none';
         successIcon.style.display = 'block';
       }
 
-      // 2초 대기 후 팝업 닫고 마무리
       setTimeout(() => {
         if (loadingModal) {
           loadingModal.classList.remove('active');
         }
 
-        // Open Google Drive Folder
         window.open('https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=sharing', '_blank');
 
-        // Award rewards
         window.TravelogApp.addPoints(150);
         window.TravelogApp.showToast(t(`가이드 [${tourName}] 출간 완료! 크리에이터 보상 +150포인트!`, `Tour guide [${tourName}] published successfully! Creator reward +150 pts!`, `ガイド［${tourName}］を公開しました！クリエイター報酬 +150ポイント！`));
 
-        // Reset all states
         recordedAudios = [];
         recordedVideos = [];
         clearPins();
@@ -326,7 +360,6 @@ const TravelogCreatorModule = (() => {
         const inputRow = inputRows ? inputRows[index] : null;
         const scriptInput = inputRow ? inputRow.querySelector('input') : null;
 
-        // Collect media mapped to this specific stop index
         const linkedAudios = recordedAudios.filter(a => parseInt(a.stopIndex, 10) === index).map(a => a.name);
         const linkedVideos = recordedVideos.filter(v => parseInt(v.stopIndex, 10) === index).map(v => v.name);
 
@@ -441,12 +474,11 @@ const TravelogCreatorModule = (() => {
 
     setTimeout(() => {
       timerText.textContent = "00:00";
-      statusText.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクをクリックして録音開始');
+      statusText.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', '마이크를 클릭하여 녹음 시작');
     }, 3000);
   }
 
   async function handleRecordedAudioReady() {
-    const statusText = document.getElementById('record-status-text');
     const mimeType = currentRecordingMimeType || 'audio/webm';
     const extension = mimeType.includes('mp4') ? 'm4a' : (mimeType.includes('ogg') ? 'ogg' : 'webm');
     let audioBlob;
@@ -475,7 +507,6 @@ const TravelogCreatorModule = (() => {
     const cleanTourName = tourName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
     const filename = `guide_audio_${cleanTourName}_${Date.now()}.${finalExtension}`;
 
-    // Add to recordedAudios list
     recordedAudios.push({
       id: Date.now(),
       name: filename,
@@ -517,7 +548,6 @@ const TravelogCreatorModule = (() => {
         </div>
       `;
 
-      // Bind select change
       const select = itemEl.querySelector('select');
       if (select) {
         select.addEventListener('change', (e) => {
@@ -559,7 +589,7 @@ const TravelogCreatorModule = (() => {
     recordingMode = 'simulated';
     btn.classList.add('recording');
     btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
-    statusText.textContent = t('가이드 영상을 녹화 중입니다...', 'Recording video guide...', 'ビデオガイドを録画中です...');
+    statusText.textContent = t('가이드 영상을 녹화 중입니다...', 'Recording video...', 'ビデオガイドを録画中です...');
 
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
@@ -692,7 +722,6 @@ const TravelogCreatorModule = (() => {
         </div>
       `;
 
-      // Bind select change
       const select = itemEl.querySelector('select');
       if (select) {
         select.addEventListener('change', (e) => {
@@ -724,14 +753,13 @@ const TravelogCreatorModule = (() => {
     });
 
     return `
-      <select style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer;">
+      <select style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: #373737 !important; padding: 4px; border-radius: 4px; font-size: 11px; outline: none; cursor: pointer;">
         ${optionsHtml}
       </select>
     `;
   }
 
   function refreshMediaPinSelectors() {
-    // Refresh all select boxes inside audio and video lists without re-rendering everything
     const audioSelects = document.querySelectorAll('#creator-audio-list select');
     audioSelects.forEach((select, idx) => {
       const currentVal = recordedAudios[idx] ? recordedAudios[idx].stopIndex : -1;
@@ -744,7 +772,6 @@ const TravelogCreatorModule = (() => {
       select.outerHTML = getStopSelectHtml(currentVal);
     });
 
-    // Re-bind listeners after outerHTML replacement
     const audioItems = document.querySelectorAll('#creator-audio-list > div');
     audioItems.forEach((item, idx) => {
       const select = item.querySelector('select');
@@ -806,9 +833,8 @@ const TravelogCreatorModule = (() => {
     voiceMemoBlob = null;
     voiceMemoSeconds = 0;
     document.getElementById('voice-memo-timer').textContent = "00:00";
-    document.getElementById('voice-memo-status').textContent = t('마이크 버튼을 눌러 녹음 시작', 'Press Record to start audio guide', '録音ボタンを押して録음 시작');
+    document.getElementById('voice-memo-status').textContent = t('마이크 버튼을 눌러 녹음 시작', 'Press Record to start audio guide', '録音ボタンを押して録音開始');
     
-    // Reset buttons state
     document.getElementById('voice-memo-record').disabled = false;
     document.getElementById('voice-memo-stop').disabled = true;
     document.getElementById('voice-memo-play').disabled = true;
@@ -824,7 +850,6 @@ const TravelogCreatorModule = (() => {
     document.getElementById('voice-memo-stop').disabled = false;
     document.getElementById('voice-memo-status').textContent = t('음성을 녹음 중입니다...', 'Recording audio...', '録音中...');
     
-    // Tape animation
     document.getElementById('tape-wheel-left').style.animation = 'spin 2s linear infinite';
     document.getElementById('tape-wheel-right').style.animation = 'spin 2s linear infinite';
 
@@ -857,7 +882,7 @@ const TravelogCreatorModule = (() => {
     document.getElementById('voice-memo-play').disabled = false;
     document.getElementById('voice-memo-reset').disabled = false;
     document.getElementById('voice-memo-complete').disabled = false;
-    document.getElementById('voice-memo-status').textContent = t('녹음 완료! 플레이 버튼으로 확인해 보세요.', 'Recording finished! Press Play to listen.', '録音完了！');
+    document.getElementById('voice-memo-status').textContent = t('녹음 완료! 플레이 버튼으로 확인해 보세요.', 'Recording finished! Press Play to listen.', '録음 완료!');
 
     document.getElementById('tape-wheel-left').style.animation = 'none';
     document.getElementById('tape-wheel-right').style.animation = 'none';
@@ -874,7 +899,6 @@ const TravelogCreatorModule = (() => {
       if (voiceMemoChunks.length > 0) {
         voiceMemoBlob = new Blob(voiceMemoChunks, { type: 'audio/webm' });
       } else {
-        // Simulated voice source fallback
         voiceMemoBlob = new Blob(['Travelog field audio memo data'], { type: 'text/plain' });
       }
     }, 200);
@@ -895,14 +919,15 @@ const TravelogCreatorModule = (() => {
   function completeVoiceMemoRecording() {
     document.getElementById('voice-memo-modal').classList.remove('active');
 
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `voice_memo_${cleanTourName}_${Date.now()}.${voiceMemoBlob && voiceMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
+
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
-      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, filename);
     }
 
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newStopIdx = customPins.length - 1;
-    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
-    const filename = `voice_memo_${cleanTourName}_${Date.now()}.${voiceMemoBlob && voiceMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
 
     recordedAudios.push({
       id: Date.now(),
@@ -932,14 +957,12 @@ const TravelogCreatorModule = (() => {
     document.getElementById('video-memo-timer').textContent = "00:00 REC";
     document.getElementById('video-memo-status').textContent = t('녹화 버튼을 눌러 카메라 촬영 시작', 'Press Record to start video guide', '録画ボタンを押して撮影開始');
     
-    // Reset buttons state
     document.getElementById('video-memo-record').disabled = false;
     document.getElementById('video-memo-stop').disabled = true;
     document.getElementById('video-memo-play').disabled = true;
     document.getElementById('video-memo-reset').disabled = true;
     document.getElementById('video-memo-complete').disabled = true;
 
-    // Reset viewfinder
     document.getElementById('video-memo-webcam').style.display = 'none';
     document.getElementById('video-memo-placeholder').style.display = 'block';
   }
@@ -1013,7 +1036,6 @@ const TravelogCreatorModule = (() => {
       if (videoMemoChunks.length > 0) {
         videoMemoBlob = new Blob(videoMemoChunks, { type: 'video/webm' });
       } else {
-        // Simulated video source fallback
         videoMemoBlob = new Blob(['Travelog field video guide data'], { type: 'text/plain' });
       }
     }, 200);
@@ -1031,14 +1053,15 @@ const TravelogCreatorModule = (() => {
   function completeVideoMemoRecording() {
     document.getElementById('video-memo-modal').classList.remove('active');
 
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `video_memo_${cleanTourName}_${Date.now()}.${videoMemoBlob && videoMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
+
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
-      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, filename);
     }
 
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newStopIdx = customPins.length - 1;
-    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
-    const filename = `video_memo_${cleanTourName}_${Date.now()}.${videoMemoBlob && videoMemoBlob.type.includes('text') ? 'txt' : 'webm'}`;
 
     recordedVideos.push({
       id: Date.now(),
@@ -1074,22 +1097,7 @@ const TravelogCreatorModule = (() => {
     document.getElementById('text-memo-modal').classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
-      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng);
-    }
-
-    const customPins = window.TravelogApp.getState().customCreatedPins;
-    const lastPin = customPins[customPins.length - 1];
-    if (lastPin) {
-      setTimeout(() => {
-        const inputRows = document.querySelectorAll('.coordinate-row');
-        if (inputRows.length > 0) {
-          const lastRow = inputRows[inputRows.length - 1];
-          const scriptInput = lastRow ? lastRow.querySelector('input') : null;
-          if (scriptInput) {
-            scriptInput.value = memoVal;
-          }
-        }
-      }, 100);
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoVal);
     }
 
     window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Memo/'에 가이드 대본이 저장되었습니다!", "Text script successfully saved in 'Travelog/Memo/' folder!", 'ユーザー端末の「Travelog/Memo/」に保存されました！'));
