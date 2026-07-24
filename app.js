@@ -42,7 +42,8 @@ const TravelogState = {
       { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30 }
     ]
   },
-  customCreatedPins: []
+  customCreatedPins: [],
+  mapMode: 'explore'
 };
 
 // UI Localization Dictionary
@@ -1600,6 +1601,8 @@ window.updateMapLayoutForMode = function(mode) {
   const legendPanel = document.querySelector('.map-legend-panel');
   const routeTitleEl = document.getElementById('map-route-title');
   const routeDescEl = document.getElementById('map-route-description');
+
+  TravelogState.mapMode = mode;
 
   if (bottomSheet) {
     bottomSheet.style.display = 'none';

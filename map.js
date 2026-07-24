@@ -366,13 +366,37 @@ const TravelogMapModule = (() => {
       return;
     }
 
-    // 1. Leaflet initialization centered at Gyeongbokgung
+    // 1. Leaflet initialization centered dynamically at user's current GPS location
     try {
+      const defaultLatLng = [37.5780, 126.9768]; // Gyeongbokgung fallback
       map = L.map('map-container', {
         zoomControl: false,
         preferCanvas: true
-      }).setView([37.5780, 126.9768], 16);
+      }).setView(defaultLatLng, 16);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      // Request initial GPS position immediately
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude, accuracy } = position.coords;
+            latestGpsFix = { lat: latitude, lng: longitude, accuracy, updatedAt: Date.now() };
+            hasRealGpsLocation = true;
+            if (map) {
+              map.setView([latitude, longitude], 17);
+            }
+            if (userMarker) {
+              userMarker.setLatLng([latitude, longitude]);
+            }
+            updateGpsStatus(`${t('내 위치', 'My location', '現在地')}: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+            updateMapOverview();
+          },
+          (err) => {
+            console.warn('[Travelog Map] Could not get initial GPS location, using Gyeongbokgung:', err);
+          },
+          { enableHighAccuracy: true, timeout: 3500, maximumAge: 10000 }
+        );
+      }
     } catch (err) {
       console.error('[Travelog Map] Failed to initialize Leaflet map:', err);
       renderFallbackMap('지도 초기화 중 오류가 발생해 iframe 지도로 표시합니다.', true);
@@ -440,9 +464,9 @@ const TravelogMapModule = (() => {
 
     // 4. Bind map click event for Creator Studio Node Placement
     map.on('click', (e) => {
-      // Check if we are currently in Creator tab
-      const creatorTab = document.getElementById('creator-tab');
-      if (creatorTab && creatorTab.classList.contains('active')) {
+      // Check if we are currently in Creator Mode
+      const mapMode = window.TravelogApp ? window.TravelogApp.getState().mapMode : 'explore';
+      if (mapMode === 'create') {
         if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
           window.TravelogCreatorModule.openPinTypeSelectModal(e.latlng.lat, e.latlng.lng);
         } else {
@@ -513,8 +537,8 @@ const TravelogMapModule = (() => {
       map.removeLayer(routePolyline);
     }
 
-    const creatorTab = document.getElementById('creator-tab');
-    const isCreatorMode = creatorTab && creatorTab.classList.contains('active');
+    const mapMode = window.TravelogApp ? window.TravelogApp.getState().mapMode : 'explore';
+    const isCreatorMode = (mapMode === 'create');
 
     if (isCreatorMode) {
       // 1. Draw ONLY Custom Created Pins on the map
