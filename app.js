@@ -289,6 +289,20 @@ function initNavigation() {
       if (targetTab === 'rewards-tab' && window.TravelogRewardsModule) {
         window.TravelogRewardsModule.resizeScratchCanvas();
       }
+
+      if (targetTab === 'creator-tab' && window.TravelogCreatorModule) {
+        if (typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
+          window.TravelogCreatorModule.renderCoordinatesList();
+        }
+      }
+
+      if (targetTab === 'map-tab') {
+        // If transitioning directly via bottom nav, reset map mode to explore
+        const activeNav = item.classList.contains('highlight-nav') || item.querySelector('.fa-sliders');
+        if (!activeNav && window.updateMapLayoutForMode) {
+          window.updateMapLayoutForMode('explore');
+        }
+      }
     });
   });
 

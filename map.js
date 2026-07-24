@@ -50,46 +50,58 @@ const TravelogMapModule = (() => {
   }
 
 
-  function getFilterForColor(colorHex) {
-    if (!colorHex) return 'filter: none;';
+  function getFilterForColorDirect(colorHex) {
+    if (!colorHex) return 'none';
     colorHex = colorHex.toLowerCase();
     switch (colorHex) {
       case '#ff2e63': // Neon Pink
-        return 'filter: hue-rotate(330deg) saturate(2);';
+        return 'hue-rotate(330deg) saturate(2)';
       case '#00adb5': // Neon Blue
-        return 'filter: hue-rotate(180deg) saturate(2);';
+        return 'hue-rotate(180deg) saturate(2)';
       case '#34a853': // Green
-        return 'filter: hue-rotate(90deg) saturate(2);';
+        return 'hue-rotate(90deg) saturate(2)';
       case '#ffb703': // Gold
-        return 'filter: hue-rotate(35deg) saturate(2);';
+        return 'hue-rotate(35deg) saturate(2)';
       case '#8b5cf6': // Purple
-        return 'filter: hue-rotate(240deg) saturate(2);';
+        return 'hue-rotate(240deg) saturate(2)';
       default:
-        return 'filter: none;';
+        return 'none';
     }
   }
 
-  // Custom marker icons using FontAwesome & CSS
-  function createHtmlIcon(iconClass, colorClassOrHex) {
-    let colorFilter = 'filter: none;';
-    
-    if (colorClassOrHex && colorClassOrHex.startsWith('#')) {
-      colorFilter = getFilterForColor(colorClassOrHex);
-    } else if (colorClassOrHex) {
-      if (colorClassOrHex.includes('pink') || colorClassOrHex.includes('quest')) colorFilter = getFilterForColor('#ff2e63');
-      else if (colorClassOrHex.includes('blue') || colorClassOrHex.includes('audio')) colorFilter = getFilterForColor('#00adb5');
-      else if (colorClassOrHex.includes('green') || colorClassOrHex.includes('coupon')) colorFilter = getFilterForColor('#34a853');
-      else if (colorClassOrHex.includes('purple')) colorFilter = getFilterForColor('#8b5cf6');
-      else if (colorClassOrHex.includes('memo')) colorFilter = getFilterForColor('#ffb703');
+  function applyColorFilterToMarker(marker, colorClassOrHex) {
+    if (!marker) return;
+    const apply = () => {
+      if (marker._icon) {
+        let filterVal = 'none';
+        if (colorClassOrHex && colorClassOrHex.startsWith('#')) {
+          filterVal = getFilterForColorDirect(colorClassOrHex);
+        } else if (colorClassOrHex) {
+          if (colorClassOrHex.includes('pink') || colorClassOrHex.includes('quest')) filterVal = getFilterForColorDirect('#ff2e63');
+          else if (colorClassOrHex.includes('blue') || colorClassOrHex.includes('audio')) filterVal = getFilterForColorDirect('#00adb5');
+          else if (colorClassOrHex.includes('green') || colorClassOrHex.includes('coupon')) filterVal = getFilterForColorDirect('#34a853');
+          else if (colorClassOrHex.includes('purple')) filterVal = getFilterForColorDirect('#8b5cf6');
+          else if (colorClassOrHex.includes('memo')) filterVal = getFilterForColorDirect('#ffb703');
+        }
+        marker._icon.style.filter = filterVal;
+      }
+    };
+    if (marker._icon) {
+      apply();
+    } else {
+      marker.on('add', () => {
+        setTimeout(apply, 10);
+      });
     }
+  }
 
-    return L.divIcon({
-      html: `<div class="custom-pin-wrapper" style="width:36px; height:45px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;">
-               <img src="assets/icons/ui/pin_red.png" style="width:36px; height:36px; object-fit:contain; ${colorFilter}" />
-             </div>`,
-      className: 'custom-leaflet-marker',
-      iconSize: [36, 45],
-      iconAnchor: [18, 36]
+  // Bulletproof Custom marker icons using Leaflet's native L.icon image loader
+  function createHtmlIcon(iconClass, colorClassOrHex) {
+    return L.icon({
+      iconUrl: 'assets/icons/ui/pin_red.png',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -32]
     });
   }
 
@@ -462,18 +474,7 @@ const TravelogMapModule = (() => {
     // Create user marker. It starts near Gwanghwamun until the phone GPS updates it.
     userMarker = L.marker([37.5750, 126.9768], { icon: createCurrentLocationIcon() }).addTo(map);
 
-    // 4. Bind map click event for Creator Studio Node Placement
-    map.on('click', (e) => {
-      // Check if we are currently in Creator Mode
-      const mapMode = window.TravelogApp ? window.TravelogApp.getState().mapMode : 'explore';
-      if (mapMode === 'create') {
-        if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
-          window.TravelogCreatorModule.openPinTypeSelectModal(e.latlng.lat, e.latlng.lng);
-        } else {
-          addNewCreatorPin(e.latlng.lat, e.latlng.lng);
-        }
-      }
-    });
+    // 4. Map click behavior is disabled for custom pin creation. Pins are created only via UI buttons.
 
     // 5. Setup Controls
     const zoomToUserBtn = document.getElementById('zoom-to-user-btn');
@@ -554,13 +555,14 @@ const TravelogMapModule = (() => {
 
         const popupContent = `
           <div style="color:var(--bg-primary); padding:4px;">
-            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">Custom Pin #${index + 1}</h4>
+            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">Custom Pin #${index + 1}</h4>
             <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(pin.description || '')}</p>
           </div>
         `;
         marker.bindPopup(popupContent);
         markersLayer.addLayer(marker);
         customCreatedMarkers[pin.id] = marker; // Sync reference
+        applyColorFilterToMarker(marker, pin.color); // Color rotation
       });
 
       // Draw customized creator route polyline
@@ -594,12 +596,13 @@ const TravelogMapModule = (() => {
 
         const popupContent = `
           <div style="color:var(--bg-primary); padding:4px;">
-            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">${node.name}</h4>
+            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">${node.name}</h4>
             <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
           </div>
         `;
         marker.bindPopup(popupContent);
         markersLayer.addLayer(marker);
+        applyColorFilterToMarker(marker, node.color); // Color rotation
       });
 
       // Draw Polyline route
@@ -950,14 +953,15 @@ const TravelogMapModule = (() => {
       const marker = L.marker([memo.lat, memo.lng], { icon: memoIcon });
       const accuracyText = memo.accuracy ? ` · ±${Math.round(memo.accuracy)}m` : '';
       marker.bindPopup(`
-        <div class="memo-popup">
-          <h4>${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
-          <p>${escapeHtml(memo.text)}</p>
-          <small>${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
-          <button class="memo-delete-btn" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
+        <div class="memo-popup" style="padding:4px;">
+          <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">${t('내 위치 메모', 'My Location Memo', '現在地メモ')}</h4>
+          <p style="margin:0 0 6px 0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(memo.text)}</p>
+          <small style="font-size:10px; color:#aaa; display:block; margin-bottom:8px;">${memo.lat.toFixed(5)}, ${memo.lng.toFixed(5)}${accuracyText}<br>${formatDateTime(memo.createdAt)}</small>
+          <button class="memo-delete-btn" style="padding:4px 8px; font-size:11px; background:rgba(255,50,50,0.1); border:1px solid rgba(255,50,50,0.2); border-radius:4px; color:var(--accent-pink); cursor:pointer;" onclick="TravelogMapModule.deleteMemo('${memo.id}')">${t('삭제', 'Delete', '削除')}</button>
         </div>
       `);
       memoMarkersLayer.addLayer(marker);
+      applyColorFilterToMarker(marker, 'pin-memo');
     });
   }
 
@@ -1300,6 +1304,7 @@ const TravelogMapModule = (() => {
     
     markersLayer.addLayer(marker);
     customCreatedMarkers[pinId] = marker;
+    applyColorFilterToMarker(marker, newPin.color);
     
     // Notify Creator Studio
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
@@ -1330,6 +1335,7 @@ const TravelogMapModule = (() => {
     const marker = customCreatedMarkers[pinId];
     if (marker) {
       marker.setIcon(createHtmlIcon('fa-solid fa-location-crosshairs', newColor));
+      applyColorFilterToMarker(marker, newColor);
     }
   }
 

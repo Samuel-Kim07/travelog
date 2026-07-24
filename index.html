@@ -502,9 +502,8 @@
                   </div>
                 </div>
                 
-                <div style="display: flex; gap: 12px; margin-top: 10px;">
-                  <button class="btn-rect" style="flex: 1;" id="save-tour-btn"><i class="fa-solid fa-floppy-disk"></i> <span data-localize="save_tour">Publish Custom Guide</span></button>
-                  <button class="btn-rect secondary" id="clear-pins-btn"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_pins">Reset Pins</span></button>
+                <div style="display: flex; margin-top: 10px;">
+                  <button class="btn-rect secondary" id="clear-pins-btn" style="width: 100%; justify-content: center;"><i class="fa-solid fa-trash-can"></i> <span data-localize="clear_pins">Reset Pins</span></button>
                 </div>
               </div>
             </div>
@@ -1001,17 +1000,17 @@
   <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
       <div style="font-size: 40px; color: var(--accent-pink); margin-bottom: 12px;"><i class="fa-solid fa-map-pin"></i></div>
-      <h3 style="font-size: 20px; color: white; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
-      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
+      <h3 style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
+      <p style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
       
       <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-        <button class="btn-rect" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.15); border-color: var(--accent-pink); color: white;">
+        <button class="btn-rect" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.1); border-color: var(--accent-pink); color: #373737 !important;">
           <i class="fa-solid fa-microphone"></i> 음성 메모 생성하기
         </button>
-        <button class="btn-rect" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.15); border-color: var(--accent-blue); color: white;">
+        <button class="btn-rect" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.1); border-color: var(--accent-blue); color: #373737 !important;">
           <i class="fa-solid fa-video"></i> 영상 메모 생성하기
         </button>
-        <button class="btn-rect" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 255, 255, 0.05); border-color: var(--glass-border); color: white;">
+        <button class="btn-rect" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 0, 0, 0.03); border-color: var(--glass-border); color: #373737 !important;">
           <i class="fa-solid fa-pen-to-square"></i> 텍스트 메모 생성하기
         </button>
         <button class="btn-rect secondary" id="btn-close-type-select" style="justify-content: center; height: 40px; margin-top: 10px;">
@@ -1024,13 +1023,13 @@
   <!-- 2) 음성 메모 팝업 (녹음기 디자인) -->
   <div id="voice-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
-      <h3 style="font-size: 18px; color: white; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
-      <p id="voice-memo-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
+      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
+      <p id="voice-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
       
-      <div style="background: rgba(0,0,0,0.5); width: 100%; height: 120px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; position: relative;">
+      <div style="background: rgba(0,0,0,0.7); width: 100%; height: 120px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; position: relative;">
         <div style="display: flex; gap: 40px;">
-          <div id="tape-wheel-left" style="width: 44px; height: 44px; border: 4px dashed #555; border-radius: 50%;"></div>
-          <div id="tape-wheel-right" style="width: 44px; height: 44px; border: 4px dashed #555; border-radius: 50%;"></div>
+          <div id="tape-wheel-left" style="width: 44px; height: 44px; border: 4px dashed #999; border-radius: 50%;"></div>
+          <div id="tape-wheel-right" style="width: 44px; height: 44px; border: 4px dashed #999; border-radius: 50%;"></div>
         </div>
         <div id="voice-memo-timer" style="position: absolute; bottom: 8px; font-family: monospace; font-size: 16px; color: var(--accent-pink); font-weight: bold;">00:00</div>
       </div>
@@ -1051,8 +1050,8 @@
   <!-- 3) 영상 메모 팝업 -->
   <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
-      <h3 style="font-size: 18px; color: white; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
-      <p id="video-memo-status" style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
+      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
+      <p id="video-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
       
       <div style="background: #000; width: 100%; height: 160px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
         <video id="video-memo-webcam" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
@@ -1079,10 +1078,10 @@
   <!-- 4) 텍스트 메모 팝업 -->
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px;">
-      <h3 style="font-size: 18px; color: white; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
-      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
+      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
+      <p style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
       
-      <textarea id="text-memo-input" placeholder="이 장소에서 도슨트 음성이나 화면 안내창으로 띄워줄 스크립트를 입력하세요..." style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: white; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
+      <textarea id="text-memo-input" placeholder="이 장소에서 도슨트 음성이나 화면 안내창으로 띄워줄 스크립트를 입력하세요..." style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: #373737 !important; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
 
       <div style="display: flex; gap: 10px; width: 100%;">
         <button class="btn-rect secondary" id="text-memo-cancel" style="flex: 1; justify-content: center;">취소</button>

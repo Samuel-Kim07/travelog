@@ -68,8 +68,14 @@ const TravelogCreatorModule = (() => {
     updatePublishPanelCounts();
 
     // Bind Planner actions
-    document.getElementById('clear-pins-btn').addEventListener('click', clearPins);
-    document.getElementById('save-tour-btn').addEventListener('click', saveTour);
+    const clearPinsBtn = document.getElementById('clear-pins-btn');
+    if (clearPinsBtn) {
+      clearPinsBtn.addEventListener('click', clearPins);
+    }
+    const saveTourBtn = document.getElementById('save-tour-btn');
+    if (saveTourBtn) {
+      saveTourBtn.addEventListener('click', saveTour);
+    }
 
     // Bind Final Publish Action
     const finalPublishBtn = document.getElementById('publish-final-tour-btn');
