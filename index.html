@@ -598,6 +598,10 @@
                 <a href="https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i class="fa-brands fa-google-drive"></i> 폴더 열기</a>
               </div>
 
+              <div style="font-size: 11px; color: var(--text-secondary); background: rgba(112,162,183,0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px;">
+                <strong style="display:block; color: var(--text-primary); margin-bottom: 4px;">기기 저장 상태</strong>
+                <span id="publish-device-storage-status">앱 시작 시 지정한 저장 위치를 사용합니다.</span>
+              </div>
               <button class="btn-rect" id="publish-final-tour-btn" style="width: 100%; justify-content: center; font-size: 14px; background: var(--grad-pink-purple);">
                 <i class="fa-solid fa-cloud-arrow-up"></i> <span>최종 출간하기</span>
               </button>
@@ -778,15 +782,19 @@
             
             <div id="nickname-feedback" class="feedback-badge" style="display: none;"></div>
 
-            <!-- 기기 저장소 수락 체크박스 -->
-            <div style="margin-top: 15px; text-align: left; background: rgba(255,255,255,0.05); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
+            <!-- 기기 저장소 수락 및 위치 지정 -->
+            <div style="margin-top: 15px; text-align: left; background: rgba(255,255,255,0.72); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border);">
               <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
                 <input type="checkbox" id="onboarding-permission-chk" checked style="margin-top: 2px;">
                 <div>
-                  <strong style="color: white; display: block; margin-bottom: 2px;">기기 내 가이드 폴더 생성 및 접근 수락</strong>
-                  앱에서 생성할 가이드 음성, 영상, 메모 파일들을 스마트폰 로컬 저장소(Travelog/)에 저장하고 관리하기 위해 권한 승인이 필요합니다. (미동의 시 가이드 출간 불가)
+                  <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">기기 내 Travelog_user_data 폴더 생성 및 저장 수락</strong>
+                  앱에서 생성한 음성 메모, 영상 메모, 텍스트 메모를 지정한 저장 위치의 Audio / Video / Text 폴더에 저장합니다. 모바일 브라우저가 폴더 선택을 제한하면 앱 내부 기기 저장소에 먼저 보관하고 출간 시 구글 드라이브로 바로 업로드합니다.
                 </div>
               </label>
+              <button type="button" class="btn-rect secondary" id="device-storage-select-btn" style="width: 100%; justify-content: center; margin-top: 10px; font-size: 12px; border-radius: 14px;">
+                <i class="fa-solid fa-folder-plus"></i> 저장 위치 지정하기
+              </button>
+              <div id="device-storage-status" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45;">아직 저장 위치가 지정되지 않았습니다.</div>
             </div>
             
             <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
@@ -1099,8 +1107,8 @@
       <div id="publish-success-icon" style="font-size: 50px; color: #4caf50; display: none;">
         <i class="fa-solid fa-circle-check"></i>
       </div>
-      <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간 데이터를 저장 중입니다...</h2>
-      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">저장할 위치를 선택하면 Travelog_user_data 폴더와 Audio, Video, Text 폴더가 생성됩니다.</p>
+      <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간 중입니다...</h2>
+      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">앱 시작 시 지정한 저장 위치의 데이터를 구글 드라이브로 업로드합니다.</p>
       <div id="publish-local-summary" style="display: none; width: 100%; text-align: left; font-size: 12px; line-height: 1.7; color: var(--text-secondary); background: rgba(112, 162, 183, 0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px;">
         <!-- Saved folder summary -->
       </div>
@@ -1118,8 +1126,9 @@
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
-  <script src="creator.js?v=1003" defer></script>
+  <script src="deviceStorage.js?v=1004" defer></script>
+  <script src="creator.js?v=1004" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1003" defer></script>
+  <script src="app.js?v=1004" defer></script>
 </body>
 </html>

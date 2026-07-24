@@ -637,37 +637,19 @@ const TravelogCreatorModule = (() => {
   }
 
   async function savePackageToLocalDevice(packageData) {
-    if (typeof window.showDirectoryPicker !== 'function') {
-      throw new Error('DIRECTORY_PICKER_UNSUPPORTED');
-    }
-
-    const selectedHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-    const dataHandle = await getOrCreateLocalDirectory(selectedHandle, 'Travelog_user_data');
-    const audioHandle = await getOrCreateLocalDirectory(dataHandle, 'Audio');
-    const videoHandle = await getOrCreateLocalDirectory(dataHandle, 'Video');
-    const textHandle = await getOrCreateLocalDirectory(dataHandle, 'Text');
-
-    for (const file of packageData.audioFiles) {
-      await writeBlobToLocalFile(audioHandle, file.fileName, file.blob);
-    }
-
-    for (const file of packageData.videoFiles) {
-      await writeBlobToLocalFile(videoHandle, file.fileName, file.blob);
-    }
-
-    for (const file of packageData.textFiles) {
-      await writeBlobToLocalFile(textHandle, file.fileName, file.blob);
-    }
-
-    for (const file of packageData.rootFiles) {
-      await writeBlobToLocalFile(dataHandle, file.fileName, file.blob);
+    // Final publishing should not ask for a folder again.
+    // The app uses the device storage location approved at onboarding, or a mobile-safe internal fallback.
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.savePublishPackage === 'function') {
+      return window.TravelogDeviceStorage.savePublishPackage(packageData);
     }
 
     return {
-      selectedFolderName: selectedHandle.name || t('선택한 저장 위치', 'Selected folder', '選択した保存先'),
-      dataFolderName: 'Travelog_user_data'
+      selectedFolderName: t('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先'),
+      dataFolderName: 'Travelog_user_data',
+      mode: 'browser'
     };
   }
+
 
   function showPublishModalLoading(title, desc) {
     const loadingModal = document.getElementById('publish-loading-modal');
@@ -734,34 +716,34 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
-    const confirmSave = window.confirm(t('출간 데이터를 저장할 위치를 선택할까요?', 'Choose where to save the publish data?', '公開データの保存先を選択しますか？'));
-    if (!confirmSave) return;
-
     try {
       showPublishModalLoading(
-        t('출간 데이터를 저장 중입니다...', 'Saving publish data...', '公開データを保存しています...'),
-        t('저장 위치를 선택하면 Travelog_user_data 폴더와 Audio, Video, Text 폴더가 생성됩니다.', 'Select a folder; Travelog_user_data with Audio, Video, and Text subfolders will be created.', '保存先を選択すると、Travelog_user_data と Audio/Video/Text フォルダを作成します。')
+        t('출간 데이터를 준비 중입니다...', 'Preparing publish data...', '公開データを準備しています...'),
+        t('앱 시작 시 지정한 기기 저장 위치에 데이터를 저장한 뒤 바로 구글 드라이브로 업로드합니다.', 'Saving to the device storage configured at startup, then uploading directly to Google Drive.', '起動時に設定した端末保存先へ保存後、Google Driveへ直接アップロードします。')
       );
 
       const packageData = buildGuidePublishPackage();
       const localSaveInfo = await savePackageToLocalDevice(packageData);
       pendingPublishPackage = packageData;
-      showPublishReadyModal(packageData, localSaveInfo);
-      window.TravelogApp.showToast(t(`${tourName} 출간 데이터 저장 완료`, `${tourName} publish data saved`, `${tourName} の公開データを保存しました`));
+
+      const summary = document.getElementById('publish-local-summary');
+      if (summary) {
+        summary.innerHTML = `
+          기기 저장: ${escapeHtml(localSaveInfo.selectedFolderName)} / ${escapeHtml(localSaveInfo.dataFolderName)}<br>
+          Audio: ${packageData.audioFiles.length}개 · Video: ${packageData.videoFiles.length}개 · Text: ${packageData.textFiles.length}개<br>
+          이제 구글 드라이브로 바로 출간합니다.
+        `;
+        summary.style.display = 'block';
+      }
+
+      await publishPreparedGuideToDrive();
     } catch (error) {
-      console.error('[Travelog Publish] Local save failed:', error);
+      console.error('[Travelog Publish] Publish preparation failed:', error);
       closePublishModal();
-      if (error && error.name === 'AbortError') {
-        window.TravelogApp.showToast(t('저장 위치 선택이 취소되었습니다.', 'Folder selection canceled.', '保存先選択がキャンセルされました。'));
-        return;
-      }
-      if (error && error.message === 'DIRECTORY_PICKER_UNSUPPORTED') {
-        alert(t('현재 브라우저에서는 폴더 선택 저장 기능을 지원하지 않습니다. Chrome 또는 Edge에서 실행해 주세요.', 'This browser does not support folder saving. Please run it in Chrome or Edge.', 'このブラウザはフォルダ保存に対応していません。Chrome または Edge で実行してください。'));
-        return;
-      }
-      alert(t('출간 데이터 저장 중 오류가 발생했습니다. 브라우저 권한과 저장 위치를 다시 확인해 주세요.', 'Could not save publish data. Please check browser permissions and the selected folder.', '公開データ保存中にエラーが発生しました。'));
+      alert(t('출간 준비 중 오류가 발생했습니다. 저장 권한, 네트워크, 구글 드라이브 토큰을 확인해 주세요.', 'Publish preparation failed. Check storage permission, network, and Google Drive token.', '公開準備中にエラーが発生しました。'));
     }
   }
+
 
   function downloadCurrentGuideData() {
     const customPins = window.TravelogApp.getState().customCreatedPins;
@@ -1641,14 +1623,29 @@ const TravelogCreatorModule = (() => {
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newStopIdx = customPins.length - 1;
 
+    const audioBlobToSave = voiceMemoBlob || new Blob(['Travelog default simulated audio'], { type: 'text/plain' });
     recordedAudios.push({
       id: Date.now(),
       name: filename,
-      blob: voiceMemoBlob || new Blob(['Travelog default simulated audio'], { type: 'text/plain' }),
+      blob: audioBlobToSave,
       stopIndex: newStopIdx
     });
 
-    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Audio/'에 음성 가이드가 가상 저장되었습니다!", "Voice memo successfully saved in 'Travelog/Audio/' folder!", 'ユーザー端末の「Travelog/Audio/」に保存されました！'));
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
+      window.TravelogDeviceStorage.saveGeneratedFile('Audio', filename, audioBlobToSave, {
+        source: 'field-audio-memo',
+        stopIndex: newStopIdx,
+        lat: tempPinLat,
+        lng: tempPinLng
+      }).then(() => {
+        window.TravelogApp.showToast(t("Audio 폴더에 음성 메모가 저장되었습니다.", "Audio memo saved to the Audio folder.", 'Audioフォルダに音声メモを保存しました。'));
+      }).catch((error) => {
+        console.warn('[Travelog Device Storage] Audio memo save failed:', error);
+        window.TravelogApp.showToast(t('음성 메모는 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'Audio memo is kept in the app, but device write failed.', '音声メモはアプリに保持されましたが端末保存に失敗しました。'));
+      });
+    } else {
+      window.TravelogApp.showToast(t("음성 메모가 앱에 저장되었습니다.", "Voice memo saved in the app.", '音声メモをアプリに保存しました。'));
+    }
 
     renderCoordinatesList();
     renderAudioList();
@@ -1775,14 +1772,29 @@ const TravelogCreatorModule = (() => {
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newStopIdx = customPins.length - 1;
 
+    const videoBlobToSave = videoMemoBlob || new Blob(['Travelog default simulated video'], { type: 'text/plain' });
     recordedVideos.push({
       id: Date.now(),
       name: filename,
-      blob: videoMemoBlob || new Blob(['Travelog default simulated video'], { type: 'text/plain' }),
+      blob: videoBlobToSave,
       stopIndex: newStopIdx
     });
 
-    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Video/'에 영상 가이드가 가상 저장되었습니다!", "Video guide successfully saved in 'Travelog/Video/' folder!", 'ユーザー端末の「Travelog/Video/」に保存されました！'));
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
+      window.TravelogDeviceStorage.saveGeneratedFile('Video', filename, videoBlobToSave, {
+        source: 'field-video-memo',
+        stopIndex: newStopIdx,
+        lat: tempPinLat,
+        lng: tempPinLng
+      }).then(() => {
+        window.TravelogApp.showToast(t("Video 폴더에 영상 메모가 저장되었습니다.", "Video memo saved to the Video folder.", 'Videoフォルダに動画メモを保存しました。'));
+      }).catch((error) => {
+        console.warn('[Travelog Device Storage] Video memo save failed:', error);
+        window.TravelogApp.showToast(t('영상 메모는 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'Video memo is kept in the app, but device write failed.', '動画メモはアプリに保持されましたが端末保存に失敗しました。'));
+      });
+    } else {
+      window.TravelogApp.showToast(t("영상 메모가 앱에 저장되었습니다.", "Video memo saved in the app.", '動画メモをアプリに保存しました。'));
+    }
 
     renderCoordinatesList();
     renderVideoList();
@@ -1812,7 +1824,24 @@ const TravelogCreatorModule = (() => {
       window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoVal);
     }
 
-    window.TravelogApp.showToast(t("유저 폰의 생성 폴더 'Travelog/Memo/'에 가이드 대본이 저장되었습니다!", "Text script successfully saved in 'Travelog/Memo/' folder!", 'ユーザー端末の「Travelog/Memo/」に保存されました！'));
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const filename = `text_memo_${cleanTourName}_${Date.now()}.txt`;
+    const textBlobToSave = new Blob([memoVal], { type: 'text/plain;charset=utf-8' });
+
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
+      window.TravelogDeviceStorage.saveGeneratedFile('Text', filename, textBlobToSave, {
+        source: 'field-text-memo',
+        lat: tempPinLat,
+        lng: tempPinLng
+      }).then(() => {
+        window.TravelogApp.showToast(t("Text 폴더에 텍스트 메모가 저장되었습니다.", "Text memo saved to the Text folder.", 'Textフォルダにテキストメモを保存しました。'));
+      }).catch((error) => {
+        console.warn('[Travelog Device Storage] Text memo save failed:', error);
+        window.TravelogApp.showToast(t('텍스트 메모는 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'Text memo is kept in the app, but device write failed.', 'テキストメモはアプリに保持されましたが端末保存に失敗しました。'));
+      });
+    } else {
+      window.TravelogApp.showToast(t("텍스트 메모가 앱에 저장되었습니다.", "Text memo saved in the app.", 'テキストメモをアプリに保存しました。'));
+    }
 
     renderCoordinatesList();
     updatePublishPanelCounts();
