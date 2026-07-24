@@ -513,58 +513,94 @@ const TravelogMapModule = (() => {
       map.removeLayer(routePolyline);
     }
 
-    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
-    if (activeGuide) {
-      const guideName = document.getElementById('guide-name');
-      const guideDesc = document.getElementById('guide-desc');
-      if (guideName) guideName.textContent = pick(activeGuide, 'name');
-      if (guideDesc) guideDesc.textContent = pick(activeGuide, 'desc');
-    }
+    const creatorTab = document.getElementById('creator-tab');
+    const isCreatorMode = creatorTab && creatorTab.classList.contains('active');
 
-    const nodes = getTourNodes();
-    const routeCoords = [];
+    if (isCreatorMode) {
+      // 1. Draw ONLY Custom Created Pins on the map
+      const customPins = window.TravelogApp ? window.TravelogApp.getState().customCreatedPins : [];
+      const routeCoords = [];
 
-    // Draw Marker Pins
-    nodes.forEach(node => {
-      routeCoords.push([node.lat, node.lng]);
+      customPins.forEach((pin, index) => {
+        routeCoords.push([pin.lat, pin.lng]);
 
-      const marker = L.marker([node.lat, node.lng], {
-        icon: createHtmlIcon(node.icon, node.color)
-      });
+        const marker = L.marker([pin.lat, pin.lng], {
+          icon: createHtmlIcon('fa-solid fa-location-crosshairs', pin.color)
+        });
 
-      // Bind Popups with dynamic content
-      const popupContent = `
-        <div style="color:var(--bg-primary); padding:4px;">
-          <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">${node.name}</h4>
-          <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
-        </div>
-      `;
-      marker.bindPopup(popupContent);
-      markersLayer.addLayer(marker);
-    });
-
-    // Draw Polyline route
-    routePolyline = L.polyline(routeCoords, {
-      color: '#70A2B7',
-      weight: 5,
-      opacity: 0.8,
-      dashArray: '8, 8'
-    }).addTo(map);
-
-    // Render list in Tour Stops HUD
-    const listEl = document.getElementById('tour-stops-list');
-    if (listEl) {
-      listEl.innerHTML = '';
-      nodes.forEach((node, index) => {
-        const row = document.createElement('div');
-        row.className = 'tour-stop-row';
-        row.innerHTML = `
-          <span class="tour-stop-index">${index + 1}</span>
-          <span class="tour-stop-name">${node.name}</span>
-          <i class="${node.icon}" aria-hidden="true"></i>
+        const popupContent = `
+          <div style="color:var(--bg-primary); padding:4px;">
+            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">Custom Pin #${index + 1}</h4>
+            <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(pin.description || '')}</p>
+          </div>
         `;
-        listEl.appendChild(row);
+        marker.bindPopup(popupContent);
+        markersLayer.addLayer(marker);
+        customCreatedMarkers[pin.id] = marker; // Sync reference
       });
+
+      // Draw customized creator route polyline
+      if (routeCoords.length > 1) {
+        routePolyline = L.polyline(routeCoords, {
+          color: '#ff2e63', // Neon Pink color for custom creator route line
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '6, 6'
+        }).addTo(map);
+      }
+    } else {
+      // 2. Normal Tour Mode: Draw baseline Gyeongbokgung Tour nodes
+      const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+      if (activeGuide) {
+        const guideName = document.getElementById('guide-name');
+        const guideDesc = document.getElementById('guide-desc');
+        if (guideName) guideName.textContent = pick(activeGuide, 'name');
+        if (guideDesc) guideDesc.textContent = pick(activeGuide, 'desc');
+      }
+
+      const nodes = getTourNodes();
+      const routeCoords = [];
+
+      nodes.forEach(node => {
+        routeCoords.push([node.lat, node.lng]);
+
+        const marker = L.marker([node.lat, node.lng], {
+          icon: createHtmlIcon(node.icon, node.color)
+        });
+
+        const popupContent = `
+          <div style="color:var(--bg-primary); padding:4px;">
+            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700;">${node.name}</h4>
+            <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+        markersLayer.addLayer(marker);
+      });
+
+      // Draw Polyline route
+      routePolyline = L.polyline(routeCoords, {
+        color: '#70A2B7',
+        weight: 5,
+        opacity: 0.8,
+        dashArray: '8, 8'
+      }).addTo(map);
+
+      // Render list in Tour Stops HUD
+      const listEl = document.getElementById('tour-stops-list');
+      if (listEl) {
+        listEl.innerHTML = '';
+        nodes.forEach((node, index) => {
+          const row = document.createElement('div');
+          row.className = 'tour-stop-row';
+          row.innerHTML = `
+            <span class="tour-stop-index">${index + 1}</span>
+            <span class="tour-stop-name">${node.name}</span>
+            <i class="${node.icon}" aria-hidden="true"></i>
+          `;
+          listEl.appendChild(row);
+        });
+      }
     }
     updateMapOverview();
   }
@@ -1245,6 +1281,7 @@ const TravelogMapModule = (() => {
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
       window.TravelogCreatorModule.renderCoordinatesList();
     }
+    renderTour();
     
     window.TravelogApp.showToast(t(`새 핀 #${newIndex}이 추가되었습니다.`, `New pin #${newIndex} added.`, `新しいピン #${newIndex} を追加しました。`));
   }
