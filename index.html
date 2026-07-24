@@ -258,9 +258,9 @@
             <span class="map-control-icon" aria-hidden="true">⌖</span>
             <span data-localize="map_control_gps">Live GPS</span>
           </button>
-          <button class="btn-circle map-control-btn" id="create-pin-at-gps-btn" style="background: var(--grad-pink-purple); border-color: transparent;" title="내 위치에서 코스 핀 생성" aria-label="Create Course Pin at My Location">
+          <button class="btn-circle map-control-btn" id="create-pin-at-gps-btn" style="background: var(--grad-pink-purple); border-color: transparent;" title="내 위치에서 코스 메모 생성" aria-label="Create Course Memo at My Location">
             <span class="map-control-icon" style="color: white;" aria-hidden="true"><i class="fa-solid fa-map-pin"></i></span>
-            <span style="color: white; font-weight: bold;">핀 생성</span>
+            <span style="color: white; font-weight: bold;">메모생성</span>
           </button>
           <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
             <span class="map-control-icon" aria-hidden="true">↟</span>
@@ -301,7 +301,7 @@
               <i class="fa-solid fa-location-crosshairs"></i>
               <span data-localize="map_control_gps">Live GPS</span>
             </button>
-            <button type="button" class="map-mini-action" onclick="document.getElementById('add-location-memo-btn')?.click()">
+            <button type="button" class="map-mini-action" onclick="document.getElementById('create-pin-at-gps-btn')?.click()">
               <i class="fa-solid fa-note-sticky"></i>
               <span data-localize="map_control_memo">Memo</span>
             </button>
@@ -1085,7 +1085,7 @@
 
       <div style="display: flex; gap: 10px; width: 100%;">
         <button class="btn-rect secondary" id="text-memo-cancel" style="flex: 1; justify-content: center;">취소</button>
-        <button class="btn-rect" id="text-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);"><i class="fa-solid fa-circle-check"></i> 완료</button>
+        <button class="btn-rect" id="text-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);"><i class="fa-solid fa-circle-check"></i> 메모 완료</button>
       </div>
     </div>
   </div>

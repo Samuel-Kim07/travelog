@@ -862,9 +862,39 @@ function initOnboarding() {
 
 
 function safelyGoToProfileStep(provider) {
-  TravelogState.userProfile.authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
-  showOnboardingScreen('profile');
-  focusNicknameInput();
+  // Prototype login: provider buttons should let the user enter the app immediately.
+  // Real OAuth can be connected later without changing the rest of the app flow.
+  const authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
+  const defaultNicknames = {
+    Google: '구글 여행자',
+    Naver: '네이버 여행자',
+    Email: '이메일 여행자',
+    Guest: '여행자'
+  };
+
+  TravelogState.userProfile = {
+    ...TravelogState.userProfile,
+    isOnboarded: true,
+    authProvider,
+    nickname: TravelogState.userProfile.nickname || defaultNicknames[authProvider] || '여행자',
+    avatarType: TravelogState.userProfile.avatarType || 'emoji',
+    avatarValue: TravelogState.userProfile.avatarValue || '☀️',
+    avatarPresetId: TravelogState.userProfile.avatarPresetId || 'sun',
+    storagePermissionGranted: true
+  };
+
+  verifiedNickname = TravelogState.userProfile.nickname;
+  saveProfile();
+  renderUserProfileWidget();
+  renderHomeTab();
+  hideOnboardingOverlay(false);
+
+  window.setTimeout(() => {
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.invalidateSize === 'function') {
+      window.TravelogMapModule.invalidateSize();
+    }
+    showToast(localizedText(`${TravelogState.userProfile.nickname}님, 즐거운 여행을 시작해볼까요?`, `Welcome, ${TravelogState.userProfile.nickname}!`, `${TravelogState.userProfile.nickname}さん、楽しい旅を始めましょう！`));
+  }, 300);
 }
 
 function attachActivationHandler(element, handler) {

@@ -151,19 +151,62 @@ const TravelogCreatorModule = (() => {
   // ==========================================
   // Custom Map Pins Planner
   // ==========================================
+  function getOrderedCustomPins() {
+    const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
+    const pins = state && Array.isArray(state.customCreatedPins) ? state.customCreatedPins : [];
+
+    pins.forEach((pin, index) => {
+      if (typeof pin.sortOrder !== 'number') {
+        pin.sortOrder = index;
+      }
+    });
+
+    return [...pins].sort((a, b) => {
+      const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+      const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.timestamp || 0) - (b.timestamp || 0);
+    });
+  }
+
+  function normalizeCustomPinOrder(orderedPins) {
+    const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
+    const pins = state && Array.isArray(state.customCreatedPins) ? state.customCreatedPins : [];
+    const ordered = orderedPins || getOrderedCustomPins();
+    const orderMap = new Map();
+
+    ordered.forEach((pin, index) => {
+      pin.sortOrder = index;
+      pin.nameEn = `Custom Pin #${index + 1}`;
+      pin.nameKo = `커스텀 핀 #${index + 1}`;
+      pin.nameJa = `カスタムピン #${index + 1}`;
+      orderMap.set(pin.id, index);
+    });
+
+    pins.forEach((pin, index) => {
+      if (!orderMap.has(pin.id)) {
+        pin.sortOrder = ordered.length + index;
+      }
+    });
+
+    pins.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
   function renderCoordinatesList() {
     const listEl = document.getElementById('creator-coordinates-list');
     const noPinsMsg = document.getElementById('no-pins-msg');
-    
+    if (!listEl || !noPinsMsg) return;
+
     const rows = listEl.querySelectorAll('.coordinate-row');
     rows.forEach(r => r.remove());
 
-    // Sort by creation time (ascending)
-    const customPins = [...window.TravelogApp.getState().customCreatedPins];
-    customPins.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    const customPins = getOrderedCustomPins();
+    normalizeCustomPinOrder(customPins);
 
     if (customPins.length === 0) {
       noPinsMsg.style.display = 'block';
+      refreshMediaPinSelectors();
+      updatePublishPanelCounts();
       return;
     }
 
@@ -172,6 +215,8 @@ const TravelogCreatorModule = (() => {
     customPins.forEach((pin, index) => {
       const row = document.createElement('div');
       row.className = 'coordinate-row';
+      row.dataset.pinId = pin.id;
+      row.draggable = true;
       row.style.cssText = `
         display: flex;
         align-items: center;
@@ -181,43 +226,75 @@ const TravelogCreatorModule = (() => {
         background: rgba(255,255,255,0.03);
         border: 1px solid var(--glass-border);
         border-radius: var(--radius-sm);
+        cursor: grab;
       `;
-      
+
       let timeStr = '';
       if (pin.createdAt) {
         const d = new Date(pin.createdAt);
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const date = String(d.getDate()).padStart(2, '0');
-        const hour = String(d.getHours()).padStart(2, '0');
-        const min = String(d.getMinutes()).padStart(2, '0');
-        const sec = String(d.getSeconds()).padStart(2, '0');
-        timeStr = `${month}/${date} ${hour}:${min}:${sec}`;
+        if (!Number.isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const date = String(d.getDate()).padStart(2, '0');
+          const hour = String(d.getHours()).padStart(2, '0');
+          const min = String(d.getMinutes()).padStart(2, '0');
+          timeStr = `${year}.${month}.${date} ${hour}:${min}`;
+        }
       }
 
       row.innerHTML = `
-        <span class="pin-number-label" style="font-weight:700; color:${pin.color || '#ff2e63'};">${index + 1}</span>
+        <span class="pin-number-label" style="min-width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:800; color:white; background:${pin.color || '#ff2e63'}; font-size:12px;">${index + 1}</span>
         <div style="flex:1; min-width:0;">
-          <div style="font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pick(pin, 'name')}</div>
-          <div style="font-size:10px; color:var(--text-muted);">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)} <span style="margin-left:5px; color:#aaa;">(${timeStr})</span></div>
+          <div style="font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pick(pin, 'name')}</div>
+          <div style="font-size:11px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(pin.description || t('메모 없음', 'No memo', 'メモなし'))}</div>
+          <div style="font-size:10px; color:var(--text-muted);">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
         </div>
-        
-        <!-- Color Select -->
-        <select class="pin-color-picker" style="font-size:11px; padding:3px; border-radius:4px; background:#fff; border:1px solid #ccc; color:#373737 !important; cursor:pointer;">
-          <option value="#ff2e63" style="color:#ff2e63;" ${pin.color === '#ff2e63' ? 'selected' : ''}>🔴 Pink</option>
-          <option value="#00adb5" style="color:#00adb5;" ${pin.color === '#00adb5' ? 'selected' : ''}>🔵 Blue</option>
-          <option value="#34a853" style="color:#34a853;" ${pin.color === '#34a853' ? 'selected' : ''}>🟢 Green</option>
-          <option value="#ffb703" style="color:#ffb703;" ${pin.color === '#ffb703' ? 'selected' : ''}>🟡 Gold</option>
-          <option value="#8b5cf6" style="color:#8b5cf6;" ${pin.color === '#8b5cf6' ? 'selected' : ''}>🟣 Purple</option>
+
+        <div style="min-width:88px; text-align:right; font-size:10px; color:var(--text-muted); line-height:1.3;">${timeStr || '-'}</div>
+
+        <div style="display:flex; flex-direction:column; gap:3px;">
+          <button type="button" class="btn-circle pin-order-btn" ${index === 0 ? 'disabled' : ''} title="위로 이동" onclick="TravelogCreatorModule.moveCoordinate('${pin.id}', -1)" style="width:24px; height:22px; font-size:10px; opacity:${index === 0 ? '0.35' : '1'};"><i class="fa-solid fa-chevron-up"></i></button>
+          <button type="button" class="btn-circle pin-order-btn" ${index === customPins.length - 1 ? 'disabled' : ''} title="아래로 이동" onclick="TravelogCreatorModule.moveCoordinate('${pin.id}', 1)" style="width:24px; height:22px; font-size:10px; opacity:${index === customPins.length - 1 ? '0.35' : '1'};"><i class="fa-solid fa-chevron-down"></i></button>
+        </div>
+
+        <select class="pin-color-picker" title="핀 색상" style="font-size:11px; padding:3px; border-radius:4px; background:#fff; border:1px solid #ccc; color:#373737 !important; cursor:pointer;">
+          <option value="#ff2e63" style="color:#ff2e63;" ${pin.color === '#ff2e63' ? 'selected' : ''}>🔴</option>
+          <option value="#00adb5" style="color:#00adb5;" ${pin.color === '#00adb5' ? 'selected' : ''}>🔵</option>
+          <option value="#34a853" style="color:#34a853;" ${pin.color === '#34a853' ? 'selected' : ''}>🟢</option>
+          <option value="#ffb703" style="color:#ffb703;" ${pin.color === '#ffb703' ? 'selected' : ''}>🟡</option>
+          <option value="#8b5cf6" style="color:#8b5cf6;" ${pin.color === '#8b5cf6' ? 'selected' : ''}>🟣</option>
         </select>
 
-        <input type="text" class="pin-description-input" value="${escapeHtml(pin.description || '')}" placeholder="${t('설명 입력...', 'Audio script...', '説明を入力...')}" style="width:120px; font-size:11px; padding:4px; border-radius:4px; background:#f8fafc; border:1px solid rgba(0,0,0,0.15); color:#373737 !important;">
-        
-        <button class="btn-circle" style="width:24px; height:24px; font-size:11px; background:rgba(255,50,50,0.1); border-color:rgba(255,50,50,0.2); color:var(--accent-pink);" onclick="TravelogCreatorModule.removeCoordinate('${pin.id}')">
+        <input type="text" class="pin-description-input" value="${escapeHtml(pin.description || '')}" placeholder="${t('메모 수정...', 'Edit memo...', 'メモ編集...')}" style="width:118px; font-size:11px; padding:4px; border-radius:4px; background:#f8fafc; border:1px solid rgba(0,0,0,0.15); color:#373737 !important;">
+
+        <button type="button" class="btn-circle" style="width:24px; height:24px; font-size:11px; background:rgba(255,50,50,0.1); border-color:rgba(255,50,50,0.2); color:var(--accent-pink);" onclick="TravelogCreatorModule.removeCoordinate('${pin.id}')">
           <i class="fa-solid fa-trash-can"></i>
         </button>
       `;
 
-      // Color select listener
+      row.addEventListener('dragstart', (event) => {
+        row.style.opacity = '0.55';
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', pin.id);
+      });
+      row.addEventListener('dragend', () => {
+        row.style.opacity = '1';
+      });
+      row.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        row.style.borderColor = 'var(--accent-blue)';
+      });
+      row.addEventListener('dragleave', () => {
+        row.style.borderColor = 'var(--glass-border)';
+      });
+      row.addEventListener('drop', (event) => {
+        event.preventDefault();
+        row.style.borderColor = 'var(--glass-border)';
+        const draggedId = event.dataTransfer.getData('text/plain');
+        moveCoordinateTo(draggedId, pin.id);
+      });
+
       const colorSelect = row.querySelector('.pin-color-picker');
       if (colorSelect) {
         colorSelect.addEventListener('change', (e) => {
@@ -226,11 +303,10 @@ const TravelogCreatorModule = (() => {
             window.TravelogMapModule.updateCreatorPinColor(pin.id, newColor);
           }
           const numSpan = row.querySelector('.pin-number-label');
-          if (numSpan) numSpan.style.color = newColor;
+          if (numSpan) numSpan.style.background = newColor;
         });
       }
 
-      // Description input listener
       const descInput = row.querySelector('.pin-description-input');
       if (descInput) {
         descInput.addEventListener('input', (e) => {
@@ -245,8 +321,36 @@ const TravelogCreatorModule = (() => {
       listEl.appendChild(row);
     });
 
-    updatePublishPanelCounts();
     refreshMediaPinSelectors();
+    updatePublishPanelCounts();
+  }
+
+  function moveCoordinate(pinId, direction) {
+    const ordered = getOrderedCustomPins();
+    const currentIndex = ordered.findIndex(pin => pin.id === pinId);
+    const nextIndex = currentIndex + direction;
+
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= ordered.length) return;
+
+    const temp = ordered[currentIndex];
+    ordered[currentIndex] = ordered[nextIndex];
+    ordered[nextIndex] = temp;
+    normalizeCustomPinOrder(ordered);
+    renderCoordinatesList();
+  }
+
+  function moveCoordinateTo(draggedId, targetId) {
+    if (!draggedId || !targetId || draggedId === targetId) return;
+
+    const ordered = getOrderedCustomPins();
+    const fromIndex = ordered.findIndex(pin => pin.id === draggedId);
+    const toIndex = ordered.findIndex(pin => pin.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+
+    const [draggedPin] = ordered.splice(fromIndex, 1);
+    ordered.splice(toIndex, 0, draggedPin);
+    normalizeCustomPinOrder(ordered);
+    renderCoordinatesList();
   }
 
   function removeCoordinate(pinId) {
@@ -834,6 +938,12 @@ const TravelogCreatorModule = (() => {
     }
   }
 
+  function openTextMemoAtLocation(lat, lng) {
+    tempPinLat = lat;
+    tempPinLng = lng;
+    openTextMemoModal();
+  }
+
   // 1) Audio Field Capture
   function openVoiceMemoModal() {
     const modal = document.getElementById('voice-memo-modal');
@@ -1121,6 +1231,7 @@ const TravelogCreatorModule = (() => {
   return {
     init: init,
     openPinTypeSelectModal: openPinTypeSelectModal,
+    openTextMemoAtLocation: openTextMemoAtLocation,
     onLanguageChange: () => {
       renderCoordinatesList();
       renderAudioList();
@@ -1128,6 +1239,8 @@ const TravelogCreatorModule = (() => {
       updatePublishPanelCounts();
     },
     removeCoordinate: removeCoordinate,
+    moveCoordinate: moveCoordinate,
+    moveCoordinateTo: moveCoordinateTo,
     deleteAudio: deleteAudio,
     deleteVideo: deleteVideo,
     renderCoordinatesList: renderCoordinatesList,

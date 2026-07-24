@@ -1291,6 +1291,7 @@ const TravelogMapModule = (() => {
       lng: lng,
       createdAt: new Date().toISOString(),
       timestamp: Date.now(),
+      sortOrder: customPins.length,
       color: '#ff2e63',
       description: description
     };
@@ -1447,3 +1448,6 @@ const TravelogMapModule = (() => {
     })
   };
 })();
+
+// Attach globally so app.js, creator.js, and inline map controls can use the map module.
+window.TravelogMapModule = TravelogMapModule;
