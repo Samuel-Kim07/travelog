@@ -807,6 +807,12 @@ const TravelogCreatorModule = (() => {
     if (pinsCountEl) pinsCountEl.textContent = `${customPins.length}개`;
     if (audiosCountEl) audiosCountEl.textContent = `${linkedAudiosCount}개 (총 ${recordedAudios.length}개)`;
     if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 (총 ${recordedVideos.length}개)`;
+
+    // Refresh Map Top HUD dynamically if Map tab is currently active
+    const mapTab = document.getElementById('map-tab');
+    if (mapTab && mapTab.classList.contains('active') && window.updateMapLayoutForMode) {
+      window.updateMapLayoutForMode('create');
+    }
   }
 
   // ==========================================
@@ -1118,7 +1124,13 @@ const TravelogCreatorModule = (() => {
     removeCoordinate: removeCoordinate,
     deleteAudio: deleteAudio,
     deleteVideo: deleteVideo,
-    renderCoordinatesList: renderCoordinatesList
+    renderCoordinatesList: renderCoordinatesList,
+    getMediaCounts: () => {
+      return {
+        audios: recordedAudios.length,
+        videos: recordedVideos.length
+      };
+    }
   };
 })();
 

@@ -1598,6 +1598,8 @@ window.updateMapLayoutForMode = function(mode) {
   const tourLocationsCard = document.querySelector('[data-hud-id="tour-stops"]');
   const bottomSheet = document.querySelector('.map-bottom-sheet');
   const legendPanel = document.querySelector('.map-legend-panel');
+  const routeTitleEl = document.getElementById('map-route-title');
+  const routeDescEl = document.getElementById('map-route-description');
 
   if (bottomSheet) {
     bottomSheet.style.display = 'none';
@@ -1607,10 +1609,61 @@ window.updateMapLayoutForMode = function(mode) {
     if (activeGuideCard) activeGuideCard.style.display = 'none';
     if (tourLocationsCard) tourLocationsCard.style.display = 'none';
     if (legendPanel) legendPanel.style.display = 'none';
+
+    // Remove data-localize attributes to prevent default language override
+    if (routeTitleEl) routeTitleEl.removeAttribute('data-localize');
+    if (routeDescEl) routeDescEl.removeAttribute('data-localize');
+
+    // 1. Update Title and Status HUD for Creator mode
+    const rawTourName = document.getElementById('new-tour-name')?.value || '';
+    const tourName = rawTourName.trim() || localizedText('나의 제작 가이드', 'My Creative Guide', 'マイ作成ガイド');
+    
+    const customPins = TravelogState.customCreatedPins || [];
+    let audioCount = 0;
+    let videoCount = 0;
+    if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.getMediaCounts === 'function') {
+      const counts = window.TravelogCreatorModule.getMediaCounts();
+      audioCount = counts.audios;
+      videoCount = counts.videos;
+    }
+
+    if (routeTitleEl) {
+      routeTitleEl.textContent = tourName;
+    }
+    if (routeDescEl) {
+      routeDescEl.textContent = localizedText(
+        `제작 중 (핀 ${customPins.length}개 / 음성 ${audioCount}개 / 영상 ${videoCount}개)`,
+        `In Development (Pins: ${customPins.length} / Audio: ${audioCount} / Video: ${videoCount})`,
+        `作成中（ピン ${customPins.length}個 / 音声 ${audioCount}個 / 動画 ${videoCount}個）`
+      );
+    }
+
+    // 2. Focus on User's Current Location
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.centerToUser === 'function') {
+      setTimeout(() => {
+        window.TravelogMapModule.centerToUser();
+      }, 100);
+    }
   } else {
     if (activeGuideCard) activeGuideCard.style.display = 'block';
     if (tourLocationsCard) tourLocationsCard.style.display = 'block';
     if (legendPanel) legendPanel.style.display = 'flex';
+
+    // Restore data-localize attributes for Explore mode
+    if (routeTitleEl) routeTitleEl.setAttribute('data-localize', 'map_route_title');
+    if (routeDescEl) routeDescEl.setAttribute('data-localize', 'map_route_desc');
+
+    // Restore default Gyeongbokgung text & localized translation for Explore mode
+    if (routeTitleEl) {
+      routeTitleEl.textContent = localizedText('경복궁 로컬 투어', 'Gyeongbokgung Local Tour', '景福宮ローカルツアー');
+    }
+    if (routeDescEl) {
+      routeDescEl.textContent = localizedText(
+        'GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.',
+        'View GPS, guide points, and personal memos in one place.',
+        'GPS位置、ガイド地点、メモを一画面で確認できます。'
+      );
+    }
   }
 };
 

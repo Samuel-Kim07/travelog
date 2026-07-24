@@ -1323,6 +1323,12 @@ const TravelogMapModule = (() => {
     clearCreatorPins: clearCreatorPins,
     updateCreatorPinColor: updateCreatorPinColor,
     removeCreatorPin: removeCreatorPin,
+    centerToUser: () => {
+      if (map) {
+        const loc = getCurrentLatLng();
+        map.setView([loc.lat, loc.lng], 17);
+      }
+    },
     invalidateSize: () => {
       if (map) {
         map.invalidateSize();
