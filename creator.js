@@ -36,6 +36,11 @@ const TravelogCreatorModule = (() => {
   let tempPinLat = 0;
   let tempPinLng = 0;
 
+  const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
+  const DRIVE_PARENT_FOLDER_URL = 'https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link';
+  const GOOGLE_DRIVE_TOKEN_KEY = 'travelog_google_drive_access_token';
+  let pendingPublishPackage = null;
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -81,6 +86,16 @@ const TravelogCreatorModule = (() => {
     const finalPublishBtn = document.getElementById('publish-final-tour-btn');
     if (finalPublishBtn) {
       finalPublishBtn.addEventListener('click', saveTour);
+    }
+
+    const publishDriveUploadBtn = document.getElementById('publish-drive-upload-btn');
+    if (publishDriveUploadBtn) {
+      publishDriveUploadBtn.addEventListener('click', publishPreparedGuideToDrive);
+    }
+
+    const publishReadyCloseBtn = document.getElementById('publish-ready-close-btn');
+    if (publishReadyCloseBtn) {
+      publishReadyCloseBtn.addEventListener('click', closePublishModal);
     }
 
     // Recording actions
@@ -367,90 +382,385 @@ const TravelogCreatorModule = (() => {
     window.TravelogApp.showToast(t('등록된 핀들이 초기화되었습니다.', 'All custom pins reset.', '登録されたピンをリセットしました。'));
   }
 
-  function saveTour() {
-    const storageGranted = window.TravelogApp ? window.TravelogApp.getState().userProfile.storagePermissionGranted : false;
-    if (!storageGranted) {
-      alert(t('기기 내 저장 권한이 수락되지 않아 가이드 출간이 불가능합니다. 처음 프로필 설정에서 권한을 수락해 주세요!', 'Storage permission is required to publish guides. Please allow access in profile settings.', '機器内の保存権限が許可されていないため、ガイドを公開できません。'));
-      return;
+  function safeFileName(value, fallback = 'travelog') {
+    const raw = String(value || fallback).trim() || fallback;
+    return raw.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 80);
+  }
+
+  function formatTimestampForFile(dateValue = Date.now()) {
+    const d = new Date(dateValue);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hour = String(d.getHours()).padStart(2, '0');
+    const minute = String(d.getMinutes()).padStart(2, '0');
+    const second = String(d.getSeconds()).padStart(2, '0');
+    return `${year}${month}${day}_${hour}${minute}${second}`;
+  }
+
+  function getBlobExtension(blob, fallback = 'dat') {
+    const mime = blob && blob.type ? blob.type.toLowerCase() : '';
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('mp4')) return 'mp4';
+    if (mime.includes('ogg')) return 'ogg';
+    if (mime.includes('mpeg')) return 'mp3';
+    if (mime.includes('wav')) return 'wav';
+    if (mime.includes('text')) return 'txt';
+    if (mime.includes('json')) return 'json';
+    if (mime.includes('csv')) return 'csv';
+    return fallback;
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function buildUserStudioCsvRows(packageData) {
+    const rows = [
+      [
+        'guide_id', 'tour_name', 'creator', 'created_at', 'item_type', 'pin_order', 'pin_id',
+        'memo_type', 'file_folder', 'file_name', 'memo_text', 'lat', 'lng', 'linked_audio', 'linked_video'
+      ]
+    ];
+
+    packageData.pins.forEach(pin => {
+      rows.push([
+        packageData.guideId,
+        packageData.tourName,
+        packageData.creator,
+        packageData.createdAt,
+        'pin',
+        pin.order,
+        pin.id,
+        pin.memoType,
+        pin.textFileName ? 'Text' : '',
+        pin.textFileName || '',
+        pin.description || '',
+        pin.lat,
+        pin.lng,
+        pin.linkedAudios.join('; '),
+        pin.linkedVideos.join('; ')
+      ]);
+    });
+
+    packageData.audioFiles.forEach(file => {
+      rows.push([
+        packageData.guideId,
+        packageData.tourName,
+        packageData.creator,
+        packageData.createdAt,
+        'audio',
+        file.stopIndex + 1,
+        file.pinId || '',
+        'audio',
+        'Audio',
+        file.fileName,
+        file.memoText || '',
+        file.lat || '',
+        file.lng || '',
+        file.fileName,
+        ''
+      ]);
+    });
+
+    packageData.videoFiles.forEach(file => {
+      rows.push([
+        packageData.guideId,
+        packageData.tourName,
+        packageData.creator,
+        packageData.createdAt,
+        'video',
+        file.stopIndex + 1,
+        file.pinId || '',
+        'video',
+        'Video',
+        file.fileName,
+        file.memoText || '',
+        file.lat || '',
+        file.lng || '',
+        '',
+        file.fileName
+      ]);
+    });
+
+    return rows;
+  }
+
+  function rowsToCsv(rows) {
+    return rows.map(row => row.map(csvCell).join(',')).join('\n');
+  }
+
+  function buildGuidePublishPackage() {
+    const orderedPins = getOrderedCustomPins();
+    normalizeCustomPinOrder(orderedPins);
+
+    const tourName = document.getElementById('new-tour-name')?.value?.trim() || 'My Walking Tour';
+    const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : {};
+    const creator = state.userProfile?.nickname || 'Travelog Creator';
+    const createdAt = new Date().toISOString();
+    const guideId = `published-${Date.now()}`;
+    const tourSlug = safeFileName(tourName, 'travelog_guide');
+
+    const pins = orderedPins.map((pin, index) => {
+      const linkedAudios = recordedAudios.filter(a => Number(a.stopIndex) === index).map(a => a.name);
+      const linkedVideos = recordedVideos.filter(v => Number(v.stopIndex) === index).map(v => v.name);
+      const description = pin.description || '';
+      const textFileName = description ? `text_memo_${String(index + 1).padStart(2, '0')}_${safeFileName(pin.nameKo || pin.nameEn || pin.id, 'pin')}.txt` : '';
+      return {
+        id: pin.id,
+        order: index + 1,
+        nameKo: pin.nameKo,
+        nameEn: pin.nameEn,
+        nameJa: pin.nameJa,
+        lat: pin.lat,
+        lng: pin.lng,
+        color: pin.color || '#ff2e63',
+        createdAt: pin.createdAt || null,
+        description,
+        memoType: description ? 'text' : 'none',
+        textFileName,
+        linkedAudios,
+        linkedVideos
+      };
+    });
+
+    const pinByIndex = new Map(pins.map((pin, index) => [index, pin]));
+
+    const audioFiles = recordedAudios.map((audio, index) => {
+      const pin = pinByIndex.get(Number(audio.stopIndex));
+      const blob = audio.blob || new Blob(['Travelog simulated audio memo'], { type: 'text/plain' });
+      const extension = audio.name && audio.name.includes('.') ? audio.name.split('.').pop() : getBlobExtension(blob, 'webm');
+      const fileName = audio.name || `audio_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
+      return {
+        fileName,
+        blob,
+        stopIndex: Number(audio.stopIndex || 0),
+        pinId: pin?.id || '',
+        memoText: pin?.description || '',
+        lat: pin?.lat || '',
+        lng: pin?.lng || ''
+      };
+    });
+
+    const videoFiles = recordedVideos.map((video, index) => {
+      const pin = pinByIndex.get(Number(video.stopIndex));
+      const blob = video.blob || new Blob(['Travelog simulated video memo'], { type: 'text/plain' });
+      const extension = video.name && video.name.includes('.') ? video.name.split('.').pop() : getBlobExtension(blob, 'webm');
+      const fileName = video.name || `video_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
+      return {
+        fileName,
+        blob,
+        stopIndex: Number(video.stopIndex || 0),
+        pinId: pin?.id || '',
+        memoText: pin?.description || '',
+        lat: pin?.lat || '',
+        lng: pin?.lng || ''
+      };
+    });
+
+    const textFiles = pins
+      .filter(pin => pin.description)
+      .map(pin => ({
+        fileName: pin.textFileName,
+        blob: new Blob([pin.description], { type: 'text/plain;charset=utf-8' }),
+        pinId: pin.id,
+        stopIndex: pin.order - 1,
+        memoText: pin.description,
+        lat: pin.lat,
+        lng: pin.lng
+      }));
+
+    const packageData = {
+      guideId,
+      tourName,
+      tourSlug,
+      creator,
+      createdAt,
+      driveFolderId: DRIVE_PARENT_FOLDER_ID,
+      pins,
+      audioFiles,
+      videoFiles,
+      textFiles
+    };
+
+    packageData.studioRows = buildUserStudioCsvRows(packageData);
+    packageData.studioCsv = rowsToCsv(packageData.studioRows);
+    packageData.guideJson = JSON.stringify({
+      guideId,
+      tourName,
+      creator,
+      createdAt,
+      driveFolderId: DRIVE_PARENT_FOLDER_ID,
+      folders: { audio: 'Audio', video: 'Video', text: 'Text' },
+      pins: pins.map(pin => ({ ...pin })),
+      audioFiles: audioFiles.map(file => ({ ...file, blob: undefined })),
+      videoFiles: videoFiles.map(file => ({ ...file, blob: undefined })),
+      textFiles: textFiles.map(file => ({ ...file, blob: undefined }))
+    }, null, 2);
+
+    packageData.rootFiles = [
+      {
+        fileName: `${tourSlug}_guide_data.json`,
+        blob: new Blob([packageData.guideJson], { type: 'application/json;charset=utf-8' })
+      },
+      {
+        fileName: 'User Studio Data.csv',
+        blob: new Blob([packageData.studioCsv], { type: 'text/csv;charset=utf-8' })
+      }
+    ];
+
+    packageData.guideCard = {
+      id: guideId,
+      name: tourName,
+      author: `${creator} (크리에이터)`,
+      rating: 'NEW',
+      bg: 'assets/images/brand/travelog-ci-symbol.svg',
+      badge: '오늘의 가이드',
+      isWidget: true,
+      createdAt,
+      pinCount: pins.length
+    };
+
+    return packageData;
+  }
+
+  async function getOrCreateLocalDirectory(parentHandle, name) {
+    return parentHandle.getDirectoryHandle(name, { create: true });
+  }
+
+  async function writeBlobToLocalFile(directoryHandle, fileName, blob) {
+    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  async function savePackageToLocalDevice(packageData) {
+    if (typeof window.showDirectoryPicker !== 'function') {
+      throw new Error('DIRECTORY_PICKER_UNSUPPORTED');
     }
 
-    const customPins = window.TravelogApp.getState().customCreatedPins;
-    const tourName = document.getElementById('new-tour-name').value;
+    const selectedHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const dataHandle = await getOrCreateLocalDirectory(selectedHandle, 'Travelog_user_data');
+    const audioHandle = await getOrCreateLocalDirectory(dataHandle, 'Audio');
+    const videoHandle = await getOrCreateLocalDirectory(dataHandle, 'Video');
+    const textHandle = await getOrCreateLocalDirectory(dataHandle, 'Text');
+
+    for (const file of packageData.audioFiles) {
+      await writeBlobToLocalFile(audioHandle, file.fileName, file.blob);
+    }
+
+    for (const file of packageData.videoFiles) {
+      await writeBlobToLocalFile(videoHandle, file.fileName, file.blob);
+    }
+
+    for (const file of packageData.textFiles) {
+      await writeBlobToLocalFile(textHandle, file.fileName, file.blob);
+    }
+
+    for (const file of packageData.rootFiles) {
+      await writeBlobToLocalFile(dataHandle, file.fileName, file.blob);
+    }
+
+    return {
+      selectedFolderName: selectedHandle.name || t('선택한 저장 위치', 'Selected folder', '選択した保存先'),
+      dataFolderName: 'Travelog_user_data'
+    };
+  }
+
+  function showPublishModalLoading(title, desc) {
+    const loadingModal = document.getElementById('publish-loading-modal');
+    const statusTitle = document.getElementById('publish-status-title');
+    const statusDesc = document.getElementById('publish-status-desc');
+    const spinner = document.getElementById('publish-loading-spinner');
+    const successIcon = document.getElementById('publish-success-icon');
+    const summary = document.getElementById('publish-local-summary');
+    const actions = document.getElementById('publish-ready-actions');
+
+    if (!loadingModal) return;
+    if (statusTitle) statusTitle.textContent = title;
+    if (statusDesc) statusDesc.textContent = desc;
+    if (spinner) spinner.style.display = 'block';
+    if (successIcon) successIcon.style.display = 'none';
+    if (summary) summary.style.display = 'none';
+    if (actions) actions.style.display = 'none';
+    loadingModal.classList.add('active');
+    loadingModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function showPublishReadyModal(packageData, localSaveInfo) {
+    const loadingModal = document.getElementById('publish-loading-modal');
+    const statusTitle = document.getElementById('publish-status-title');
+    const statusDesc = document.getElementById('publish-status-desc');
+    const spinner = document.getElementById('publish-loading-spinner');
+    const successIcon = document.getElementById('publish-success-icon');
+    const summary = document.getElementById('publish-local-summary');
+    const actions = document.getElementById('publish-ready-actions');
+
+    if (!loadingModal) return;
+    if (statusTitle) statusTitle.textContent = t('저장이 완료되었습니다.', 'Saved successfully.', '保存が完了しました。');
+    if (statusDesc) statusDesc.textContent = t('이제 출간 준비가 완료 되었어요.', 'Your guide is now ready to publish.', '公開準備が完了しました。');
+    if (spinner) spinner.style.display = 'none';
+    if (successIcon) successIcon.style.display = 'block';
+    if (summary) {
+      summary.innerHTML = `
+        <strong>${escapeHtml(localSaveInfo.selectedFolderName)} / ${escapeHtml(localSaveInfo.dataFolderName)}</strong><br>
+        Audio: ${packageData.audioFiles.length}개 저장<br>
+        Video: ${packageData.videoFiles.length}개 저장<br>
+        Text: ${packageData.textFiles.length}개 저장<br>
+        User Studio Data.csv 저장 완료
+      `;
+      summary.style.display = 'block';
+    }
+    if (actions) actions.style.display = 'flex';
+    loadingModal.classList.add('active');
+    loadingModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closePublishModal() {
+    const loadingModal = document.getElementById('publish-loading-modal');
+    if (!loadingModal) return;
+    loadingModal.classList.remove('active');
+    loadingModal.setAttribute('aria-hidden', 'true');
+  }
+
+  async function saveTour() {
+    const customPins = getOrderedCustomPins();
+    const tourName = document.getElementById('new-tour-name')?.value?.trim() || 'My Walking Tour';
 
     if (customPins.length === 0) {
       window.TravelogApp.showToast(t('지도 탭에서 핀을 1개 이상 등록해 주세요!', 'Please place at least one pin on the Map tab first!', 'まず地図タブでピンを1つ以上登録してください！'));
       return;
     }
 
-    const confirmPublish = window.confirm(t('정말 출간 하시겠습니까?', 'Are you sure you want to publish?', '本当に公開しますか？'));
-    if (!confirmPublish) return;
+    const confirmSave = window.confirm(t('출간 데이터를 저장할 위치를 선택할까요?', 'Choose where to save the publish data?', '公開データの保存先を選択しますか？'));
+    if (!confirmSave) return;
 
-    const loadingModal = document.getElementById('publish-loading-modal');
-    const statusTitle = document.getElementById('publish-status-title');
-    const statusDesc = document.getElementById('publish-status-desc');
-    const spinner = document.getElementById('publish-loading-spinner');
-    const successIcon = document.getElementById('publish-success-icon');
+    try {
+      showPublishModalLoading(
+        t('출간 데이터를 저장 중입니다...', 'Saving publish data...', '公開データを保存しています...'),
+        t('저장 위치를 선택하면 Travelog_user_data 폴더와 Audio, Video, Text 폴더가 생성됩니다.', 'Select a folder; Travelog_user_data with Audio, Video, and Text subfolders will be created.', '保存先を選択すると、Travelog_user_data と Audio/Video/Text フォルダを作成します。')
+      );
 
-    if (loadingModal) {
-      statusTitle.textContent = t('출간중입니다...', 'Publishing guide...', '公開中...');
-      statusDesc.textContent = t('제작한 가이드 설정과 녹음 음성 및 비디오 데이터를 준비 중입니다.', 'Preparing guide configurations and recorded media assets.', '作成したガイド設定と録음・動画データを準備しています。');
-      spinner.style.display = 'block';
-      successIcon.style.display = 'none';
-      loadingModal.classList.add('active');
-    }
-
-    setTimeout(() => {
-      downloadCurrentGuideData();
-
-      recordedAudios.forEach(audio => {
-        const url = URL.createObjectURL(audio.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = audio.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
-
-      recordedVideos.forEach(video => {
-        const url = URL.createObjectURL(video.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = video.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
-
-      if (loadingModal) {
-        statusTitle.textContent = t('축하합니다. 출간 되었습니다', 'Congratulations. Published successfully', 'おめでとうございます。公開されました');
-        statusDesc.textContent = t('가이드 데이터가 공유 폴더 연동 파일로 정상 빌드되었습니다.', 'Guide data files built and ready for cloud sync.', 'ガイドデータが正常にビルドされました。');
-        spinner.style.display = 'none';
-        successIcon.style.display = 'block';
+      const packageData = buildGuidePublishPackage();
+      const localSaveInfo = await savePackageToLocalDevice(packageData);
+      pendingPublishPackage = packageData;
+      showPublishReadyModal(packageData, localSaveInfo);
+      window.TravelogApp.showToast(t(`${tourName} 출간 데이터 저장 완료`, `${tourName} publish data saved`, `${tourName} の公開データを保存しました`));
+    } catch (error) {
+      console.error('[Travelog Publish] Local save failed:', error);
+      closePublishModal();
+      if (error && error.name === 'AbortError') {
+        window.TravelogApp.showToast(t('저장 위치 선택이 취소되었습니다.', 'Folder selection canceled.', '保存先選択がキャンセルされました。'));
+        return;
       }
-
-      setTimeout(() => {
-        if (loadingModal) {
-          loadingModal.classList.remove('active');
-        }
-
-        window.open('https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=sharing', '_blank');
-
-        window.TravelogApp.addPoints(150);
-        window.TravelogApp.showToast(t(`가이드 [${tourName}] 출간 완료! 크리에이터 보상 +150포인트!`, `Tour guide [${tourName}] published successfully! Creator reward +150 pts!`, `ガイド［${tourName}］を公開しました！クリエイター報酬 +150ポイント！`));
-
-        recordedAudios = [];
-        recordedVideos = [];
-        clearPins();
-        
-        renderAudioList();
-        renderVideoList();
-        updatePublishPanelCounts();
-      }, 2000);
-
-    }, 2000);
+      if (error && error.message === 'DIRECTORY_PICKER_UNSUPPORTED') {
+        alert(t('현재 브라우저에서는 폴더 선택 저장 기능을 지원하지 않습니다. Chrome 또는 Edge에서 실행해 주세요.', 'This browser does not support folder saving. Please run it in Chrome or Edge.', 'このブラウザはフォルダ保存に対応していません。Chrome または Edge で実行してください。'));
+        return;
+      }
+      alert(t('출간 데이터 저장 중 오류가 발생했습니다. 브라우저 권한과 저장 위치를 다시 확인해 주세요.', 'Could not save publish data. Please check browser permissions and the selected folder.', '公開データ保存中にエラーが発生しました。'));
+    }
   }
 
   function downloadCurrentGuideData() {
@@ -497,6 +807,286 @@ const TravelogCreatorModule = (() => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  }
+
+  function getGoogleDriveAccessToken() {
+    return localStorage.getItem(GOOGLE_DRIVE_TOKEN_KEY) || '';
+  }
+
+  function setGoogleDriveAccessToken(token) {
+    if (token) {
+      localStorage.setItem(GOOGLE_DRIVE_TOKEN_KEY, token);
+    }
+  }
+
+  function clearGoogleDriveAccessToken() {
+    localStorage.removeItem(GOOGLE_DRIVE_TOKEN_KEY);
+  }
+
+  async function requestGoogleDriveAccessToken() {
+    let token = getGoogleDriveAccessToken();
+    if (token) return token;
+
+    token = window.prompt(t(
+      'Google Drive 업로드용 OAuth Access Token을 입력해 주세요. 취소하면 구글 드라이브 폴더만 열립니다.',
+      'Enter a Google Drive OAuth access token. Cancel will only open the Drive folder.',
+      'Google Driveアップロード用OAuthアクセストークンを入力してください。キャンセルするとDriveフォルダだけ開きます。'
+    ));
+
+    if (!token || !token.trim()) {
+      throw new Error('GOOGLE_DRIVE_TOKEN_REQUIRED');
+    }
+
+    token = token.trim();
+    setGoogleDriveAccessToken(token);
+    return token;
+  }
+
+  function driveHeaders(token, json = false) {
+    const headers = { Authorization: `Bearer ${token}` };
+    if (json) headers['Content-Type'] = 'application/json';
+    return headers;
+  }
+
+  function escapeDriveQuery(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  async function parseGoogleDriveError(response) {
+    let detail = '';
+    try {
+      const data = await response.json();
+      detail = data?.error?.message || JSON.stringify(data);
+    } catch (_) {
+      detail = await response.text().catch(() => '');
+    }
+    return new Error(`Google Drive API ${response.status}: ${detail || response.statusText}`);
+  }
+
+  async function findDriveFileByName(token, parentId, name, mimeType) {
+    const queryParts = [
+      `'${parentId}' in parents`,
+      `name='${escapeDriveQuery(name)}'`,
+      'trashed=false'
+    ];
+    if (mimeType) queryParts.push(`mimeType='${mimeType}'`);
+
+    const params = new URLSearchParams({
+      q: queryParts.join(' and '),
+      fields: 'files(id,name,mimeType)',
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true'
+    });
+
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
+      headers: driveHeaders(token)
+    });
+
+    if (!response.ok) throw await parseGoogleDriveError(response);
+    const data = await response.json();
+    return Array.isArray(data.files) && data.files.length ? data.files[0] : null;
+  }
+
+  async function createDriveFolder(token, parentId, name) {
+    const response = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
+      method: 'POST',
+      headers: driveHeaders(token, true),
+      body: JSON.stringify({
+        name,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: [parentId]
+      })
+    });
+
+    if (!response.ok) throw await parseGoogleDriveError(response);
+    return response.json();
+  }
+
+  async function getOrCreateDriveFolder(token, parentId, name) {
+    const existing = await findDriveFileByName(token, parentId, name, 'application/vnd.google-apps.folder');
+    if (existing) return existing.id;
+    const created = await createDriveFolder(token, parentId, name);
+    return created.id;
+  }
+
+  async function uploadBlobToDrive(token, folderId, fileName, blob) {
+    const boundary = `travelog_boundary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const metadata = {
+      name: fileName,
+      parents: [folderId]
+    };
+
+    const body = new Blob([
+      `--${boundary}\r\n`,
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+      JSON.stringify(metadata),
+      `\r\n--${boundary}\r\n`,
+      `Content-Type: ${blob.type || 'application/octet-stream'}\r\n\r\n`,
+      blob,
+      `\r\n--${boundary}--`
+    ], { type: `multipart/related; boundary=${boundary}` });
+
+    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body
+    });
+
+    if (!response.ok) throw await parseGoogleDriveError(response);
+    return response.json();
+  }
+
+  async function findUserStudioSpreadsheet(token) {
+    return findDriveFileByName(token, DRIVE_PARENT_FOLDER_ID, 'User Studio Data', 'application/vnd.google-apps.spreadsheet');
+  }
+
+  async function appendRowsToUserStudioSheet(token, spreadsheetId, rows) {
+    const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, {
+      headers: driveHeaders(token)
+    });
+    if (!metadataResponse.ok) throw await parseGoogleDriveError(metadataResponse);
+    const metadata = await metadataResponse.json();
+    const firstSheetTitle = metadata?.sheets?.[0]?.properties?.title || 'Sheet1';
+    const range = encodeURIComponent(`${firstSheetTitle}!A1`);
+
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+      method: 'POST',
+      headers: driveHeaders(token, true),
+      body: JSON.stringify({ values: rows })
+    });
+
+    if (!response.ok) throw await parseGoogleDriveError(response);
+    return response.json();
+  }
+
+  async function uploadPackageToGoogleDrive(packageData) {
+    const token = await requestGoogleDriveAccessToken();
+    const audioFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Audio');
+    const videoFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Video');
+    const textFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Text');
+
+    const uploaded = [];
+
+    for (const file of packageData.audioFiles) {
+      uploaded.push(await uploadBlobToDrive(token, audioFolderId, file.fileName, file.blob));
+    }
+
+    for (const file of packageData.videoFiles) {
+      uploaded.push(await uploadBlobToDrive(token, videoFolderId, file.fileName, file.blob));
+    }
+
+    for (const file of packageData.textFiles) {
+      uploaded.push(await uploadBlobToDrive(token, textFolderId, file.fileName, file.blob));
+    }
+
+    for (const file of packageData.rootFiles.filter(file => file.fileName !== 'User Studio Data.csv')) {
+      uploaded.push(await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, file.fileName, file.blob));
+    }
+
+    let spreadsheetUpdated = false;
+    let spreadsheetFallbackUploaded = false;
+    try {
+      const spreadsheet = await findUserStudioSpreadsheet(token);
+      if (spreadsheet && spreadsheet.id) {
+        await appendRowsToUserStudioSheet(token, spreadsheet.id, packageData.studioRows);
+        spreadsheetUpdated = true;
+      } else {
+        const csvFile = packageData.rootFiles.find(file => file.fileName === 'User Studio Data.csv');
+        if (csvFile) {
+          await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, csvFile.fileName, csvFile.blob);
+          spreadsheetFallbackUploaded = true;
+        }
+      }
+    } catch (sheetError) {
+      console.warn('[Travelog Publish] User Studio Data sheet append failed. Uploading CSV fallback.', sheetError);
+      const csvFile = packageData.rootFiles.find(file => file.fileName === 'User Studio Data.csv');
+      if (csvFile) {
+        await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, csvFile.fileName, csvFile.blob);
+        spreadsheetFallbackUploaded = true;
+      }
+    }
+
+    return {
+      uploadedCount: uploaded.length,
+      spreadsheetUpdated,
+      spreadsheetFallbackUploaded
+    };
+  }
+
+  function registerGuideOnHome(packageData) {
+    if (window.TravelogApp && typeof window.TravelogApp.registerPublishedGuide === 'function') {
+      window.TravelogApp.registerPublishedGuide(packageData.guideCard);
+    }
+  }
+
+  function moveToHomeTab() {
+    const homeNav = document.querySelector('.nav-item[data-tab="home-tab"]');
+    if (homeNav) {
+      homeNav.click();
+    }
+  }
+
+  async function publishPreparedGuideToDrive() {
+    if (!pendingPublishPackage) {
+      window.TravelogApp.showToast(t('먼저 출간 데이터를 저장해 주세요.', 'Save the publish data first.', '先に公開データを保存してください。'));
+      return;
+    }
+
+    try {
+      showPublishModalLoading(
+        t('구글 드라이브로 출간 중입니다...', 'Publishing to Google Drive...', 'Google Driveに公開しています...'),
+        t('Audio, Video, Text 폴더와 User Studio Data 스프레드시트에 데이터를 반영하고 있습니다.', 'Uploading to Audio, Video, Text folders and updating User Studio Data.', 'Audio/Video/TextフォルダとUser Studio Dataに反映しています。')
+      );
+
+      const uploadResult = await uploadPackageToGoogleDrive(pendingPublishPackage);
+      const statusTitle = document.getElementById('publish-status-title');
+      const statusDesc = document.getElementById('publish-status-desc');
+      const spinner = document.getElementById('publish-loading-spinner');
+      const successIcon = document.getElementById('publish-success-icon');
+      const summary = document.getElementById('publish-local-summary');
+      const actions = document.getElementById('publish-ready-actions');
+
+      registerGuideOnHome(pendingPublishPackage);
+
+      if (statusTitle) statusTitle.textContent = t('출간이 완료되었습니다.', 'Publishing complete.', '公開が完了しました。');
+      if (statusDesc) statusDesc.textContent = t('홈 화면의 오늘의 가이드에 등록되었습니다.', "Registered under Today's Guide on Home.", 'ホームの今日のガイドに登録されました。');
+      if (spinner) spinner.style.display = 'none';
+      if (successIcon) successIcon.style.display = 'block';
+      if (summary) {
+        summary.innerHTML = `
+          Drive 업로드 파일: ${uploadResult.uploadedCount}개<br>
+          User Studio Data: ${uploadResult.spreadsheetUpdated ? '스프레드시트 반영 완료' : 'CSV 백업 업로드 완료'}<br>
+          오늘의 가이드 등록 완료
+        `;
+        summary.style.display = 'block';
+      }
+      if (actions) actions.style.display = 'none';
+
+      window.TravelogApp.addPoints(150);
+      window.TravelogApp.showToast(t(`가이드 [${pendingPublishPackage.tourName}] 출간 완료!`, `Guide [${pendingPublishPackage.tourName}] published!`, `ガイド［${pendingPublishPackage.tourName}］を公開しました！`));
+
+      setTimeout(() => {
+        closePublishModal();
+        moveToHomeTab();
+      }, 1500);
+    } catch (error) {
+      console.error('[Travelog Publish] Drive upload failed:', error);
+      closePublishModal();
+      if (error && error.message === 'GOOGLE_DRIVE_TOKEN_REQUIRED') {
+        window.open(DRIVE_PARENT_FOLDER_URL, '_blank');
+        alert(t('Google Drive 업로드 토큰이 없어 자동 업로드를 중단했습니다. 저장된 Travelog_user_data 파일을 열린 Drive 폴더에 직접 올릴 수 있습니다.', 'No Google Drive token was provided. You can manually upload Travelog_user_data to the opened Drive folder.', 'Google Driveトークンがないため自動アップロードを中断しました。'));
+        return;
+      }
+      if (String(error.message || '').includes('401')) {
+        clearGoogleDriveAccessToken();
+        alert(t('Google Drive 토큰이 만료되었거나 권한이 없습니다. 새 토큰으로 다시 시도해 주세요.', 'The Google Drive token expired or lacks permission. Try again with a new token.', 'Google Driveトークンが期限切れ、または権限不足です。'));
+        return;
+      }
+      alert(t('Google Drive 출간 중 오류가 발생했습니다. 폴더 권한, 토큰 권한, 네트워크를 확인해 주세요.', 'Google Drive publishing failed. Check folder access, token scopes, and network.', 'Google Drive公開中にエラーが発生しました。'));
+    }
   }
 
   // ==========================================

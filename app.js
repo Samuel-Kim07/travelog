@@ -253,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setLanguage('ko');
 
   // Initialize Home Tab UI & Events
+  loadPublishedGuides();
   initHomeTab();
 });
 
@@ -351,6 +352,83 @@ const RECOMMEND_GUIDES_DATA = {
     { id: 'event-2', name: '인천 송도 미래도시 야경 퀘스트', author: '송도 관광공사', rating: '4.6', bg: 'assets/images/profile/profile-night.svg', badge: '포인트 2배' }
   ]
 };
+
+
+function sanitizePublishedGuideCard(guide) {
+  const nowId = `published-${Date.now()}`;
+  return {
+    id: guide?.id || nowId,
+    name: guide?.name || localizedText('나의 출간 가이드', 'My Published Guide', '公開したガイド'),
+    author: guide?.author || `${TravelogState.userProfile.nickname || 'Travelog Creator'} (크리에이터)`,
+    rating: guide?.rating || 'NEW',
+    bg: guide?.bg || 'assets/images/brand/travelog-ci-symbol.svg',
+    badge: guide?.badge || '오늘의 가이드',
+    isWidget: guide?.isWidget !== false,
+    createdAt: guide?.createdAt || new Date().toISOString(),
+    pinCount: guide?.pinCount || 0
+  };
+}
+
+function savePublishedGuides(publishedGuides) {
+  try {
+    localStorage.setItem(PUBLISHED_GUIDES_STORAGE_KEY, JSON.stringify(publishedGuides));
+  } catch (error) {
+    console.warn('Published guides could not be saved locally.', error);
+  }
+}
+
+function mergePublishedGuideIntoCollections(guideCard) {
+  const guide = sanitizePublishedGuideCard(guideCard);
+
+  RECOMMEND_GUIDES_DATA.today = [
+    { ...guide },
+    ...RECOMMEND_GUIDES_DATA.today.filter(item => item.id !== guide.id)
+  ];
+
+  TravelogState.userGuides = [
+    { ...guide, isWidget: guide.isWidget !== false },
+    ...TravelogState.userGuides.filter(item => item.id !== guide.id)
+  ];
+
+  return guide;
+}
+
+function loadPublishedGuides() {
+  try {
+    const raw = localStorage.getItem(PUBLISHED_GUIDES_STORAGE_KEY);
+    const savedGuides = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(savedGuides)) return;
+
+    savedGuides.slice().reverse().forEach(guide => {
+      mergePublishedGuideIntoCollections(guide);
+    });
+  } catch (error) {
+    console.warn('Published guides could not be loaded locally.', error);
+  }
+}
+
+function registerPublishedGuide(guideCard) {
+  const guide = mergePublishedGuideIntoCollections(guideCard);
+  const existingRaw = localStorage.getItem(PUBLISHED_GUIDES_STORAGE_KEY);
+  let publishedGuides = [];
+
+  try {
+    publishedGuides = existingRaw ? JSON.parse(existingRaw) : [];
+    if (!Array.isArray(publishedGuides)) publishedGuides = [];
+  } catch (_) {
+    publishedGuides = [];
+  }
+
+  publishedGuides = [
+    guide,
+    ...publishedGuides.filter(item => item.id !== guide.id)
+  ].slice(0, 30);
+
+  savePublishedGuides(publishedGuides);
+  renderHomeTab();
+  showToast(localizedText('오늘의 가이드에 등록되었습니다!', "Registered under Today's Guide!", '今日のガイドに登録されました！'));
+  return guide;
+}
 
 function initHomeTab() {
   // Bind Dashboard actions
@@ -824,6 +902,7 @@ function triggerModuleLanguageUpdate() {
 // Onboarding & Profile Flow
 // ==========================================
 const ONBOARDING_STORAGE_KEY = 'travelog_user_profile_v1';
+const PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_published_guides_v1';
 const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
 const AVATAR_PRESETS = {
   sun: '☀️',
@@ -1726,6 +1805,8 @@ window.TravelogApp = {
   getLanguage: () => TravelogState.language,
   t: (ko, en, ja) => localizedText(ko, en, ja),
   pickLocalized: (source, baseKey) => localizedField(source, baseKey),
+  registerPublishedGuide: registerPublishedGuide,
+  renderHomeTab: renderHomeTab,
   claimCoupon: (coupon) => {
     TravelogState.ownedCoupons.push(coupon);
     if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.renderCouponWallet === 'function') {

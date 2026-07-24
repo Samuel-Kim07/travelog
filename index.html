@@ -595,7 +595,7 @@
                   <span style="display: block; font-weight: 700; color: #34A853;">Google Drive Cloud</span>
                   <span style="font-size: 11px; color: var(--text-muted);">공유 오픈 드라이브 저장소</span>
                 </div>
-                <a href="https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=sharing" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i class="fa-brands fa-google-drive"></i> 폴더 열기</a>
+                <a href="https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i class="fa-brands fa-google-drive"></i> 폴더 열기</a>
               </div>
 
               <button class="btn-rect" id="publish-final-tour-btn" style="width: 100%; justify-content: center; font-size: 14px; background: var(--grad-pink-purple);">
@@ -1090,17 +1090,26 @@
     </div>
   </div>
 
-  <!-- Guide Publishing Progress Modal -->
+  <!-- Guide Publishing Progress / Ready Modal -->
   <div id="publish-loading-modal" class="profile-manager-modal" style="z-index: 3000;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
+    <div class="profile-manager-card glass-panel" style="max-width: 430px; text-align: center; padding: 40px 30px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;">
       <div id="publish-loading-spinner" style="font-size: 50px; color: var(--accent-blue);">
         <i class="fa-solid fa-spinner fa-spin"></i>
       </div>
       <div id="publish-success-icon" style="font-size: 50px; color: #4caf50; display: none;">
         <i class="fa-solid fa-circle-check"></i>
       </div>
-      <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간중입니다...</h2>
-      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">제작한 가이드 설정과 녹음 음성 데이터를 준비 중입니다.</p>
+      <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간 데이터를 저장 중입니다...</h2>
+      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">저장할 위치를 선택하면 Travelog_user_data 폴더와 Audio, Video, Text 폴더가 생성됩니다.</p>
+      <div id="publish-local-summary" style="display: none; width: 100%; text-align: left; font-size: 12px; line-height: 1.7; color: var(--text-secondary); background: rgba(112, 162, 183, 0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px;">
+        <!-- Saved folder summary -->
+      </div>
+      <div id="publish-ready-actions" style="display: none; width: 100%; gap: 10px; justify-content: center;">
+        <button class="btn-rect secondary" id="publish-ready-close-btn" type="button" style="flex: 1; justify-content: center;">닫기</button>
+        <button class="btn-rect" id="publish-drive-upload-btn" type="button" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);">
+          <i class="fa-solid fa-cloud-arrow-up"></i> 출간하기
+        </button>
+      </div>
     </div>
   </div>
 
