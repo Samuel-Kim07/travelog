@@ -359,16 +359,28 @@ const RECOMMEND_GUIDES_DATA = {
 
 function sanitizePublishedGuideCard(guide) {
   const nowId = `published-${Date.now()}`;
+  const stops = Array.isArray(guide?.stops) ? guide.stops.map(stop => ({ ...stop })) : [];
+  const eventCoupons = Array.isArray(guide?.eventCoupons) ? guide.eventCoupons.map(coupon => ({ ...coupon })) : [];
+
   return {
     id: guide?.id || nowId,
     name: guide?.name || localizedText('나의 출간 가이드', 'My Published Guide', '公開したガイド'),
     author: guide?.author || `${TravelogState.userProfile.nickname || 'Travelog Creator'} (크리에이터)`,
     rating: guide?.rating || 'NEW',
-    bg: guide?.bg || 'assets/images/brand/travelog-ci-symbol.svg',
+    bg: guide?.bg || guide?.representativeImage || 'assets/images/brand/travelog-ci-symbol.svg',
+    representativeImage: guide?.representativeImage || guide?.bg || '',
+    guideIntroText: guide?.guideIntroText || guide?.introText || '',
+    guideIntroAudio: guide?.guideIntroAudio || null,
+    guideIntroVideo: guide?.guideIntroVideo || null,
     badge: guide?.badge || '오늘의 가이드',
     isWidget: guide?.isWidget !== false,
+    isPublishedGuide: guide?.isPublishedGuide === true || stops.length > 0,
     createdAt: guide?.createdAt || new Date().toISOString(),
-    pinCount: guide?.pinCount || 0
+    pinCount: Number(guide?.pinCount ?? stops.length ?? 0),
+    memoCount: Number(guide?.memoCount ?? 0),
+    couponCount: Number(guide?.couponCount ?? eventCoupons.length ?? 0),
+    stops,
+    eventCoupons
   };
 }
 
@@ -378,6 +390,105 @@ function savePublishedGuides(publishedGuides) {
   } catch (error) {
     console.warn('Published guides could not be saved locally.', error);
   }
+}
+
+
+function getCreatorPublishedGuideRecords() {
+  try {
+    const raw = localStorage.getItem(CREATOR_PUBLISHED_GUIDES_STORAGE_KEY);
+    const records = raw ? JSON.parse(raw) : [];
+    return Array.isArray(records) ? records : [];
+  } catch (error) {
+    console.warn('Creator published guide records could not be loaded.', error);
+    return [];
+  }
+}
+
+function findCreatorPublishedGuideRecord(guideId) {
+  if (!guideId) return null;
+  return getCreatorPublishedGuideRecords().find(record => record && record.id === guideId) || null;
+}
+
+function getPublishedGuideDescription(record, guideCard) {
+  const author = record?.creator || guideCard?.author || TravelogState.userProfile.nickname || 'Travelog Creator';
+  const pinCount = record?.pinCount ?? (Array.isArray(record?.pins) ? record.pins.length : guideCard?.pinCount || 0);
+  const memoCount = record?.memoCount ?? guideCard?.memoCount ?? 0;
+  const couponCount = record?.couponCount ?? guideCard?.couponCount ?? 0;
+  return `${author}의 출간 가이드 · 코스 ${pinCount}개 · 메모 ${memoCount}개 · 쿠폰 ${couponCount}개`;
+}
+
+function getPublishedGuidePins(record, guideCard) {
+  if (Array.isArray(record?.pins) && record.pins.length > 0) {
+    return record.pins;
+  }
+  if (Array.isArray(record?.stops) && record.stops.length > 0) {
+    return record.stops;
+  }
+  if (Array.isArray(guideCard?.stops) && guideCard.stops.length > 0) {
+    return guideCard.stops;
+  }
+  return [];
+}
+
+function makeCreatorRecordFromGuideCard(guideCard) {
+  if (!guideCard?.isPublishedGuide && !(Array.isArray(guideCard?.stops) && guideCard.stops.length > 0)) {
+    return null;
+  }
+
+  return {
+    id: guideCard.id,
+    tourName: guideCard.name,
+    creator: guideCard.author,
+    createdAt: guideCard.createdAt,
+    representativeImage: guideCard.representativeImage || guideCard.bg || '',
+    guideIntroText: guideCard.guideIntroText || '',
+    guideIntroAudio: guideCard.guideIntroAudio || null,
+    guideIntroVideo: guideCard.guideIntroVideo || null,
+    pinCount: guideCard.pinCount || (guideCard.stops || []).length,
+    memoCount: guideCard.memoCount || 0,
+    couponCount: guideCard.couponCount || (guideCard.eventCoupons || []).length || 0,
+    pins: (guideCard.stops || []).map(stop => ({ ...stop })),
+    eventCoupons: (guideCard.eventCoupons || []).map(coupon => ({ ...coupon })),
+    guideCard: { ...guideCard }
+  };
+}
+
+function createStopsFromCreatorPublishedGuide(record, guideCard = null) {
+  const pins = getPublishedGuidePins(record, guideCard);
+  return pins
+    .slice()
+    .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+    .map((pin, index) => {
+      const hasVideo = pin.type === 'video' || (Array.isArray(pin.linkedVideos) && pin.linkedVideos.length > 0);
+      const hasAudio = pin.type === 'audio' || (Array.isArray(pin.linkedAudios) && pin.linkedAudios.length > 0);
+      const type = pin.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo');
+      const icon = pin.icon || (type === 'video' ? 'fa-solid fa-video' : type === 'audio' ? 'fa-solid fa-volume-high' : type === 'coupon' ? 'fa-solid fa-ticket' : 'fa-solid fa-note-sticky');
+      const nameKo = pin.nameKo || pin.name || `메모핀 ${index + 1}`;
+      const nameEn = pin.nameEn || pin.name || `Memo Pin ${index + 1}`;
+      const nameJa = pin.nameJa || pin.name || `メモピン ${index + 1}`;
+      const desc = pin.descKo || pin.desc || pin.description || pin.memoText || pin.triggerTextKo || '등록된 메모가 없습니다.';
+      return {
+        id: pin.id || `published-pin-${index + 1}`,
+        order: index + 1,
+        nameKo,
+        nameEn,
+        nameJa,
+        descKo: desc,
+        descEn: pin.descEn || desc,
+        descJa: pin.descJa || desc,
+        lat: Number(pin.lat) || 37.5750,
+        lng: Number(pin.lng) || 126.9768,
+        type,
+        icon,
+        color: pin.color || (hasVideo ? 'pin-video' : hasAudio ? 'pin-audio' : type === 'coupon' ? 'pin-coupon' : 'pin-memo'),
+        triggerRadius: Number(pin.triggerRadius) || 20,
+        triggerTextKo: pin.triggerTextKo || desc,
+        triggerTextEn: pin.triggerTextEn || pin.descEn || desc,
+        triggerTextJa: pin.triggerTextJa || pin.descJa || desc,
+        createdAt: pin.createdAt || null,
+        sourcePin: { ...pin }
+      };
+    });
 }
 
 function mergePublishedGuideIntoCollections(guideCard) {
@@ -433,6 +544,25 @@ function registerPublishedGuide(guideCard) {
   return guide;
 }
 
+function removePublishedGuide(guideId) {
+  if (!guideId) return;
+
+  RECOMMEND_GUIDES_DATA.today = RECOMMEND_GUIDES_DATA.today.filter(item => item.id !== guideId);
+  TravelogState.userGuides = TravelogState.userGuides.filter(item => item.id !== guideId);
+
+  try {
+    const existingRaw = localStorage.getItem(PUBLISHED_GUIDES_STORAGE_KEY);
+    const publishedGuides = existingRaw ? JSON.parse(existingRaw) : [];
+    if (Array.isArray(publishedGuides)) {
+      savePublishedGuides(publishedGuides.filter(item => item.id !== guideId));
+    }
+  } catch (error) {
+    console.warn('Published guide could not be removed locally.', error);
+  }
+
+  renderHomeTab();
+}
+
 function initHomeTab() {
   // Bind Dashboard actions
   const profileTrigger = document.getElementById('home-profile-trigger');
@@ -483,6 +613,8 @@ function initHomeTab() {
   // Start banner ad rotation
   startAdRolling();
   
+  initHomeGuideIntroModals();
+
   // Initial rendering
   renderHomeTab();
 }
@@ -546,7 +678,7 @@ function renderGuideWidgets() {
           <h4 class="widget-block-title">${escapeHtml(guide.name)}</h4>
           <span class="widget-block-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
         </div>
-        <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
+        <button class="widget-block-btn" onclick="window.openGuideIntroFromHome('${guide.id}')">
           <i class="fa-solid fa-circle-play"></i> <span data-localize="start_guide">가이드 시작</span>
         </button>
       </div>`;
@@ -559,7 +691,7 @@ function renderGuidesScrollList(containerId, listData) {
 
   container.innerHTML = listData.map(item => {
     return `
-      <div class="guide-card" onclick="window.startGuideFromHome('${item.id}')">
+      <div class="guide-card" onclick="window.openGuideIntroFromHome('${item.id}')">
         <div class="guide-card-bg" style="background-image: url('${item.bg}')"></div>
         <div class="guide-card-content">
           <h5 class="guide-card-title">${escapeHtml(item.name)}</h5>
@@ -718,17 +850,19 @@ function saveWidgetConfig() {
   renderHomeTab();
 }
 
-// Launcher to Guide Map Tab
-window.startGuideFromHome = function(guideId) {
-  // Check if we have that guide in lists or default fallback Gyeongbokgung
-  let selectedGuideInfo = null;
+// Launcher / Intro popup for Home guide cards
+let currentIntroGuideId = null;
+let homeGuidePreviewMap = null;
+let homeGuidePreviewLayer = null;
 
-  // Search userGuides
+function findHomeGuideInfo(guideId) {
+  let selectedGuideInfo = null;
+  const creatorPublishedRecord = findCreatorPublishedGuideRecord(guideId);
+
   const foundUser = TravelogState.userGuides.find(g => g.id === guideId);
   if (foundUser) {
     selectedGuideInfo = foundUser;
   } else {
-    // Search recommeded lists
     for (const cat in RECOMMEND_GUIDES_DATA) {
       const match = RECOMMEND_GUIDES_DATA[cat].find(g => g.id === guideId);
       if (match) {
@@ -738,22 +872,265 @@ window.startGuideFromHome = function(guideId) {
     }
   }
 
-  // Switch to Gyeongbokgung stops for this prototype demo guide triggers
-  TravelogState.activeGuide = {
+  const resolvedPublishedRecord = creatorPublishedRecord || makeCreatorRecordFromGuideCard(selectedGuideInfo);
+  return { selectedGuideInfo, resolvedPublishedRecord };
+}
+
+function buildActiveGuideFromHomeGuide(guideId) {
+  const { selectedGuideInfo, resolvedPublishedRecord } = findHomeGuideInfo(guideId);
+
+  if (resolvedPublishedRecord) {
+    const guideCard = resolvedPublishedRecord.guideCard || selectedGuideInfo || {};
+    const stops = createStopsFromCreatorPublishedGuide(resolvedPublishedRecord, guideCard);
+    const descKo = getPublishedGuideDescription(resolvedPublishedRecord, guideCard);
+    const title = resolvedPublishedRecord.tourName || guideCard.name || '나의 출간 가이드';
+    const representativeImage = resolvedPublishedRecord.representativeImage || guideCard.representativeImage || guideCard.bg || '';
+    const eventCoupons = Array.isArray(resolvedPublishedRecord.eventCoupons)
+      ? resolvedPublishedRecord.eventCoupons
+      : Array.isArray(guideCard.eventCoupons) ? guideCard.eventCoupons : [];
+
+    return {
+      id: guideId,
+      isPublishedGuide: true,
+      nameKo: title,
+      nameEn: title,
+      nameJa: title,
+      descKo,
+      descEn: descKo,
+      descJa: descKo,
+      author: resolvedPublishedRecord.creator || guideCard.author || '',
+      representativeImage,
+      bg: representativeImage,
+      badge: guideCard.badge || '오늘의 가이드',
+      guideIntroText: resolvedPublishedRecord.guideIntroText || guideCard.guideIntroText || '',
+      guideIntroAudio: resolvedPublishedRecord.guideIntroAudio || guideCard.guideIntroAudio || null,
+      guideIntroVideo: resolvedPublishedRecord.guideIntroVideo || guideCard.guideIntroVideo || null,
+      pinCount: resolvedPublishedRecord.pinCount || stops.length,
+      memoCount: resolvedPublishedRecord.memoCount || guideCard.memoCount || stops.length,
+      couponCount: resolvedPublishedRecord.couponCount || guideCard.couponCount || eventCoupons.length || 0,
+      eventCoupons,
+      stops
+    };
+  }
+
+  return {
     id: guideId,
-    nameEn: selectedGuideInfo ? selectedGuideInfo.author + ' Tour' : 'Gyeongbokgung Historical Tour',
+    nameEn: selectedGuideInfo ? `${selectedGuideInfo.author} Tour` : 'Gyeongbokgung Historical Tour',
     nameKo: selectedGuideInfo ? selectedGuideInfo.name : '경복궁 역사/문화 가이드 투어',
-    nameJa: selectedGuideInfo ? selectedGuideInfo.name + ' ツアー' : '景福宮 歴史・文化ツアー',
+    nameJa: selectedGuideInfo ? `${selectedGuideInfo.name} ツアー` : '景福宮 歴史・文化ツアー',
     descEn: 'Historical exploration tour guide.',
-    descKo: selectedGuideInfo ? selectedGuideInfo.author + '의 특별 가이드 코스' : '경복궁 역사와 가치에 얽힌 로컬 이야기',
+    descKo: selectedGuideInfo ? `${selectedGuideInfo.author}의 특별 가이드 코스` : '경복궁 역사와 가치에 얽힌 로컬 이야기',
     descJa: '歴史・文化解説付きガイドツアー。',
+    representativeImage: selectedGuideInfo?.bg || '',
+    bg: selectedGuideInfo?.bg || '',
+    badge: selectedGuideInfo?.badge || '추천 가이드',
+    guideIntroText: selectedGuideInfo ? `${selectedGuideInfo.name}에 대한 투어 소개가 아직 등록되지 않았습니다.` : '경복궁 대표 코스를 따라 걷는 기본 데모 가이드입니다.',
+    guideIntroAudio: null,
+    guideIntroVideo: null,
+    eventCoupons: [],
+    couponCount: 0,
     stops: [
-      { nameEn: "Gwanghwamun Gate", nameKo: "광화문", nameJa: "光化門", lat: 37.5760, lng: 126.9768, triggerRadius: 25 },
-      { nameEn: "Heungnyemun Court", nameKo: "흥례문 뜰", nameJa: "興礼門の庭", lat: 37.5772, lng: 126.9768, triggerRadius: 20 },
-      { nameEn: "Geongjeongjeon Main Hall", nameKo: "근정전", nameJa: "勤政殿", lat: 37.5786, lng: 126.9772, triggerRadius: 20 },
-      { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30 }
+      { nameEn: "Gwanghwamun Gate", nameKo: "광화문", nameJa: "光化門", lat: 37.5760, lng: 126.9768, triggerRadius: 25, description: '경복궁의 남쪽 정문입니다.' },
+      { nameEn: "Heungnyemun Court", nameKo: "흥례문 뜰", nameJa: "興礼門の庭", lat: 37.5772, lng: 126.9768, triggerRadius: 20, description: '넓은 조정과 품계석을 볼 수 있는 구간입니다.' },
+      { nameEn: "Geongjeongjeon Main Hall", nameKo: "근정전", nameJa: "勤政殿", lat: 37.5786, lng: 126.9772, triggerRadius: 20, description: '왕의 즉위식과 국가 의례가 열리던 중심 전각입니다.' },
+      { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30, description: '연못 위에 세워진 대표 누각입니다.' }
     ]
   };
+}
+
+function initHomeGuideIntroModals() {
+  const introClose = document.getElementById('home-guide-intro-close-btn');
+  const previewClose = document.getElementById('home-guide-preview-close-btn');
+  const previewBtn = document.getElementById('home-guide-intro-preview-btn');
+
+  if (introClose && !introClose.dataset.bound) {
+    introClose.dataset.bound = 'true';
+    introClose.addEventListener('click', window.closeHomeGuideIntroModal);
+  }
+  if (previewClose && !previewClose.dataset.bound) {
+    previewClose.dataset.bound = 'true';
+    previewClose.addEventListener('click', window.closeHomeGuidePreviewModal);
+  }
+  if (previewBtn && !previewBtn.dataset.bound) {
+    previewBtn.dataset.bound = 'true';
+    previewBtn.addEventListener('click', () => {
+      if (currentIntroGuideId) window.openHomeGuidePreviewModal(currentIntroGuideId);
+    });
+  }
+}
+
+function renderIntroMedia(activeGuide) {
+  const mediaBox = document.getElementById('home-guide-intro-media');
+  if (!mediaBox) return;
+  const mediaItems = [];
+  const video = activeGuide.guideIntroVideo;
+  const audio = activeGuide.guideIntroAudio;
+
+  if (video && video.dataUrl) {
+    mediaItems.push(`
+      <div style="border:1px solid var(--glass-border); border-radius:14px; padding:10px; background:rgba(0,0,0,.04);">
+        <strong style="font-size:12px;"><i class="fa-solid fa-video"></i> 투어소개 영상</strong>
+        <video controls playsinline preload="metadata" src="${video.dataUrl}" style="width:100%; max-height:220px; margin-top:8px; border-radius:12px; background:#000;"></video>
+      </div>`);
+  }
+  if (audio && audio.dataUrl) {
+    mediaItems.push(`
+      <div style="border:1px solid var(--glass-border); border-radius:14px; padding:10px; background:rgba(112,162,183,.07);">
+        <strong style="font-size:12px;"><i class="fa-solid fa-volume-high"></i> 투어소개 음성</strong>
+        <audio controls preload="metadata" src="${audio.dataUrl}" style="width:100%; margin-top:8px;"></audio>
+      </div>`);
+  }
+
+  mediaBox.innerHTML = mediaItems.length
+    ? mediaItems.join('')
+    : '<div style="font-size:12px; color:var(--text-muted); border:1px dashed var(--glass-border); border-radius:12px; padding:10px;">등록된 투어소개 영상/음성이 없습니다.</div>';
+}
+
+window.openGuideIntroFromHome = function(guideId) {
+  currentIntroGuideId = guideId;
+  const activeGuide = buildActiveGuideFromHomeGuide(guideId);
+  const stops = Array.isArray(activeGuide.stops) ? activeGuide.stops : [];
+  const coupons = Array.isArray(activeGuide.eventCoupons) ? activeGuide.eventCoupons : [];
+  const modal = document.getElementById('home-guide-intro-modal');
+  if (!modal) {
+    window.startGuideFromHome(guideId);
+    return;
+  }
+
+  const title = localizedField(activeGuide, 'name') || activeGuide.nameKo || activeGuide.name || 'Travelog Guide';
+  const description = activeGuide.guideIntroText || localizedField(activeGuide, 'desc') || '등록된 투어 소개글이 없습니다.';
+  const cover = activeGuide.representativeImage || activeGuide.bg || '';
+
+  const coverEl = document.getElementById('home-guide-intro-cover');
+  if (coverEl) coverEl.style.backgroundImage = cover ? `url('${cover}')` : '';
+  const badgeEl = document.getElementById('home-guide-intro-badge');
+  if (badgeEl) badgeEl.textContent = activeGuide.badge || '오늘의 가이드';
+  const titleEl = document.getElementById('home-guide-intro-title');
+  if (titleEl) titleEl.textContent = title;
+  const metaEl = document.getElementById('home-guide-intro-meta');
+  if (metaEl) metaEl.textContent = `${activeGuide.author || 'Travelog Creator'} · 코스 ${stops.length}개 · 메모 ${activeGuide.memoCount || stops.length}개 · 쿠폰 ${coupons.length}개`;
+  const descEl = document.getElementById('home-guide-intro-description');
+  if (descEl) descEl.textContent = description;
+
+  renderIntroMedia(activeGuide);
+
+  const pinList = document.getElementById('home-guide-intro-pin-list');
+  if (pinList) {
+    pinList.innerHTML = stops.length ? stops.map((pin, index) => {
+      const pinTitle = pin.nameKo || pin.nameEn || pin.name || `코스핀 ${index + 1}`;
+      const pinDesc = pin.description || pin.descKo || pin.desc || pin.triggerTextKo || '메모 없음';
+      return `
+        <div style="background:white; border:1px solid var(--glass-border); border-radius:12px; padding:9px 10px; font-size:12px;">
+          <strong style="display:block; color:var(--text-primary); margin-bottom:4px;">${index + 1}. ${escapeHtml(pinTitle)}</strong>
+          <span style="display:block; color:var(--text-secondary); line-height:1.45;">${escapeHtml(pinDesc)}</span>
+          <small style="display:block; margin-top:5px; color:var(--text-muted);">${Number(pin.lat).toFixed(5)}, ${Number(pin.lng).toFixed(5)}</small>
+        </div>`;
+    }).join('') : '<div style="text-align:center; color:var(--text-muted); font-size:12px; padding:14px 0;">등록된 핀이 없습니다.</div>';
+  }
+
+  const couponList = document.getElementById('home-guide-intro-coupon-list');
+  if (couponList) {
+    couponList.innerHTML = coupons.length ? coupons.map((coupon, index) => `
+      <div style="background:white; border:1px solid var(--glass-border); border-radius:12px; padding:9px 10px; font-size:12px;">
+        <strong style="display:block; color:var(--text-primary); margin-bottom:4px;">${index + 1}. ${escapeHtml(coupon.vendor || '업체')}</strong>
+        <span style="color:var(--text-secondary);">${escapeHtml(coupon.offer || coupon.name || '쿠폰')}</span>
+      </div>`).join('') : '<div style="text-align:center; color:var(--text-muted); font-size:12px; padding:14px 0;">포함된 쿠폰이 없습니다.</div>';
+  }
+
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+};
+
+window.closeHomeGuideIntroModal = function() {
+  const modal = document.getElementById('home-guide-intro-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+};
+
+window.openHomeGuidePreviewModal = function(guideId) {
+  const activeGuide = buildActiveGuideFromHomeGuide(guideId);
+  const stops = Array.isArray(activeGuide.stops) ? activeGuide.stops : [];
+  const modal = document.getElementById('home-guide-preview-modal');
+  if (!modal) return;
+
+  const title = localizedField(activeGuide, 'name') || activeGuide.nameKo || '가이드 미리보기';
+  const titleEl = document.getElementById('home-guide-preview-title');
+  const metaEl = document.getElementById('home-guide-preview-meta');
+  if (titleEl) titleEl.textContent = title;
+  if (metaEl) metaEl.textContent = `연결된 코스핀 ${stops.length}개 · 지도 경로 미리보기`;
+
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+
+  const summary = document.getElementById('home-guide-preview-pin-summary');
+  if (summary) {
+    summary.innerHTML = stops.length ? stops.map((pin, index) => `
+      <div style="flex:0 0 auto; min-width:145px; border:1px solid var(--glass-border); border-radius:14px; background:white; padding:8px 10px; font-size:12px;">
+        <strong>${index + 1}. ${escapeHtml(pin.nameKo || pin.nameEn || `핀 ${index + 1}`)}</strong><br>
+        <span style="color:var(--text-muted);">${Number(pin.lat).toFixed(5)}, ${Number(pin.lng).toFixed(5)}</span>
+      </div>`).join('') : '<div style="color:var(--text-muted); font-size:12px; padding:8px;">표시할 핀이 없습니다.</div>';
+  }
+
+  window.setTimeout(() => renderHomeGuidePreviewMap(stops), 80);
+};
+
+function renderHomeGuidePreviewMap(stops) {
+  const mapEl = document.getElementById('home-guide-preview-map');
+  if (!mapEl || typeof L === 'undefined') return;
+
+  if (!homeGuidePreviewMap) {
+    homeGuidePreviewMap = L.map(mapEl, { zoomControl: false, attributionControl: false }).setView([37.5780, 126.9768], 14);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 20
+    }).addTo(homeGuidePreviewMap);
+    homeGuidePreviewLayer = L.layerGroup().addTo(homeGuidePreviewMap);
+  }
+
+  homeGuidePreviewLayer.clearLayers();
+  const coords = stops
+    .map(pin => [Number(pin.lat), Number(pin.lng), pin])
+    .filter(item => Number.isFinite(item[0]) && Number.isFinite(item[1]));
+
+  coords.forEach(([lat, lng, pin], index) => {
+    const icon = L.divIcon({
+      html: `<div style="width:32px;height:32px;border-radius:50%;background:#ff2e63;color:white;border:3px solid white;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 4px 14px rgba(0,0,0,.24);">${index + 1}</div>`,
+      className: 'home-preview-pin-marker',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    const marker = L.marker([lat, lng], { icon }).bindPopup(`<strong>${escapeHtml(pin.nameKo || pin.nameEn || `핀 ${index + 1}`)}</strong><br>${escapeHtml(pin.description || pin.descKo || '')}`);
+    homeGuidePreviewLayer.addLayer(marker);
+  });
+
+  if (coords.length > 1) {
+    const line = L.polyline(coords.map(([lat, lng]) => [lat, lng]), {
+      color: '#ff2e63',
+      weight: 5,
+      opacity: 0.92,
+      lineJoin: 'round',
+      lineCap: 'round'
+    });
+    homeGuidePreviewLayer.addLayer(line);
+    homeGuidePreviewMap.fitBounds(line.getBounds(), { padding: [24, 24] });
+  } else if (coords.length === 1) {
+    homeGuidePreviewMap.setView([coords[0][0], coords[0][1]], 16);
+  }
+
+  homeGuidePreviewMap.invalidateSize();
+}
+
+window.closeHomeGuidePreviewModal = function() {
+  const modal = document.getElementById('home-guide-preview-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+};
+
+window.startGuideFromHome = function(guideId) {
+  TravelogState.activeGuide = buildActiveGuideFromHomeGuide(guideId);
 
   // Perform programmatic tab switch to Map
   const navItems = document.querySelectorAll('.nav-item');
@@ -771,24 +1148,12 @@ window.startGuideFromHome = function(guideId) {
     window.updateMapLayoutForMode('run');
   }
 
-  // Redraw Map layer, load stops, and trigger walk simulation
   if (window.TravelogMapModule) {
     window.TravelogMapModule.renderTour();
     window.TravelogMapModule.invalidateSize();
-    
-    // Automatically trigger GPS Simulation Walk Test to start the tour immediately!
-    window.setTimeout(() => {
-      const simBtn = document.getElementById('gps-simulation-btn');
-      if (simBtn) {
-        const isSimulating = simBtn.classList.contains('active') || (document.getElementById('simulation-status-pill') && document.getElementById('simulation-status-pill').style.display === 'block');
-        if (!isSimulating) {
-          simBtn.click();
-        }
-      }
-    }, 600);
-
-    showToast(localizedText('가이드 지도를 로드하고 투어 걷기 테스트를 시작합니다!', 'Guide map loaded and walk test started!', 'ガイドマップを読み込み、歩行テストを開始します！'));
   }
+
+  showToast(localizedText('가이드 지도를 로드했습니다.', 'Guide map loaded.', 'ガイドマップを読み込みました。'));
 };
 
 // Rolling Ad timer
@@ -906,6 +1271,7 @@ function triggerModuleLanguageUpdate() {
 // ==========================================
 const ONBOARDING_STORAGE_KEY = 'travelog_user_profile_v1';
 const PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_published_guides_v1';
+const CREATOR_PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_creator_published_guides_v1';
 const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
 const AVATAR_PRESETS = {
   sun: '☀️',
@@ -1863,22 +2229,40 @@ window.updateMapLayoutForMode = function(mode) {
   } else {
     if (activeGuideCard) activeGuideCard.style.display = 'block';
     if (tourLocationsCard) tourLocationsCard.style.display = 'block';
-    if (legendPanel) legendPanel.style.display = 'flex';
+    if (legendPanel) legendPanel.style.display = 'none';
 
-    // Restore data-localize attributes for Explore mode
-    if (routeTitleEl) routeTitleEl.setAttribute('data-localize', 'map_route_title');
-    if (routeDescEl) routeDescEl.setAttribute('data-localize', 'map_route_desc');
+    const activeGuide = TravelogState.activeGuide;
+    const activePublished = activeGuide && activeGuide.isPublishedGuide === true;
 
-    // Restore default Gyeongbokgung text & localized translation for Explore mode
-    if (routeTitleEl) {
-      routeTitleEl.textContent = localizedText('경복궁 로컬 투어', 'Gyeongbokgung Local Tour', '景福宮ローカルツアー');
-    }
-    if (routeDescEl) {
-      routeDescEl.textContent = localizedText(
-        'GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.',
-        'View GPS, guide points, and personal memos in one place.',
-        'GPS位置、ガイド地点、メモを一画面で確認できます。'
-      );
+    if (activePublished) {
+      if (routeTitleEl) {
+        routeTitleEl.removeAttribute('data-localize');
+        routeTitleEl.textContent = localizedField(activeGuide, 'name') || activeGuide.name || 'Travelog Guide';
+      }
+      if (routeDescEl) {
+        routeDescEl.removeAttribute('data-localize');
+        routeDescEl.textContent = localizedField(activeGuide, 'desc') || activeGuide.desc || localizedText(
+          `코스 ${activeGuide.pinCount || (activeGuide.stops || []).length || 0}개 · 메모 ${activeGuide.memoCount || 0}개 · 쿠폰 ${activeGuide.couponCount || 0}개`,
+          `Stops ${activeGuide.pinCount || (activeGuide.stops || []).length || 0} · Memos ${activeGuide.memoCount || 0} · Coupons ${activeGuide.couponCount || 0}`,
+          `コース ${activeGuide.pinCount || (activeGuide.stops || []).length || 0}個 · メモ ${activeGuide.memoCount || 0}個 · クーポン ${activeGuide.couponCount || 0}個`
+        );
+      }
+    } else {
+      // Restore data-localize attributes for built-in demo guide mode
+      if (routeTitleEl) routeTitleEl.setAttribute('data-localize', 'map_route_title');
+      if (routeDescEl) routeDescEl.setAttribute('data-localize', 'map_route_desc');
+
+      // Restore default Gyeongbokgung text & localized translation for built-in/demo guides
+      if (routeTitleEl) {
+        routeTitleEl.textContent = localizedText('경복궁 로컬 투어', 'Gyeongbokgung Local Tour', '景福宮ローカルツアー');
+      }
+      if (routeDescEl) {
+        routeDescEl.textContent = localizedText(
+          'GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.',
+          'View GPS, guide points, and personal memos in one place.',
+          'GPS位置、ガイド地点、メモを一画面で確認できます。'
+        );
+      }
     }
   }
 };
@@ -1896,6 +2280,7 @@ window.TravelogApp = {
   t: (ko, en, ja) => localizedText(ko, en, ja),
   pickLocalized: (source, baseKey) => localizedField(source, baseKey),
   registerPublishedGuide: registerPublishedGuide,
+  removePublishedGuide: removePublishedGuide,
   renderHomeTab: renderHomeTab,
   claimCoupon: (coupon) => {
     TravelogState.ownedCoupons.push(coupon);

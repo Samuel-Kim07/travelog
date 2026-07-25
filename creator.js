@@ -38,8 +38,24 @@ const TravelogCreatorModule = (() => {
 
   const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
   const DRIVE_PARENT_FOLDER_URL = 'https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link';
-  const GOOGLE_DRIVE_TOKEN_KEY = 'travelog_google_drive_access_token';
+  const APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwXJ0Bk3FljLvY274QfQrKNnl_Cc_b9-O3vqBnektWX2rOVmlNIYvGSHu5iNW6Zdr0slg/exec';
+  const APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY = 'travelog_apps_script_publish_key';
+  const DEFAULT_APPS_SCRIPT_PUBLISH_KEY = ''; // Apps Script에서 PUBLISH_KEY를 비워두었다면 그대로 사용
+  const GUIDE_COVER_STORAGE_KEY = 'travelog_creator_guide_cover_v1';
+  const GUIDE_INTRO_TEXT_STORAGE_KEY = 'travelog_creator_guide_intro_text_v1';
+  const CREATOR_PUBLISHED_GUIDES_KEY = 'travelog_creator_published_guides_v1';
+  const REGISTERED_COUPONS_STORAGE_KEY = 'travelog_creator_registered_coupons_v1';
+  const EVENT_COUPON_CATALOG = {
+    '황궁쟁반짜장': ['짜장세트 30%할인권'],
+    '천종원 우삼겹 식당': ['우삼겹1인분무료쿠폰', '2인정식세트30%할인권'],
+    '나이키 서초점': ['전품목40%할인권']
+  };
   let pendingPublishPackage = null;
+  let guideCoverDataUrl = '';
+  let guideIntroAudio = null;
+  let guideIntroVideo = null;
+  let registeredCoupons = [];
+  let editingPublishedGuideId = null;
 
   function escapeHtml(value) {
     return String(value || '')
@@ -48,6 +64,162 @@ const TravelogCreatorModule = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function safeParseArray(raw, fallback = []) {
+    try {
+      const parsed = raw ? JSON.parse(raw) : fallback;
+      return Array.isArray(parsed) ? parsed : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function getGuideCoverDataUrl() {
+    return guideCoverDataUrl || localStorage.getItem(GUIDE_COVER_STORAGE_KEY) || '';
+  }
+
+  function setGuideCoverPreview(dataUrl) {
+    guideCoverDataUrl = dataUrl || '';
+    const preview = document.getElementById('guide-cover-preview');
+    const empty = document.getElementById('guide-cover-empty');
+    if (!preview) return;
+
+    if (guideCoverDataUrl) {
+      preview.style.backgroundImage = `url('${guideCoverDataUrl}')`;
+      if (empty) empty.style.display = 'none';
+    } else {
+      preview.style.backgroundImage = '';
+      if (empty) empty.style.display = 'block';
+    }
+  }
+
+  function initGuideCoverUploader() {
+    setGuideCoverPreview(localStorage.getItem(GUIDE_COVER_STORAGE_KEY) || '');
+
+    const input = document.getElementById('guide-cover-input');
+    const selectBtn = document.getElementById('guide-cover-select-btn');
+    const clearBtn = document.getElementById('guide-cover-clear-btn');
+
+    if (selectBtn && input) {
+      selectBtn.addEventListener('click', () => input.click());
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        localStorage.removeItem(GUIDE_COVER_STORAGE_KEY);
+        setGuideCoverPreview('');
+        window.TravelogApp.showToast(t('대표 이미지를 삭제했습니다.', 'Guide cover removed.', '代表画像を削除しました。'));
+      });
+    }
+
+    if (input) {
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          window.TravelogApp.showToast(t('이미지 파일을 선택해 주세요.', 'Please choose an image file.', '画像ファイルを選択してください。'));
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = String(reader.result || '');
+          try {
+            localStorage.setItem(GUIDE_COVER_STORAGE_KEY, dataUrl);
+          } catch (error) {
+            console.warn('[Travelog Creator] Guide cover could not be persisted:', error);
+          }
+          setGuideCoverPreview(dataUrl);
+          window.TravelogApp.showToast(t('가이드 대표 이미지가 적용되었습니다.', 'Guide cover image applied.', '代表画像を適用しました。'));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  }
+
+  function getGuideIntroText() {
+    return (document.getElementById('guide-intro-text')?.value || localStorage.getItem(GUIDE_INTRO_TEXT_STORAGE_KEY) || '').trim();
+  }
+
+  function setGuideIntroMediaStatus(kind, fileName) {
+    const el = document.getElementById(kind === 'audio' ? 'guide-intro-audio-status' : 'guide-intro-video-status');
+    if (el) el.textContent = fileName || (kind === 'audio' ? '선택된 음성 없음' : '선택된 영상 없음');
+  }
+
+  function makeIntroMediaFromFile(file, kind) {
+    if (!file) return null;
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({
+        type: kind,
+        fileName: file.name,
+        mimeType: file.type || (kind === 'video' ? 'video/webm' : 'audio/webm'),
+        size: file.size || 0,
+        dataUrl: String(reader.result || ''),
+        createdAt: new Date().toISOString()
+      });
+      reader.onerror = () => reject(reader.error || new Error('INTRO_MEDIA_READ_FAILED'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function initGuideIntroBuilder() {
+    const textArea = document.getElementById('guide-intro-text');
+    if (textArea) {
+      textArea.value = localStorage.getItem(GUIDE_INTRO_TEXT_STORAGE_KEY) || '';
+      textArea.addEventListener('input', () => {
+        try { localStorage.setItem(GUIDE_INTRO_TEXT_STORAGE_KEY, textArea.value || ''); } catch (_) {}
+      });
+    }
+
+    const audioInput = document.getElementById('guide-intro-audio-input');
+    const audioSelectBtn = document.getElementById('guide-intro-audio-select-btn');
+    const audioClearBtn = document.getElementById('guide-intro-audio-clear-btn');
+    const videoInput = document.getElementById('guide-intro-video-input');
+    const videoSelectBtn = document.getElementById('guide-intro-video-select-btn');
+    const videoClearBtn = document.getElementById('guide-intro-video-clear-btn');
+
+    if (audioSelectBtn && audioInput) audioSelectBtn.addEventListener('click', () => audioInput.click());
+    if (videoSelectBtn && videoInput) videoSelectBtn.addEventListener('click', () => videoInput.click());
+
+    if (audioClearBtn) audioClearBtn.addEventListener('click', () => {
+      guideIntroAudio = null;
+      if (audioInput) audioInput.value = '';
+      setGuideIntroMediaStatus('audio', '');
+      window.TravelogApp?.showToast(t('투어소개 음성을 삭제했습니다.', 'Intro audio removed.', '紹介音声を削除しました。'));
+    });
+
+    if (videoClearBtn) videoClearBtn.addEventListener('click', () => {
+      guideIntroVideo = null;
+      if (videoInput) videoInput.value = '';
+      setGuideIntroMediaStatus('video', '');
+      window.TravelogApp?.showToast(t('투어소개 영상을 삭제했습니다.', 'Intro video removed.', '紹介動画を削除しました。'));
+    });
+
+    if (audioInput) audioInput.addEventListener('change', async () => {
+      const file = audioInput.files && audioInput.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('audio/')) {
+        window.TravelogApp?.showToast(t('오디오 파일을 선택해 주세요.', 'Please choose an audio file.', 'オーディオファイルを選択してください。'));
+        return;
+      }
+      guideIntroAudio = await makeIntroMediaFromFile(file, 'audio');
+      setGuideIntroMediaStatus('audio', file.name);
+      window.TravelogApp?.showToast(t('투어소개 음성이 등록되었습니다.', 'Intro audio added.', '紹介音声を登録しました。'));
+    });
+
+    if (videoInput) videoInput.addEventListener('change', async () => {
+      const file = videoInput.files && videoInput.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('video/')) {
+        window.TravelogApp?.showToast(t('비디오 파일을 선택해 주세요.', 'Please choose a video file.', 'ビデオファイルを選択してください。'));
+        return;
+      }
+      guideIntroVideo = await makeIntroMediaFromFile(file, 'video');
+      setGuideIntroMediaStatus('video', file.name);
+      window.TravelogApp?.showToast(t('투어소개 영상이 등록되었습니다.', 'Intro video added.', '紹介動画を登録しました。'));
+    });
   }
 
   // Field Voice Memo States
@@ -67,9 +239,16 @@ const TravelogCreatorModule = (() => {
   let videoMemoInterval = null;
 
   function init() {
+    loadRegisteredCoupons();
+    initGuideCoverUploader();
+    initGuideIntroBuilder();
+    bindCouponControlPanel();
+    bindGuideEditModal();
     renderCoordinatesList();
     renderAudioList();
     renderVideoList();
+    renderRegisteredCouponList();
+    renderPublishedGuidesList();
     updatePublishPanelCounts();
 
     // Bind Planner actions
@@ -80,6 +259,16 @@ const TravelogCreatorModule = (() => {
     const saveTourBtn = document.getElementById('save-tour-btn');
     if (saveTourBtn) {
       saveTourBtn.addEventListener('click', saveTour);
+    }
+
+    const connectPinsBtn = document.getElementById('connect-pins-btn');
+    if (connectPinsBtn) {
+      connectPinsBtn.addEventListener('click', connectPinsOnMap);
+    }
+
+    const previewGuideBtn = document.getElementById('preview-current-guide-btn');
+    if (previewGuideBtn) {
+      previewGuideBtn.addEventListener('click', previewCurrentGuide);
     }
 
     // Bind Final Publish Action
@@ -205,6 +394,150 @@ const TravelogCreatorModule = (() => {
     });
 
     pins.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  }
+
+  function loadRegisteredCoupons() {
+    registeredCoupons = safeParseArray(localStorage.getItem(REGISTERED_COUPONS_STORAGE_KEY), []);
+  }
+
+  function saveRegisteredCoupons() {
+    try {
+      localStorage.setItem(REGISTERED_COUPONS_STORAGE_KEY, JSON.stringify(registeredCoupons));
+    } catch (error) {
+      console.warn('[Travelog Creator] Coupons could not be saved:', error);
+    }
+  }
+
+  function bindCouponControlPanel() {
+    const vendorInput = document.getElementById('coupon-vendor-input');
+    const registerBtn = document.getElementById('register-coupon-btn');
+
+    if (vendorInput) {
+      vendorInput.addEventListener('input', updateCouponOfferOptions);
+      vendorInput.addEventListener('change', updateCouponOfferOptions);
+      updateCouponOfferOptions();
+    }
+
+    if (registerBtn) {
+      registerBtn.addEventListener('click', registerSelectedCoupon);
+    }
+  }
+
+  function updateCouponOfferOptions() {
+    const vendorInput = document.getElementById('coupon-vendor-input');
+    const offerSelect = document.getElementById('coupon-offer-select');
+    if (!vendorInput || !offerSelect) return;
+
+    const vendor = vendorInput.value.trim();
+    const offers = EVENT_COUPON_CATALOG[vendor] || [];
+
+    if (offers.length === 0) {
+      offerSelect.innerHTML = '<option value="">업체를 먼저 선택하세요</option>';
+      return;
+    }
+
+    offerSelect.innerHTML = offers.map(offer => `<option value="${escapeHtml(offer)}">${escapeHtml(offer)}</option>`).join('');
+  }
+
+  function registerSelectedCoupon() {
+    const vendorInput = document.getElementById('coupon-vendor-input');
+    const offerSelect = document.getElementById('coupon-offer-select');
+    if (!vendorInput || !offerSelect) return;
+
+    const vendor = vendorInput.value.trim();
+    const offer = offerSelect.value.trim();
+
+    if (!vendor || !EVENT_COUPON_CATALOG[vendor]) {
+      window.TravelogApp.showToast(t('등록할 업체를 선택해 주세요.', 'Choose a vendor first.', '店舗を選択してください。'));
+      return;
+    }
+    if (!offer) {
+      window.TravelogApp.showToast(t('하위 쿠폰을 선택해 주세요.', 'Choose a coupon offer.', 'クーポンを選択してください。'));
+      return;
+    }
+
+    const coupon = {
+      id: `coupon-${Date.now()}`,
+      vendor,
+      offer,
+      createdAt: new Date().toISOString()
+    };
+    registeredCoupons.push(coupon);
+    saveRegisteredCoupons();
+    renderRegisteredCouponList();
+    updatePublishPanelCounts();
+    window.TravelogApp.showToast(t('이벤트 쿠폰이 등록되었습니다.', 'Event coupon registered.', 'イベントクーポンを登録しました。'));
+  }
+
+  function removeRegisteredCoupon(id) {
+    registeredCoupons = registeredCoupons.filter(coupon => coupon.id !== id);
+    saveRegisteredCoupons();
+    renderRegisteredCouponList();
+    updatePublishPanelCounts();
+  }
+
+  function renderRegisteredCouponList() {
+    const container = document.getElementById('registered-coupon-list');
+    if (!container) return;
+
+    if (registeredCoupons.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 12px 0; font-size: 12px;">등록된 이벤트 쿠폰이 없습니다.</div>';
+      return;
+    }
+
+    container.innerHTML = registeredCoupons.map((coupon, index) => `
+      <div class="registered-coupon-item" style="display: flex; justify-content: space-between; gap: 8px; align-items: center; background: rgba(255,255,255,0.55); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 9px 10px;">
+        <div style="min-width: 0;">
+          <div style="font-size: 12px; font-weight: 800; color: var(--text-primary);">${index + 1}. ${escapeHtml(coupon.vendor)}</div>
+          <div style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(coupon.offer)}</div>
+        </div>
+        <button type="button" class="btn-circle" onclick="TravelogCreatorModule.removeRegisteredCoupon('${coupon.id}')" style="width: 26px; height: 26px; font-size: 11px; color: var(--accent-pink); background: rgba(255,50,50,0.08);"><i class="fa-solid fa-trash-can"></i></button>
+      </div>
+    `).join('');
+  }
+
+  function connectPinsOnMap() {
+    const orderedPins = getOrderedCustomPins();
+    if (orderedPins.length < 2) {
+      window.TravelogApp.showToast(t('핀을 2개 이상 만든 뒤 연결해 주세요.', 'Create at least two pins before connecting them.', 'ピンを2つ以上作成してから接続してください。'));
+      return;
+    }
+
+    normalizeCustomPinOrder(orderedPins);
+    goToMapCreateMode();
+    setTimeout(() => {
+      if (window.TravelogMapModule && typeof window.TravelogMapModule.connectCreatorPins === 'function') {
+        window.TravelogMapModule.connectCreatorPins(orderedPins);
+      }
+    }, 120);
+    window.TravelogApp.showToast(t('핀 이동순서 경로를 지도에 실선으로 연결했습니다.', 'Pins are connected on the map with a solid route.', 'ピンの順路を地図上に実線で接続しました。'));
+  }
+
+  function goToMapCreateMode() {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const mapNav = document.querySelector('.nav-item[data-tab="map-tab"]');
+    if (mapNav) mapNav.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(tab => {
+      tab.classList.toggle('active', tab.id === 'map-tab');
+    });
+    if (window.updateMapLayoutForMode) window.updateMapLayoutForMode('create');
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.invalidateSize === 'function') {
+      setTimeout(() => window.TravelogMapModule.invalidateSize(), 80);
+    }
+  }
+
+  function previewCurrentGuide() {
+    const orderedPins = getOrderedCustomPins();
+    if (orderedPins.length === 0) {
+      window.TravelogApp.showToast(t('미리보기할 핀이 없습니다. 지도에서 코스핀을 먼저 추가해 주세요.', 'There are no pins to preview.', 'プレビューするピンがありません。'));
+      return;
+    }
+
+    const packageData = buildGuidePublishPackage();
+    goToMapCreateMode();
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.startCreatorGuidePreview === 'function') {
+      window.TravelogMapModule.startCreatorGuidePreview(packageData);
+    }
   }
 
   function renderCoordinatesList() {
@@ -484,6 +817,26 @@ const TravelogCreatorModule = (() => {
       ]);
     });
 
+    (packageData.eventCoupons || []).forEach((coupon, index) => {
+      rows.push([
+        packageData.guideId,
+        packageData.tourName,
+        packageData.creator,
+        packageData.createdAt,
+        'coupon',
+        index + 1,
+        '',
+        'event_coupon',
+        'Coupon',
+        coupon.vendor || '',
+        coupon.offer || '',
+        '',
+        '',
+        '',
+        ''
+      ]);
+    });
+
     return rows;
   }
 
@@ -501,6 +854,11 @@ const TravelogCreatorModule = (() => {
     const createdAt = new Date().toISOString();
     const guideId = `published-${Date.now()}`;
     const tourSlug = safeFileName(tourName, 'travelog_guide');
+    const representativeImage = getGuideCoverDataUrl();
+    const guideIntroText = getGuideIntroText();
+    const guideIntroAudioInfo = guideIntroAudio ? { ...guideIntroAudio } : null;
+    const guideIntroVideoInfo = guideIntroVideo ? { ...guideIntroVideo } : null;
+    const eventCoupons = registeredCoupons.map(coupon => ({ ...coupon }));
 
     const pins = orderedPins.map((pin, index) => {
       const linkedAudios = recordedAudios.filter(a => Number(a.stopIndex) === index).map(a => a.name);
@@ -578,6 +936,11 @@ const TravelogCreatorModule = (() => {
       creator,
       createdAt,
       driveFolderId: DRIVE_PARENT_FOLDER_ID,
+      representativeImage,
+      guideIntroText,
+      guideIntroAudio: guideIntroAudioInfo,
+      guideIntroVideo: guideIntroVideoInfo,
+      eventCoupons,
       pins,
       audioFiles,
       videoFiles,
@@ -593,6 +956,11 @@ const TravelogCreatorModule = (() => {
       createdAt,
       driveFolderId: DRIVE_PARENT_FOLDER_ID,
       folders: { audio: 'Audio', video: 'Video', text: 'Text' },
+      representativeImage,
+      guideIntroText,
+      guideIntroAudio: guideIntroAudioInfo ? { ...guideIntroAudioInfo } : null,
+      guideIntroVideo: guideIntroVideoInfo ? { ...guideIntroVideoInfo } : null,
+      eventCoupons,
       pins: pins.map(pin => ({ ...pin })),
       audioFiles: audioFiles.map(file => ({ ...file, blob: undefined })),
       videoFiles: videoFiles.map(file => ({ ...file, blob: undefined })),
@@ -615,11 +983,34 @@ const TravelogCreatorModule = (() => {
       name: tourName,
       author: `${creator} (크리에이터)`,
       rating: 'NEW',
-      bg: 'assets/images/brand/travelog-ci-symbol.svg',
+      bg: representativeImage || 'assets/images/brand/travelog-ci-symbol.svg',
+      representativeImage,
+      guideIntroText,
+      guideIntroAudio: guideIntroAudioInfo ? { ...guideIntroAudioInfo } : null,
+      guideIntroVideo: guideIntroVideoInfo ? { ...guideIntroVideoInfo } : null,
       badge: '오늘의 가이드',
       isWidget: true,
+      isPublishedGuide: true,
       createdAt,
-      pinCount: pins.length
+      pinCount: pins.length,
+      memoCount: audioFiles.length + videoFiles.length + textFiles.length,
+      couponCount: eventCoupons.length,
+      eventCoupons: eventCoupons.map(coupon => ({ ...coupon })),
+      stops: pins.map(pin => ({
+        id: pin.id,
+        order: pin.order,
+        nameKo: pin.nameKo,
+        nameEn: pin.nameEn,
+        nameJa: pin.nameJa,
+        lat: pin.lat,
+        lng: pin.lng,
+        color: pin.color,
+        createdAt: pin.createdAt,
+        description: pin.description,
+        memoType: pin.memoType,
+        linkedAudios: [...(pin.linkedAudios || [])],
+        linkedVideos: [...(pin.linkedVideos || [])]
+      }))
     };
 
     return packageData;
@@ -719,7 +1110,7 @@ const TravelogCreatorModule = (() => {
     try {
       showPublishModalLoading(
         t('출간 데이터를 준비 중입니다...', 'Preparing publish data...', '公開データを準備しています...'),
-        t('앱 시작 시 지정한 기기 저장 위치에 데이터를 저장한 뒤 바로 구글 드라이브로 업로드합니다.', 'Saving to the device storage configured at startup, then uploading directly to Google Drive.', '起動時に設定した端末保存先へ保存後、Google Driveへ直接アップロードします。')
+        t('기기 저장소에 데이터를 저장한 뒤 Apps Script 중계 서버로 출간합니다.', 'Saving to device storage, then publishing through the Apps Script relay.', '端末保存後、Apps Script経由で公開します。')
       );
 
       const packageData = buildGuidePublishPackage();
@@ -740,7 +1131,7 @@ const TravelogCreatorModule = (() => {
     } catch (error) {
       console.error('[Travelog Publish] Publish preparation failed:', error);
       closePublishModal();
-      alert(t('출간 준비 중 오류가 발생했습니다. 저장 권한, 네트워크, 구글 드라이브 토큰을 확인해 주세요.', 'Publish preparation failed. Check storage permission, network, and Google Drive token.', '公開準備中にエラーが発生しました。'));
+      alert(t('출간 준비 중 오류가 발생했습니다. 저장 권한과 네트워크를 확인해 주세요.', 'Publish preparation failed. Check storage permission and network.', '公開準備中にエラーが発生しました。'));
     }
   }
 
@@ -791,210 +1182,143 @@ const TravelogCreatorModule = (() => {
     URL.revokeObjectURL(url);
   }
 
-  function getGoogleDriveAccessToken() {
-    return localStorage.getItem(GOOGLE_DRIVE_TOKEN_KEY) || '';
+  function getAppsScriptPublishKey() {
+    return localStorage.getItem(APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY) || DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '';
   }
 
-  function setGoogleDriveAccessToken(token) {
-    if (token) {
-      localStorage.setItem(GOOGLE_DRIVE_TOKEN_KEY, token);
-    }
+  function setAppsScriptPublishKey(key) {
+    localStorage.setItem(APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY, String(key || ''));
   }
 
-  function clearGoogleDriveAccessToken() {
-    localStorage.removeItem(GOOGLE_DRIVE_TOKEN_KEY);
-  }
+  function ensureAppsScriptPublishKey() {
+    const savedKey = getAppsScriptPublishKey();
+    if (savedKey) return savedKey;
 
-  async function requestGoogleDriveAccessToken() {
-    let token = getGoogleDriveAccessToken();
-    if (token) return token;
+    const input = window.prompt(t(
+      'Apps Script 임시 출간 비밀번호(publishKey)를 입력해 주세요. Apps Script에서 비밀번호를 비워두었다면 빈칸으로 확인하세요.',
+      'Enter the Apps Script publishKey. If your Apps Script publish key is empty, press OK with this field empty.',
+      'Apps ScriptのpublishKeyを入力してください。未設定なら空欄のままOKしてください。'
+    ), DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '');
 
-    token = window.prompt(t(
-      'Google Drive 업로드용 OAuth Access Token을 입력해 주세요. 취소하면 구글 드라이브 폴더만 열립니다.',
-      'Enter a Google Drive OAuth access token. Cancel will only open the Drive folder.',
-      'Google Driveアップロード用OAuthアクセストークンを入力してください。キャンセルするとDriveフォルダだけ開きます。'
-    ));
-
-    if (!token || !token.trim()) {
-      throw new Error('GOOGLE_DRIVE_TOKEN_REQUIRED');
+    if (input === null) {
+      // 취소해도 Apps Script 쪽 PUBLISH_KEY가 비어 있을 수 있으므로 빈 값으로 전송한다.
+      return DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '';
     }
 
-    token = token.trim();
-    setGoogleDriveAccessToken(token);
-    return token;
+    const key = String(input || '').trim();
+    setAppsScriptPublishKey(key);
+    return key;
   }
 
-  function driveHeaders(token, json = false) {
-    const headers = { Authorization: `Bearer ${token}` };
-    if (json) headers['Content-Type'] = 'application/json';
-    return headers;
-  }
-
-  function escapeDriveQuery(value) {
-    return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  }
-
-  async function parseGoogleDriveError(response) {
-    let detail = '';
-    try {
-      const data = await response.json();
-      detail = data?.error?.message || JSON.stringify(data);
-    } catch (_) {
-      detail = await response.text().catch(() => '');
-    }
-    return new Error(`Google Drive API ${response.status}: ${detail || response.statusText}`);
-  }
-
-  async function findDriveFileByName(token, parentId, name, mimeType) {
-    const queryParts = [
-      `'${parentId}' in parents`,
-      `name='${escapeDriveQuery(name)}'`,
-      'trashed=false'
-    ];
-    if (mimeType) queryParts.push(`mimeType='${mimeType}'`);
-
-    const params = new URLSearchParams({
-      q: queryParts.join(' and '),
-      fields: 'files(id,name,mimeType)',
-      supportsAllDrives: 'true',
-      includeItemsFromAllDrives: 'true'
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('BLOB_READ_FAILED'));
+      reader.readAsDataURL(blob);
     });
-
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files?${params.toString()}`, {
-      headers: driveHeaders(token)
-    });
-
-    if (!response.ok) throw await parseGoogleDriveError(response);
-    const data = await response.json();
-    return Array.isArray(data.files) && data.files.length ? data.files[0] : null;
   }
 
-  async function createDriveFolder(token, parentId, name) {
-    const response = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
-      method: 'POST',
-      headers: driveHeaders(token, true),
-      body: JSON.stringify({
-        name,
-        mimeType: 'application/vnd.google-apps.folder',
-        parents: [parentId]
-      })
-    });
-
-    if (!response.ok) throw await parseGoogleDriveError(response);
-    return response.json();
-  }
-
-  async function getOrCreateDriveFolder(token, parentId, name) {
-    const existing = await findDriveFileByName(token, parentId, name, 'application/vnd.google-apps.folder');
-    if (existing) return existing.id;
-    const created = await createDriveFolder(token, parentId, name);
-    return created.id;
-  }
-
-  async function uploadBlobToDrive(token, folderId, fileName, blob) {
-    const boundary = `travelog_boundary_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    const metadata = {
-      name: fileName,
-      parents: [folderId]
+  async function convertFileEntryToMemo(file, type, fallbackText = '') {
+    const blob = file.blob instanceof Blob ? file.blob : new Blob([fallbackText || ''], { type: 'text/plain;charset=utf-8' });
+    const memo = {
+      type,
+      fileName: file.fileName || `${type}_memo_${Date.now()}`,
+      pinId: file.pinId || '',
+      stopIndex: typeof file.stopIndex === 'number' ? file.stopIndex : Number(file.stopIndex || 0),
+      lat: file.lat || '',
+      lng: file.lng || '',
+      text: file.memoText || fallbackText || '',
+      memo: file.memoText || fallbackText || '',
+      createdAt: new Date().toISOString(),
+      mimeType: blob.type || (type === 'video' ? 'video/webm' : type === 'audio' ? 'audio/webm' : 'text/plain')
     };
 
-    const body = new Blob([
-      `--${boundary}\r\n`,
-      'Content-Type: application/json; charset=UTF-8\r\n\r\n',
-      JSON.stringify(metadata),
-      `\r\n--${boundary}\r\n`,
-      `Content-Type: ${blob.type || 'application/octet-stream'}\r\n\r\n`,
-      blob,
-      `\r\n--${boundary}--`
-    ], { type: `multipart/related; boundary=${boundary}` });
+    if (type === 'audio' || type === 'video') {
+      memo.base64 = await blobToDataUrl(blob);
+    }
 
-    const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`
-      },
-      body
-    });
-
-    if (!response.ok) throw await parseGoogleDriveError(response);
-    return response.json();
+    return memo;
   }
 
-  async function findUserStudioSpreadsheet(token) {
-    return findDriveFileByName(token, DRIVE_PARENT_FOLDER_ID, 'User Studio Data', 'application/vnd.google-apps.spreadsheet');
-  }
+  async function buildAppsScriptPayload(packageData) {
+    const publishKey = ensureAppsScriptPublishKey();
+    const memos = [];
 
-  async function appendRowsToUserStudioSheet(token, spreadsheetId, rows) {
-    const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`, {
-      headers: driveHeaders(token)
-    });
-    if (!metadataResponse.ok) throw await parseGoogleDriveError(metadataResponse);
-    const metadata = await metadataResponse.json();
-    const firstSheetTitle = metadata?.sheets?.[0]?.properties?.title || 'Sheet1';
-    const range = encodeURIComponent(`${firstSheetTitle}!A1`);
-
-    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
-      method: 'POST',
-      headers: driveHeaders(token, true),
-      body: JSON.stringify({ values: rows })
-    });
-
-    if (!response.ok) throw await parseGoogleDriveError(response);
-    return response.json();
-  }
-
-  async function uploadPackageToGoogleDrive(packageData) {
-    const token = await requestGoogleDriveAccessToken();
-    const audioFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Audio');
-    const videoFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Video');
-    const textFolderId = await getOrCreateDriveFolder(token, DRIVE_PARENT_FOLDER_ID, 'Text');
-
-    const uploaded = [];
-
-    for (const file of packageData.audioFiles) {
-      uploaded.push(await uploadBlobToDrive(token, audioFolderId, file.fileName, file.blob));
+    for (const file of packageData.audioFiles || []) {
+      memos.push(await convertFileEntryToMemo(file, 'audio', 'Travelog audio memo'));
     }
 
-    for (const file of packageData.videoFiles) {
-      uploaded.push(await uploadBlobToDrive(token, videoFolderId, file.fileName, file.blob));
+    for (const file of packageData.videoFiles || []) {
+      memos.push(await convertFileEntryToMemo(file, 'video', 'Travelog video memo'));
     }
 
-    for (const file of packageData.textFiles) {
-      uploaded.push(await uploadBlobToDrive(token, textFolderId, file.fileName, file.blob));
-    }
-
-    for (const file of packageData.rootFiles.filter(file => file.fileName !== 'User Studio Data.csv')) {
-      uploaded.push(await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, file.fileName, file.blob));
-    }
-
-    let spreadsheetUpdated = false;
-    let spreadsheetFallbackUploaded = false;
-    try {
-      const spreadsheet = await findUserStudioSpreadsheet(token);
-      if (spreadsheet && spreadsheet.id) {
-        await appendRowsToUserStudioSheet(token, spreadsheet.id, packageData.studioRows);
-        spreadsheetUpdated = true;
-      } else {
-        const csvFile = packageData.rootFiles.find(file => file.fileName === 'User Studio Data.csv');
-        if (csvFile) {
-          await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, csvFile.fileName, csvFile.blob);
-          spreadsheetFallbackUploaded = true;
+    for (const file of packageData.textFiles || []) {
+      let text = file.memoText || '';
+      try {
+        if (!text && file.blob instanceof Blob) {
+          text = await file.blob.text();
         }
-      }
-    } catch (sheetError) {
-      console.warn('[Travelog Publish] User Studio Data sheet append failed. Uploading CSV fallback.', sheetError);
-      const csvFile = packageData.rootFiles.find(file => file.fileName === 'User Studio Data.csv');
-      if (csvFile) {
-        await uploadBlobToDrive(token, DRIVE_PARENT_FOLDER_ID, csvFile.fileName, csvFile.blob);
-        spreadsheetFallbackUploaded = true;
-      }
+      } catch (_) {}
+      memos.push(await convertFileEntryToMemo(file, 'text', text));
     }
 
     return {
-      uploadedCount: uploaded.length,
-      spreadsheetUpdated,
-      spreadsheetFallbackUploaded
+      publishKey,
+      guide: {
+        id: packageData.guideId,
+        title: packageData.tourName,
+        slug: packageData.tourSlug,
+        author: packageData.creator,
+        createdAt: packageData.createdAt,
+        driveFolderId: DRIVE_PARENT_FOLDER_ID,
+        pinCount: (packageData.pins || []).length,
+        audioCount: (packageData.audioFiles || []).length,
+        videoCount: (packageData.videoFiles || []).length,
+        textCount: (packageData.textFiles || []).length,
+        couponCount: (packageData.eventCoupons || []).length,
+        representativeImage: packageData.representativeImage || '',
+        guideIntroText: packageData.guideIntroText || '',
+        guideIntroAudio: packageData.guideIntroAudio ? { fileName: packageData.guideIntroAudio.fileName, mimeType: packageData.guideIntroAudio.mimeType, dataUrl: packageData.guideIntroAudio.dataUrl } : null,
+        guideIntroVideo: packageData.guideIntroVideo ? { fileName: packageData.guideIntroVideo.fileName, mimeType: packageData.guideIntroVideo.mimeType, dataUrl: packageData.guideIntroVideo.dataUrl } : null
+      },
+      eventCoupons: packageData.eventCoupons || [],
+      pins: packageData.pins || [],
+      memos,
+      studioRows: packageData.studioRows || [],
+      studioCsv: packageData.studioCsv || '',
+      guideJson: packageData.guideJson || ''
+    };
+  }
+
+  async function postPayloadToAppsScript(payload) {
+    if (!APPS_SCRIPT_WEB_APP_URL) {
+      throw new Error('APPS_SCRIPT_URL_MISSING');
+    }
+
+    const response = await fetch(APPS_SCRIPT_WEB_APP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    // Apps Script Web App은 브라우저 CORS 정책 때문에 응답 본문을 읽을 수 없는 경우가 많다.
+    // no-cors 전송이 네트워크 예외 없이 끝나면 서버로 전송된 것으로 처리한다.
+    return response;
+  }
+
+  async function uploadPackageToGoogleDrive(packageData) {
+    const payload = await buildAppsScriptPayload(packageData);
+    await postPayloadToAppsScript(payload);
+
+    return {
+      uploadedCount: payload.memos.length + 1,
+      spreadsheetUpdated: true,
+      spreadsheetFallbackUploaded: false,
+      responseVerified: false
     };
   }
 
@@ -1002,6 +1326,193 @@ const TravelogCreatorModule = (() => {
     if (window.TravelogApp && typeof window.TravelogApp.registerPublishedGuide === 'function') {
       window.TravelogApp.registerPublishedGuide(packageData.guideCard);
     }
+  }
+
+  function getPublishedGuideRecords() {
+    return safeParseArray(localStorage.getItem(CREATOR_PUBLISHED_GUIDES_KEY), []);
+  }
+
+  function savePublishedGuideRecords(records) {
+    try {
+      localStorage.setItem(CREATOR_PUBLISHED_GUIDES_KEY, JSON.stringify(records));
+    } catch (error) {
+      console.warn('[Travelog Creator] Published guide records could not be saved:', error);
+    }
+  }
+
+  function makePublishedGuideRecord(packageData) {
+    return {
+      id: packageData.guideId,
+      tourName: packageData.tourName,
+      creator: packageData.creator,
+      createdAt: packageData.createdAt,
+      representativeImage: packageData.representativeImage || '',
+      guideIntroText: packageData.guideIntroText || '',
+      guideIntroAudio: packageData.guideIntroAudio ? { ...packageData.guideIntroAudio } : null,
+      guideIntroVideo: packageData.guideIntroVideo ? { ...packageData.guideIntroVideo } : null,
+      pinCount: (packageData.pins || []).length,
+      memoCount: (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.textFiles || []).length,
+      couponCount: (packageData.eventCoupons || []).length,
+      pins: (packageData.pins || []).map(pin => ({ ...pin })),
+      eventCoupons: (packageData.eventCoupons || []).map(coupon => ({ ...coupon })),
+      guideCard: { ...packageData.guideCard }
+    };
+  }
+
+  function storePublishedGuideRecord(packageData) {
+    const record = makePublishedGuideRecord(packageData);
+    const records = getPublishedGuideRecords();
+    const nextRecords = [
+      record,
+      ...records.filter(item => item.id !== record.id)
+    ].slice(0, 50);
+    savePublishedGuideRecords(nextRecords);
+    renderPublishedGuidesList();
+    return record;
+  }
+
+  function renderPublishedGuidesList() {
+    const container = document.getElementById('published-guide-list');
+    if (!container) return;
+    const records = getPublishedGuideRecords();
+
+    if (records.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 출간된 가이드가 없습니다.</div>';
+      return;
+    }
+
+    container.innerHTML = records.map(record => {
+      const date = record.createdAt ? new Date(record.createdAt) : null;
+      const dateText = date && !Number.isNaN(date.getTime())
+        ? `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+        : '-';
+      const imageStyle = record.representativeImage ? `background-image:url('${record.representativeImage}')` : '';
+      return `
+        <div class="published-guide-row" style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.58); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px;">
+          <div style="width: 54px; height: 42px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, rgba(112,162,183,0.22), rgba(175,212,153,0.22)); background-size: cover; background-position: center; ${imageStyle}"></div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 13px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(record.tourName)}</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">핀 ${record.pinCount || 0} · 메모 ${record.memoCount || 0} · 쿠폰 ${record.couponCount || 0}</div>
+            <div style="font-size: 10px; color: var(--text-muted);">${dateText}</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.openPublishedGuideEditor('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px;">수정</button>
+            <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.deletePublishedGuide('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px; color: var(--accent-pink);">삭제</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function deletePublishedGuide(id) {
+    const records = getPublishedGuideRecords().filter(record => record.id !== id);
+    savePublishedGuideRecords(records);
+    if (window.TravelogApp && typeof window.TravelogApp.removePublishedGuide === 'function') {
+      window.TravelogApp.removePublishedGuide(id);
+    }
+    renderPublishedGuidesList();
+    window.TravelogApp.showToast(t('출간된 가이드를 삭제했습니다.', 'Published guide deleted.', '公開済みガイドを削除しました。'));
+  }
+
+  function bindGuideEditModal() {
+    const closeBtn = document.getElementById('guide-edit-close-btn');
+    const cancelBtn = document.getElementById('guide-edit-cancel-btn');
+    const completeBtn = document.getElementById('guide-edit-complete-btn');
+    if (closeBtn) closeBtn.addEventListener('click', closePublishedGuideEditor);
+    if (cancelBtn) cancelBtn.addEventListener('click', closePublishedGuideEditor);
+    if (completeBtn) completeBtn.addEventListener('click', completePublishedGuideEdit);
+  }
+
+  function openPublishedGuideEditor(id) {
+    const record = getPublishedGuideRecords().find(item => item.id === id);
+    if (!record) return;
+    editingPublishedGuideId = id;
+
+    const modal = document.getElementById('guide-edit-page-modal');
+    const titleInput = document.getElementById('guide-edit-title-input');
+    const coverPreview = document.getElementById('guide-edit-cover-preview');
+    const summary = document.getElementById('guide-edit-summary');
+    const pinList = document.getElementById('guide-edit-pin-list');
+    const couponList = document.getElementById('guide-edit-coupon-list');
+
+    if (titleInput) titleInput.value = record.tourName || '';
+    if (coverPreview) {
+      coverPreview.style.backgroundImage = record.representativeImage ? `url('${record.representativeImage}')` : '';
+      coverPreview.textContent = record.representativeImage ? '' : '대표 이미지 없음';
+    }
+    if (summary) {
+      summary.innerHTML = `핀 ${record.pinCount || 0}개 · 메모 ${record.memoCount || 0}개 · 쿠폰 ${record.couponCount || 0}개<br>소개글: ${record.guideIntroText ? '등록됨' : '없음'} · 소개미디어: ${record.guideIntroVideo ? '영상' : record.guideIntroAudio ? '음성' : '없음'}<br>출간자: ${escapeHtml(record.creator || '')}`;
+    }
+    if (pinList) {
+      const pins = Array.isArray(record.pins) ? record.pins : [];
+      pinList.innerHTML = pins.length ? pins.map(pin => `
+        <div style="background: white; border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px; font-size: 12px;">
+          <strong>${pin.order}. ${escapeHtml(pin.nameKo || pin.nameEn || pin.id)}</strong><br>
+          <span style="color: var(--text-secondary);">${escapeHtml(pin.description || '메모 없음')}</span><br>
+          <small style="color: var(--text-muted);">${Number(pin.lat).toFixed(5)}, ${Number(pin.lng).toFixed(5)}</small>
+        </div>
+      `).join('') : '<div style="color: var(--text-muted); font-size: 12px; text-align:center; padding: 12px;">핀 정보가 없습니다.</div>';
+    }
+    if (couponList) {
+      const coupons = Array.isArray(record.eventCoupons) ? record.eventCoupons : [];
+      couponList.innerHTML = coupons.length ? coupons.map((coupon, index) => `
+        <div style="background: white; border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px; font-size: 12px;">
+          <strong>${index + 1}. ${escapeHtml(coupon.vendor)}</strong><br>
+          <span style="color: var(--text-secondary);">${escapeHtml(coupon.offer)}</span>
+        </div>
+      `).join('') : '<div style="color: var(--text-muted); font-size: 12px; text-align:center; padding: 12px;">등록된 쿠폰이 없습니다.</div>';
+    }
+
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function closePublishedGuideEditor() {
+    const modal = document.getElementById('guide-edit-page-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    editingPublishedGuideId = null;
+  }
+
+  function completePublishedGuideEdit() {
+    if (!editingPublishedGuideId) return;
+    const titleInput = document.getElementById('guide-edit-title-input');
+    const nextTitle = (titleInput?.value || '').trim() || '나의 출간 가이드';
+
+    const records = getPublishedGuideRecords();
+    const record = records.find(item => item.id === editingPublishedGuideId);
+    if (!record) return;
+
+    record.tourName = nextTitle;
+    if (record.guideCard) {
+      record.guideCard.name = nextTitle;
+    }
+    savePublishedGuideRecords(records);
+
+    showPublishModalLoading('수정 중', '가이드 정보를 업데이트하고 있습니다.');
+
+    setTimeout(() => {
+      const title = document.getElementById('publish-status-title');
+      const desc = document.getElementById('publish-status-desc');
+      const spinner = document.getElementById('publish-loading-spinner');
+      const success = document.getElementById('publish-success-icon');
+      if (title) title.textContent = '수정완료';
+      if (desc) desc.textContent = '가이드 수정이 완료되었습니다.';
+      if (spinner) spinner.style.display = 'none';
+      if (success) success.style.display = 'block';
+      if (window.TravelogApp && typeof window.TravelogApp.registerPublishedGuide === 'function') {
+        window.TravelogApp.registerPublishedGuide(record.guideCard || { id: record.id, name: record.tourName, bg: record.representativeImage, pinCount: record.pinCount });
+      }
+      renderPublishedGuidesList();
+      closePublishedGuideEditor();
+      setTimeout(() => {
+        closePublishModal();
+      }, 900);
+    }, 800);
   }
 
   function moveToHomeTab() {
@@ -1020,7 +1531,7 @@ const TravelogCreatorModule = (() => {
     try {
       showPublishModalLoading(
         t('구글 드라이브로 출간 중입니다...', 'Publishing to Google Drive...', 'Google Driveに公開しています...'),
-        t('Audio, Video, Text 폴더와 User Studio Data 스프레드시트에 데이터를 반영하고 있습니다.', 'Uploading to Audio, Video, Text folders and updating User Studio Data.', 'Audio/Video/TextフォルダとUser Studio Dataに反映しています。')
+        t('Apps Script를 통해 Audio, Video, Text 폴더와 User Studio Data에 반영하고 있습니다.', 'Sending through Apps Script to update Audio, Video, Text folders and User Studio Data.', 'Apps Script経由でAudio/Video/TextとUser Studio Dataに反映しています。')
       );
 
       const uploadResult = await uploadPackageToGoogleDrive(pendingPublishPackage);
@@ -1031,7 +1542,13 @@ const TravelogCreatorModule = (() => {
       const summary = document.getElementById('publish-local-summary');
       const actions = document.getElementById('publish-ready-actions');
 
-      registerGuideOnHome(pendingPublishPackage);
+      const completedPackage = pendingPublishPackage;
+      const completedTourName = completedPackage.tourName;
+
+      // 먼저 전체 출간 기록을 저장한 뒤 홈 카드에 등록한다.
+      // 그래야 홈에서 카드를 눌렀을 때 임시 경복궁/민호 코스가 아니라 해당 가이드의 핀 목록을 바로 찾을 수 있다.
+      storePublishedGuideRecord(completedPackage);
+      registerGuideOnHome(completedPackage);
 
       if (statusTitle) statusTitle.textContent = t('출간이 완료되었습니다.', 'Publishing complete.', '公開が完了しました。');
       if (statusDesc) statusDesc.textContent = t('홈 화면의 오늘의 가이드에 등록되었습니다.', "Registered under Today's Guide on Home.", 'ホームの今日のガイドに登録されました。');
@@ -1039,8 +1556,8 @@ const TravelogCreatorModule = (() => {
       if (successIcon) successIcon.style.display = 'block';
       if (summary) {
         summary.innerHTML = `
-          Drive 업로드 파일: ${uploadResult.uploadedCount}개<br>
-          User Studio Data: ${uploadResult.spreadsheetUpdated ? '스프레드시트 반영 완료' : 'CSV 백업 업로드 완료'}<br>
+          Apps Script 전송 항목: ${uploadResult.uploadedCount}개<br>
+          User Studio Data: 스프레드시트 반영 요청 완료<br>
           오늘의 가이드 등록 완료
         `;
         summary.style.display = 'block';
@@ -1048,7 +1565,9 @@ const TravelogCreatorModule = (() => {
       if (actions) actions.style.display = 'none';
 
       window.TravelogApp.addPoints(150);
-      window.TravelogApp.showToast(t(`가이드 [${pendingPublishPackage.tourName}] 출간 완료!`, `Guide [${pendingPublishPackage.tourName}] published!`, `ガイド［${pendingPublishPackage.tourName}］を公開しました！`));
+      window.TravelogApp.showToast(t(`가이드 [${completedTourName}] 출간 완료! 새 가이드 제작 화면을 정리했습니다.`, `Guide [${completedTourName}] published! Studio is ready for a new guide.`, `ガイド［${completedTourName}］を公開しました！新規制作のためスタジオを整理しました。`));
+
+      resetCreatorStudioForNewGuide();
 
       setTimeout(() => {
         closePublishModal();
@@ -1057,17 +1576,11 @@ const TravelogCreatorModule = (() => {
     } catch (error) {
       console.error('[Travelog Publish] Drive upload failed:', error);
       closePublishModal();
-      if (error && error.message === 'GOOGLE_DRIVE_TOKEN_REQUIRED') {
-        window.open(DRIVE_PARENT_FOLDER_URL, '_blank');
-        alert(t('Google Drive 업로드 토큰이 없어 자동 업로드를 중단했습니다. 저장된 Travelog_user_data 파일을 열린 Drive 폴더에 직접 올릴 수 있습니다.', 'No Google Drive token was provided. You can manually upload Travelog_user_data to the opened Drive folder.', 'Google Driveトークンがないため自動アップロードを中断しました。'));
+      if (String(error.message || '').includes('APPS_SCRIPT_URL_MISSING')) {
+        alert(t('Apps Script 웹앱 URL이 설정되지 않았습니다.', 'Apps Script Web App URL is not set.', 'Apps Script URLが設定されていません。'));
         return;
       }
-      if (String(error.message || '').includes('401')) {
-        clearGoogleDriveAccessToken();
-        alert(t('Google Drive 토큰이 만료되었거나 권한이 없습니다. 새 토큰으로 다시 시도해 주세요.', 'The Google Drive token expired or lacks permission. Try again with a new token.', 'Google Driveトークンが期限切れ、または権限不足です。'));
-        return;
-      }
-      alert(t('Google Drive 출간 중 오류가 발생했습니다. 폴더 권한, 토큰 권한, 네트워크를 확인해 주세요.', 'Google Drive publishing failed. Check folder access, token scopes, and network.', 'Google Drive公開中にエラーが発生しました。'));
+      alert(t('구글 드라이브 출간 전송 중 오류가 발생했습니다. Apps Script 배포 URL, publishKey, 네트워크를 확인해 주세요.', 'Publishing failed. Check the Apps Script deployment URL, publishKey, and network.', '公開送信中にエラーが発生しました。Apps Script URL、publishKey、ネットワークを確認してください。'));
     }
   }
 
@@ -1477,11 +1990,159 @@ const TravelogCreatorModule = (() => {
     });
   }
 
+
+  function resetFieldCaptureModals() {
+    const modalIds = [
+      'pin-type-select-modal',
+      'voice-memo-modal',
+      'video-memo-modal',
+      'text-memo-modal',
+      'publish-loading-modal'
+    ];
+    modalIds.forEach(id => {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+      }
+    });
+
+    const textMemoInput = document.getElementById('text-memo-input');
+    if (textMemoInput) textMemoInput.value = '';
+  }
+
+  function resetRecordingStateForNewGuide() {
+    if (isRecording) {
+      clearInterval(recordInterval);
+      isRecording = false;
+    }
+    if (recordingStream) {
+      recordingStream.getTracks().forEach(track => track.stop());
+      recordingStream = null;
+    }
+    mediaRecorder = null;
+    recordedAudioChunks = [];
+    recordSeconds = 0;
+    selectedScriptText = '';
+    currentRecordingMimeType = '';
+
+    if (isVideoRecording) {
+      clearInterval(videoRecordInterval);
+      isVideoRecording = false;
+    }
+    if (videoStream) {
+      videoStream.getTracks().forEach(track => track.stop());
+      videoStream = null;
+    }
+    videoMediaRecorder = null;
+    recordedVideoChunks = [];
+    videoRecordSeconds = 0;
+
+    if (voiceMemoInterval) clearInterval(voiceMemoInterval);
+    if (voiceMemoStream) {
+      voiceMemoStream.getTracks().forEach(track => track.stop());
+      voiceMemoStream = null;
+    }
+    voiceMemoRecorder = null;
+    voiceMemoChunks = [];
+    voiceMemoBlob = null;
+    voiceMemoSeconds = 0;
+
+    if (videoMemoInterval) clearInterval(videoMemoInterval);
+    if (videoMemoStream) {
+      videoMemoStream.getTracks().forEach(track => track.stop());
+      videoMemoStream = null;
+    }
+    videoMemoRecorder = null;
+    videoMemoChunks = [];
+    videoMemoBlob = null;
+    videoMemoSeconds = 0;
+
+    const recordBtn = document.getElementById('record-audio-btn');
+    if (recordBtn) {
+      recordBtn.classList.remove('recording');
+      recordBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+    }
+    const recordStatus = document.getElementById('record-status-text');
+    if (recordStatus) recordStatus.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクボタンをクリックして録音開始');
+    const recordTimer = document.getElementById('record-timer');
+    if (recordTimer) recordTimer.textContent = '00:00';
+
+    const videoBtn = document.getElementById('record-video-btn');
+    if (videoBtn) videoBtn.classList.remove('recording');
+    const videoStatus = document.getElementById('video-record-status-text');
+    if (videoStatus) videoStatus.textContent = t('녹화 버튼 클릭', 'Click video record', '録画ボタンをクリック');
+    const videoTimer = document.getElementById('video-record-timer');
+    if (videoTimer) videoTimer.textContent = '00:00';
+
+    const voiceMemoStatus = document.getElementById('voice-memo-status');
+    if (voiceMemoStatus) voiceMemoStatus.textContent = t('마이크 버튼을 눌러 녹음 시작', 'Press Record to start audio guide', '録音ボタンを押して録音開始');
+    const voiceMemoTimer = document.getElementById('voice-memo-timer');
+    if (voiceMemoTimer) voiceMemoTimer.textContent = '00:00';
+    const videoMemoStatus = document.getElementById('video-memo-status');
+    if (videoMemoStatus) videoMemoStatus.textContent = t('녹화 버튼을 눌러 카메라 촬영 시작', 'Press Record to start video guide', '録画ボタンを押して撮影開始');
+    const videoMemoTimer = document.getElementById('video-memo-timer');
+    if (videoMemoTimer) videoMemoTimer.textContent = '00:00';
+  }
+
+  function resetCreatorStudioForNewGuide() {
+    const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
+    if (state) {
+      state.customCreatedPins = [];
+    }
+
+    recordedAudios = [];
+    recordedVideos = [];
+    registeredCoupons = [];
+    saveRegisteredCoupons();
+
+    pendingPublishPackage = null;
+    guideCoverDataUrl = '';
+    guideIntroAudio = null;
+    guideIntroVideo = null;
+    localStorage.removeItem(GUIDE_COVER_STORAGE_KEY);
+    localStorage.removeItem(GUIDE_INTRO_TEXT_STORAGE_KEY);
+    setGuideCoverPreview('');
+
+    const tourNameInput = document.getElementById('new-tour-name');
+    if (tourNameInput) tourNameInput.value = t('새 여행 가이드', 'New Travel Guide', '新しい旅行ガイド');
+
+    const guideCoverInput = document.getElementById('guide-cover-input');
+    if (guideCoverInput) guideCoverInput.value = '';
+    const guideIntroTextInput = document.getElementById('guide-intro-text');
+    if (guideIntroTextInput) guideIntroTextInput.value = '';
+    const guideIntroAudioInput = document.getElementById('guide-intro-audio-input');
+    if (guideIntroAudioInput) guideIntroAudioInput.value = '';
+    const guideIntroVideoInput = document.getElementById('guide-intro-video-input');
+    if (guideIntroVideoInput) guideIntroVideoInput.value = '';
+    setGuideIntroMediaStatus('audio', '');
+    setGuideIntroMediaStatus('video', '');
+
+    const vendorInput = document.getElementById('coupon-vendor-input');
+    if (vendorInput) vendorInput.value = '';
+    updateCouponOfferOptions();
+
+    resetRecordingStateForNewGuide();
+    resetFieldCaptureModals();
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.clearCreatorPins === 'function') {
+      window.TravelogMapModule.clearCreatorPins();
+    }
+
+    renderCoordinatesList();
+    renderAudioList();
+    renderVideoList();
+    renderRegisteredCouponList();
+    renderPublishedGuidesList();
+    updatePublishPanelCounts();
+  }
+
   function updatePublishPanelCounts() {
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const pinsCountEl = document.getElementById('publish-pins-count');
     const audiosCountEl = document.getElementById('publish-audios-count');
     const videosCountEl = document.getElementById('publish-videos-count');
+    const couponsCountEl = document.getElementById('publish-coupons-count');
 
     const linkedAudiosCount = recordedAudios.filter(a => a.stopIndex !== -1).length;
     const linkedVideosCount = recordedVideos.filter(v => v.stopIndex !== -1).length;
@@ -1489,6 +2150,7 @@ const TravelogCreatorModule = (() => {
     if (pinsCountEl) pinsCountEl.textContent = `${customPins.length}개`;
     if (audiosCountEl) audiosCountEl.textContent = `${linkedAudiosCount}개 (총 ${recordedAudios.length}개)`;
     if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 (총 ${recordedVideos.length}개)`;
+    if (couponsCountEl) couponsCountEl.textContent = `${registeredCoupons.length}개`;
 
     // Refresh Map Top HUD dynamically if Map tab is currently active
     const mapTab = document.getElementById('map-tab');
@@ -1860,13 +2522,20 @@ const TravelogCreatorModule = (() => {
     removeCoordinate: removeCoordinate,
     moveCoordinate: moveCoordinate,
     moveCoordinateTo: moveCoordinateTo,
+    removeRegisteredCoupon: removeRegisteredCoupon,
+    openPublishedGuideEditor: openPublishedGuideEditor,
+    deletePublishedGuide: deletePublishedGuide,
+    connectPinsOnMap: connectPinsOnMap,
+    previewCurrentGuide: previewCurrentGuide,
+    resetCreatorStudioForNewGuide: resetCreatorStudioForNewGuide,
     deleteAudio: deleteAudio,
     deleteVideo: deleteVideo,
     renderCoordinatesList: renderCoordinatesList,
     getMediaCounts: () => {
       return {
         audios: recordedAudios.length,
-        videos: recordedVideos.length
+        videos: recordedVideos.length,
+        coupons: registeredCoupons.length
       };
     }
   };

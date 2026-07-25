@@ -34,6 +34,9 @@ const TravelogMapModule = (() => {
   let memoDraftLocation = null;
   let userMemoItems = [];
   let customCreatedMarkers = {};
+  let creatorRouteConnected = false;
+  let creatorPreviewPackage = null;
+  let creatorPreviewIndex = -1;
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
   // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
@@ -156,8 +159,12 @@ const TravelogMapModule = (() => {
 
   function updateMapOverview() {
     const nodes = getTourNodes();
+    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+    const memoCount = activeGuide?.isPublishedGuide
+      ? Number(activeGuide.memoCount || nodes.filter(node => node.type === 'memo' || node.desc).length || 0)
+      : userMemoItems.length;
     updateMapText('map-stop-count', String(nodes.length));
-    updateMapText('map-memo-count', String(userMemoItems.length));
+    updateMapText('map-memo-count', String(memoCount));
     updateMapText('map-gps-mode', isRealtimeTracking ? 'ON' : (hasRealGpsLocation ? 'FIX' : 'OFF'));
 
     if (latestGpsFix) {
@@ -190,8 +197,97 @@ const TravelogMapModule = (() => {
     }
   }
 
+  function getLocalizedGuideValue(source, baseKey, fallback = '') {
+    return pick(source, baseKey) || source?.[baseKey] || fallback;
+  }
+
+  function normalizeActiveGuideStop(stop, index) {
+    const hasVideo = stop?.type === 'video' || (Array.isArray(stop?.linkedVideos) && stop.linkedVideos.length > 0);
+    const hasAudio = stop?.type === 'audio' || (Array.isArray(stop?.linkedAudios) && stop.linkedAudios.length > 0);
+    const type = stop?.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo');
+    const icon = stop?.icon || (type === 'video'
+      ? 'fa-solid fa-video'
+      : type === 'audio'
+        ? 'fa-solid fa-volume-high'
+        : type === 'coupon'
+          ? 'fa-solid fa-ticket'
+          : 'fa-solid fa-note-sticky');
+    const color = stop?.color || (type === 'video'
+      ? 'pin-video'
+      : type === 'audio'
+        ? 'pin-audio'
+        : type === 'coupon'
+          ? 'pin-coupon'
+          : 'pin-memo');
+    const nameFallback = t(`메모핀 ${index + 1}`, `Memo Pin ${index + 1}`, `メモピン ${index + 1}`);
+    const descFallback = stop?.description || stop?.memoText || '';
+
+    return {
+      id: stop?.id || `active-guide-pin-${index + 1}`,
+      order: stop?.order || index + 1,
+      name: getLocalizedGuideValue(stop, 'name', nameFallback),
+      desc: getLocalizedGuideValue(stop, 'desc', descFallback),
+      lat: Number(stop?.lat) || 37.5750,
+      lng: Number(stop?.lng) || 126.9768,
+      type,
+      icon,
+      color,
+      triggerRadius: Number(stop?.triggerRadius) || 20,
+      triggerText: getLocalizedGuideValue(stop, 'triggerText', descFallback || nameFallback),
+      createdAt: stop?.createdAt || null,
+      sourceStop: stop
+    };
+  }
+
+  function getActivePublishedGuideNodes() {
+    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+    if (!activeGuide?.isPublishedGuide || !Array.isArray(activeGuide.stops) || activeGuide.stops.length === 0) {
+      return null;
+    }
+    return activeGuide.stops
+      .slice()
+      .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
+      .map(normalizeActiveGuideStop);
+  }
+
+  function updateActiveGuideHud(activeGuide, nodes) {
+    if (!activeGuide) return;
+    const guideName = document.getElementById('guide-name');
+    const guideDesc = document.getElementById('guide-desc');
+    const guideBadge = document.querySelector('.map-guide-badge');
+    const guideAvatar = document.getElementById('guide-avatar-img');
+    const routeTitle = document.getElementById('map-route-title');
+    const routeDesc = document.getElementById('map-route-description');
+
+    const title = pick(activeGuide, 'name') || activeGuide.name || 'Travelog Guide';
+    const desc = pick(activeGuide, 'desc') || activeGuide.desc || '';
+    const image = activeGuide.representativeImage || activeGuide.bg || '';
+
+    if (guideName) guideName.textContent = title;
+    if (guideDesc) guideDesc.textContent = desc;
+    if (guideBadge) guideBadge.textContent = activeGuide.badge || (activeGuide.isPublishedGuide ? '오늘의 가이드' : t('추천 가이드', 'Recommended Guide', 'おすすめガイド'));
+    if (routeTitle) {
+      routeTitle.removeAttribute('data-localize');
+      routeTitle.textContent = title;
+    }
+    if (routeDesc) {
+      routeDesc.removeAttribute('data-localize');
+      routeDesc.textContent = desc || t(`코스 ${nodes.length}개`, `${nodes.length} stops`, `${nodes.length}コース`);
+    }
+    if (guideAvatar) {
+      if (image) {
+        guideAvatar.innerHTML = `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">`;
+      } else {
+        guideAvatar.innerHTML = '<i class="fa-solid fa-user-astronaut"></i>';
+      }
+    }
+  }
+
   // Predefined Tour Spots (Minho's Gyeongbokgung Tour)
   const getTourNodes = () => {
+    const activePublishedNodes = getActivePublishedGuideNodes();
+    if (activePublishedNodes) return activePublishedNodes;
+
     return [
       {
         id: 'node-gwanghwamun',
@@ -532,8 +628,144 @@ const TravelogMapModule = (() => {
     updateMapOverview();
   }
 
+  function getOrderedCreatorPins() {
+    const customPins = window.TravelogApp ? (window.TravelogApp.getState().customCreatedPins || []) : [];
+    return [...customPins].sort((a, b) => {
+      const orderA = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+      const orderB = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.timestamp || 0) - (b.timestamp || 0);
+    });
+  }
+
+  function fitCreatorRoute(pins) {
+    if (!map || !pins || pins.length === 0 || typeof L === 'undefined') return;
+    const coords = pins.map(pin => [pin.lat, pin.lng]);
+    if (coords.length === 1) {
+      map.setView(coords[0], Math.max(map.getZoom(), 17));
+      return;
+    }
+    map.fitBounds(L.latLngBounds(coords), { padding: [44, 128], maxZoom: 17 });
+  }
+
+  function connectCreatorPins(pins) {
+    const orderedPins = pins && pins.length ? pins : getOrderedCreatorPins();
+    if (orderedPins.length < 2) return false;
+    creatorRouteConnected = true;
+    renderTour();
+    fitCreatorRoute(orderedPins);
+    return true;
+  }
+
+  function ensureCreatorPreviewOverlay() {
+    const mapTab = document.getElementById('map-tab');
+    if (!mapTab) return null;
+
+    let overlay = document.getElementById('creator-guide-preview-ui');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'creator-guide-preview-ui';
+    overlay.style.cssText = 'display:none; pointer-events:none;';
+    overlay.innerHTML = `
+      <div id="creator-preview-top-card" class="glass-panel" style="position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:1700; width:min(92vw, 560px); pointer-events:auto; padding:12px 14px; display:flex; align-items:center; gap:12px; border-radius:20px; background:rgba(255,255,255,0.92);">
+        <div id="creator-preview-cover" style="width:64px; height:50px; border-radius:14px; flex-shrink:0; background:linear-gradient(135deg, rgba(112,162,183,.25), rgba(175,212,153,.25)); background-size:cover; background-position:center; border:1px solid var(--glass-border);"></div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
+            <h3 id="creator-preview-title" style="font-size:15px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">가이드 미리보기</h3>
+            <button id="creator-preview-close" class="btn-circle" type="button" style="width:28px; height:28px; font-size:12px; flex-shrink:0;"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; font-size:11px; color:var(--text-secondary);">
+            <span>코스 <strong id="creator-preview-course-count">0</strong></span>
+            <span>메모 <strong id="creator-preview-memo-count">0</strong></span>
+            <span>쿠폰 <strong id="creator-preview-coupon-count">0</strong></span>
+          </div>
+        </div>
+      </div>
+      <div id="creator-preview-bottom-card" class="glass-panel" style="position:absolute; left:50%; bottom:108px; transform:translateX(-50%); z-index:1700; width:min(92vw, 420px); pointer-events:auto; padding:12px; border-radius:24px; display:flex; align-items:center; gap:10px; justify-content:space-between; background:rgba(255,255,255,0.92);">
+        <div style="min-width:0; flex:1;">
+          <div id="creator-preview-pin-title" style="font-size:13px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">플레이 버튼을 눌러 코스를 확인하세요</div>
+          <div id="creator-preview-pin-desc" style="font-size:11px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">한 번 누를 때마다 다음 핀으로 이동합니다.</div>
+        </div>
+        <button id="creator-preview-next-btn" class="btn-rect" type="button" style="justify-content:center; background:var(--grad-pink-purple); border-radius:18px; padding:10px 14px; flex-shrink:0;"><i class="fa-solid fa-play"></i> 플레이</button>
+      </div>
+    `;
+    mapTab.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector('#creator-preview-close');
+    const nextBtn = overlay.querySelector('#creator-preview-next-btn');
+    if (closeBtn) closeBtn.addEventListener('click', stopCreatorGuidePreview);
+    if (nextBtn) nextBtn.addEventListener('click', advanceCreatorGuidePreview);
+    return overlay;
+  }
+
+  function updateCreatorPreviewOverlay() {
+    const overlay = ensureCreatorPreviewOverlay();
+    if (!overlay || !creatorPreviewPackage) return;
+    const pins = creatorPreviewPackage.pins || [];
+    const cover = overlay.querySelector('#creator-preview-cover');
+    const title = overlay.querySelector('#creator-preview-title');
+    const courseCount = overlay.querySelector('#creator-preview-course-count');
+    const memoCount = overlay.querySelector('#creator-preview-memo-count');
+    const couponCount = overlay.querySelector('#creator-preview-coupon-count');
+    const pinTitle = overlay.querySelector('#creator-preview-pin-title');
+    const pinDesc = overlay.querySelector('#creator-preview-pin-desc');
+    const nextBtn = overlay.querySelector('#creator-preview-next-btn');
+
+    if (cover) cover.style.backgroundImage = creatorPreviewPackage.representativeImage ? `url('${creatorPreviewPackage.representativeImage}')` : '';
+    if (title) title.textContent = creatorPreviewPackage.tourName || '가이드 미리보기';
+    if (courseCount) courseCount.textContent = String(pins.length);
+    if (memoCount) memoCount.textContent = String((creatorPreviewPackage.audioFiles || []).length + (creatorPreviewPackage.videoFiles || []).length + (creatorPreviewPackage.textFiles || []).length);
+    if (couponCount) couponCount.textContent = String((creatorPreviewPackage.eventCoupons || []).length);
+
+    const currentPin = pins[creatorPreviewIndex];
+    if (pinTitle) {
+      pinTitle.textContent = currentPin ? `${currentPin.order}. ${currentPin.nameKo || currentPin.nameEn || '코스 핀'}` : '플레이 버튼을 눌러 코스를 확인하세요';
+    }
+    if (pinDesc) {
+      pinDesc.textContent = currentPin ? (currentPin.description || '메모 없음') : '한 번 누를 때마다 다음 핀으로 이동합니다.';
+    }
+    if (nextBtn) {
+      nextBtn.innerHTML = creatorPreviewIndex < 0 ? '<i class="fa-solid fa-play"></i> 플레이' : '<i class="fa-solid fa-forward-step"></i> 다음 핀';
+    }
+  }
+
+  function startCreatorGuidePreview(packageData) {
+    creatorPreviewPackage = packageData || null;
+    creatorPreviewIndex = -1;
+    creatorRouteConnected = true;
+    const overlay = ensureCreatorPreviewOverlay();
+    if (overlay) overlay.style.display = 'block';
+    renderTour();
+    fitCreatorRoute(getOrderedCreatorPins());
+    updateCreatorPreviewOverlay();
+    window.TravelogApp?.showToast(t('가이드 미리보기를 시작합니다.', 'Starting guide preview.', 'ガイドプレビューを開始します。'));
+  }
+
+  function stopCreatorGuidePreview() {
+    const overlay = document.getElementById('creator-guide-preview-ui');
+    if (overlay) overlay.style.display = 'none';
+    creatorPreviewPackage = null;
+    creatorPreviewIndex = -1;
+  }
+
+  function advanceCreatorGuidePreview() {
+    if (!creatorPreviewPackage || !Array.isArray(creatorPreviewPackage.pins) || creatorPreviewPackage.pins.length === 0) return;
+    const pins = creatorPreviewPackage.pins;
+    creatorPreviewIndex = (creatorPreviewIndex + 1) % pins.length;
+    const pin = pins[creatorPreviewIndex];
+    if (userMarker && map) {
+      userMarker.setLatLng([pin.lat, pin.lng]);
+      map.panTo([pin.lat, pin.lng]);
+    }
+    const marker = customCreatedMarkers[pin.id];
+    if (marker && marker.openPopup) marker.openPopup();
+    updateCreatorPreviewOverlay();
+  }
+
   function renderTour() {
     markersLayer.clearLayers();
+    customCreatedMarkers = {};
     if (routePolyline) {
       map.removeLayer(routePolyline);
     }
@@ -543,7 +775,7 @@ const TravelogMapModule = (() => {
 
     if (isCreatorMode) {
       // 1. Draw ONLY Custom Created Pins on the map
-      const customPins = window.TravelogApp ? window.TravelogApp.getState().customCreatedPins : [];
+      const customPins = getOrderedCreatorPins();
       const routeCoords = [];
 
       customPins.forEach((pin, index) => {
@@ -565,26 +797,23 @@ const TravelogMapModule = (() => {
         applyColorFilterToMarker(marker, pin.color); // Color rotation
       });
 
-      // Draw customized creator route polyline
-      if (routeCoords.length > 1) {
+      // Draw customized creator route polyline only after the user connects pins.
+      if (creatorRouteConnected && routeCoords.length > 1) {
         routePolyline = L.polyline(routeCoords, {
-          color: '#ff2e63', // Neon Pink color for custom creator route line
-          weight: 4,
-          opacity: 0.8,
-          dashArray: '6, 6'
+          color: '#ff2e63',
+          weight: 5,
+          opacity: 0.92,
+          lineJoin: 'round',
+          lineCap: 'round'
         }).addTo(map);
       }
     } else {
       // 2. Normal Tour Mode: Draw baseline Gyeongbokgung Tour nodes
       const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
-      if (activeGuide) {
-        const guideName = document.getElementById('guide-name');
-        const guideDesc = document.getElementById('guide-desc');
-        if (guideName) guideName.textContent = pick(activeGuide, 'name');
-        if (guideDesc) guideDesc.textContent = pick(activeGuide, 'desc');
-      }
-
       const nodes = getTourNodes();
+      if (activeGuide) {
+        updateActiveGuideHud(activeGuide, nodes);
+      }
       const routeCoords = [];
 
       nodes.forEach(node => {
@@ -607,10 +836,12 @@ const TravelogMapModule = (() => {
 
       // Draw Polyline route
       routePolyline = L.polyline(routeCoords, {
-        color: '#70A2B7',
+        color: activeGuide?.isPublishedGuide ? '#ff2e63' : '#70A2B7',
         weight: 5,
-        opacity: 0.8,
-        dashArray: '8, 8'
+        opacity: activeGuide?.isPublishedGuide ? 0.92 : 0.8,
+        dashArray: activeGuide?.isPublishedGuide ? null : '8, 8',
+        lineJoin: 'round',
+        lineCap: 'round'
       }).addTo(map);
 
       // Render list in Tour Stops HUD
@@ -1318,6 +1549,8 @@ const TravelogMapModule = (() => {
 
   function clearCreatorPins() {
     window.TravelogApp.getState().customCreatedPins = [];
+    creatorRouteConnected = false;
+    stopCreatorGuidePreview();
     for (const pinId in customCreatedMarkers) {
       if (customCreatedMarkers[pinId]) {
         markersLayer.removeLayer(customCreatedMarkers[pinId]);
@@ -1360,6 +1593,7 @@ const TravelogMapModule = (() => {
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
       window.TravelogCreatorModule.renderCoordinatesList();
     }
+    renderTour();
   }
 
 
@@ -1387,10 +1621,14 @@ const TravelogMapModule = (() => {
 
   return {
     init: init,
+    renderTour: renderTour,
     addNewCreatorPin: addNewCreatorPin,
     clearCreatorPins: clearCreatorPins,
     updateCreatorPinColor: updateCreatorPinColor,
     removeCreatorPin: removeCreatorPin,
+    connectCreatorPins: connectCreatorPins,
+    startCreatorGuidePreview: startCreatorGuidePreview,
+    stopCreatorGuidePreview: stopCreatorGuidePreview,
     centerToUser: () => {
       if (map) {
         const loc = getCurrentLatLng();
