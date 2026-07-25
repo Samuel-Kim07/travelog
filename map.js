@@ -763,7 +763,7 @@ const TravelogMapModule = (() => {
     updateCreatorPreviewOverlay();
   }
 
-  function renderTour() {
+  function renderTour(options = {}) {
     markersLayer.clearLayers();
     customCreatedMarkers = {};
     if (routePolyline) {
@@ -859,8 +859,51 @@ const TravelogMapModule = (() => {
           listEl.appendChild(row);
         });
       }
+      if (options && options.fitToGuide === true && activeGuide?.isPublishedGuide && routeCoords.length > 0) {
+        focusGuideRoute(routeCoords);
+      }
     }
     updateMapOverview();
+  }
+
+  function focusGuideRoute(routeCoords) {
+    if (!map || !Array.isArray(routeCoords) || routeCoords.length === 0) return;
+    const validCoords = routeCoords
+      .map(coord => [Number(coord[0]), Number(coord[1])])
+      .filter(coord => Number.isFinite(coord[0]) && Number.isFinite(coord[1]));
+
+    if (!validCoords.length) return;
+
+    window.setTimeout(() => {
+      if (validCoords.length === 1) {
+        map.setView(validCoords[0], 17);
+        return;
+      }
+      const bounds = L.latLngBounds(validCoords);
+      map.fitBounds(bounds, {
+        padding: [52, 52],
+        maxZoom: 17
+      });
+    }, 80);
+  }
+
+  function startGuideRun(activeGuide = null) {
+    if (window.TravelogApp && activeGuide) {
+      window.TravelogApp.getState().activeGuide = activeGuide;
+    }
+    if (window.TravelogApp) {
+      window.TravelogApp.getState().mapMode = 'run';
+    }
+    triggeredNodes.clear();
+    renderTour({ fitToGuide: true });
+    renderUserMemoMarkers();
+    invalidateMapSoon();
+  }
+
+  function invalidateMapSoon() {
+    if (!map) return;
+    window.setTimeout(() => map.invalidateSize(), 60);
+    window.setTimeout(() => map.invalidateSize(), 240);
   }
 
   // ==========================================
@@ -1299,8 +1342,53 @@ const TravelogMapModule = (() => {
     });
   }
 
+  function getNodeMemoText(node) {
+    const source = node?.sourcePin || node?.sourceStop || {};
+    return source.description || source.memoText || source.descKo || node.desc || node.triggerText || '';
+  }
+
+  function openPublishedGuideMemoPopup(node) {
+    let modal = document.getElementById('published-guide-memo-popup');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'published-guide-memo-popup';
+      modal.className = 'profile-manager-modal active';
+      modal.style.zIndex = '3400';
+      modal.innerHTML = `
+        <div class="profile-manager-card glass-panel" style="max-width:520px;width:92%;padding:24px;position:relative;">
+          <button class="btn-circle" id="published-guide-memo-close-btn" type="button" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+          <div style="padding-right:42px;">
+            <span id="published-guide-memo-type" style="display:inline-block;font-size:11px;font-weight:900;color:white;background:var(--color-ocean);border-radius:999px;padding:4px 9px;margin-bottom:8px;">GUIDE MEMO</span>
+            <h2 id="published-guide-memo-title" class="gradient-text" style="font-size:20px;margin:0 0 8px 0;">메모핀</h2>
+            <p id="published-guide-memo-body" style="font-size:13px;color:var(--text-secondary);white-space:pre-line;line-height:1.65;margin:0 0 12px 0;"></p>
+            <small id="published-guide-memo-coords" style="display:block;color:var(--text-muted);font-size:11px;"></small>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#published-guide-memo-close-btn').addEventListener('click', () => {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+      });
+    }
+    const titleEl = modal.querySelector('#published-guide-memo-title');
+    const bodyEl = modal.querySelector('#published-guide-memo-body');
+    const coordsEl = modal.querySelector('#published-guide-memo-coords');
+    const typeEl = modal.querySelector('#published-guide-memo-type');
+    if (titleEl) titleEl.textContent = node.name || '메모핀';
+    if (bodyEl) bodyEl.textContent = getNodeMemoText(node) || '등록된 메모 내용이 없습니다.';
+    if (coordsEl) coordsEl.textContent = `${Number(node.lat).toFixed(5)}, ${Number(node.lng).toFixed(5)}`;
+    if (typeEl) typeEl.textContent = node.type === 'audio' ? '음성 메모' : node.type === 'video' ? '영상 메모' : node.type === 'coupon' ? '쿠폰 메모' : '텍스트 메모';
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
   function triggerNodeEvent(node) {
     window.TravelogApp.showToast(`${node.name}: ${node.triggerText}`);
+    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+    if (activeGuide?.isPublishedGuide) {
+      openPublishedGuideMemoPopup(node);
+      return;
+    }
 
     if (node.type === 'video') {
       triggerVideoOverlay(node.name, 'Minho (Seoul Local)');
@@ -1622,6 +1710,7 @@ const TravelogMapModule = (() => {
   return {
     init: init,
     renderTour: renderTour,
+    startGuideRun: startGuideRun,
     addNewCreatorPin: addNewCreatorPin,
     clearCreatorPins: clearCreatorPins,
     updateCreatorPinColor: updateCreatorPinColor,

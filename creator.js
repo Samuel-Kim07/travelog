@@ -75,6 +75,43 @@ const TravelogCreatorModule = (() => {
     }
   }
 
+  function initGuidePricingControls() {
+    const freeRadio = document.getElementById('guide-price-free');
+    const paidRadio = document.getElementById('guide-price-paid');
+    const priceInput = document.getElementById('guide-price-coin-input');
+    const sync = () => {
+      if (priceInput) priceInput.disabled = !(paidRadio && paidRadio.checked);
+    };
+    if (freeRadio && !freeRadio.dataset.bound) {
+      freeRadio.dataset.bound = 'true';
+      freeRadio.addEventListener('change', sync);
+    }
+    if (paidRadio && !paidRadio.dataset.bound) {
+      paidRadio.dataset.bound = 'true';
+      paidRadio.addEventListener('change', sync);
+    }
+    if (priceInput && !priceInput.dataset.bound) {
+      priceInput.dataset.bound = 'true';
+      priceInput.addEventListener('input', () => {
+        const value = Math.max(0, Math.floor(Number(priceInput.value) || 0));
+        priceInput.value = String(value);
+      });
+    }
+    sync();
+  }
+
+  function getGuidePricing() {
+    const paidRadio = document.getElementById('guide-price-paid');
+    const priceInput = document.getElementById('guide-price-coin-input');
+    const isPaid = !!(paidRadio && paidRadio.checked);
+    const coinPrice = isPaid ? Math.max(0, Math.floor(Number(priceInput?.value || 0))) : 0;
+    return {
+      isPaid: isPaid && coinPrice > 0,
+      coinPrice: isPaid ? coinPrice : 0,
+      label: isPaid && coinPrice > 0 ? `${coinPrice.toLocaleString()} COIN` : '무료'
+    };
+  }
+
   function getGuideCoverDataUrl() {
     return guideCoverDataUrl || localStorage.getItem(GUIDE_COVER_STORAGE_KEY) || '';
   }
@@ -244,6 +281,7 @@ const TravelogCreatorModule = (() => {
     initGuideIntroBuilder();
     bindCouponControlPanel();
     bindGuideEditModal();
+    initGuidePricingControls();
     renderCoordinatesList();
     renderAudioList();
     renderVideoList();
@@ -859,6 +897,7 @@ const TravelogCreatorModule = (() => {
     const guideIntroAudioInfo = guideIntroAudio ? { ...guideIntroAudio } : null;
     const guideIntroVideoInfo = guideIntroVideo ? { ...guideIntroVideo } : null;
     const eventCoupons = registeredCoupons.map(coupon => ({ ...coupon }));
+    const monetization = getGuidePricing();
 
     const pins = orderedPins.map((pin, index) => {
       const linkedAudios = recordedAudios.filter(a => Number(a.stopIndex) === index).map(a => a.name);
@@ -940,6 +979,10 @@ const TravelogCreatorModule = (() => {
       guideIntroText,
       guideIntroAudio: guideIntroAudioInfo,
       guideIntroVideo: guideIntroVideoInfo,
+      monetization: { ...monetization },
+      isPaid: monetization.isPaid,
+      coinPrice: monetization.coinPrice,
+      priceLabel: monetization.label,
       eventCoupons,
       pins,
       audioFiles,
@@ -960,6 +1003,10 @@ const TravelogCreatorModule = (() => {
       guideIntroText,
       guideIntroAudio: guideIntroAudioInfo ? { ...guideIntroAudioInfo } : null,
       guideIntroVideo: guideIntroVideoInfo ? { ...guideIntroVideoInfo } : null,
+      monetization: { ...monetization },
+      isPaid: monetization.isPaid,
+      coinPrice: monetization.coinPrice,
+      priceLabel: monetization.label,
       eventCoupons,
       pins: pins.map(pin => ({ ...pin })),
       audioFiles: audioFiles.map(file => ({ ...file, blob: undefined })),
@@ -988,7 +1035,12 @@ const TravelogCreatorModule = (() => {
       guideIntroText,
       guideIntroAudio: guideIntroAudioInfo ? { ...guideIntroAudioInfo } : null,
       guideIntroVideo: guideIntroVideoInfo ? { ...guideIntroVideoInfo } : null,
-      badge: '오늘의 가이드',
+      badge: monetization.isPaid ? `${monetization.coinPrice.toLocaleString()} COIN` : '무료',
+      isPaid: monetization.isPaid,
+      coinPrice: monetization.coinPrice,
+      priceLabel: monetization.label,
+      monetization: { ...monetization },
+      isPurchased: false,
       isWidget: true,
       isPublishedGuide: true,
       createdAt,
@@ -1353,6 +1405,10 @@ const TravelogCreatorModule = (() => {
       pinCount: (packageData.pins || []).length,
       memoCount: (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.textFiles || []).length,
       couponCount: (packageData.eventCoupons || []).length,
+      isPaid: packageData.isPaid === true,
+      coinPrice: Number(packageData.coinPrice || 0) || 0,
+      priceLabel: packageData.priceLabel || (packageData.isPaid ? `${Number(packageData.coinPrice || 0).toLocaleString()} COIN` : '무료'),
+      monetization: packageData.monetization || { isPaid: packageData.isPaid === true, coinPrice: Number(packageData.coinPrice || 0) || 0 },
       pins: (packageData.pins || []).map(pin => ({ ...pin })),
       eventCoupons: (packageData.eventCoupons || []).map(coupon => ({ ...coupon })),
       guideCard: { ...packageData.guideCard }
@@ -1387,21 +1443,257 @@ const TravelogCreatorModule = (() => {
         ? `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
         : '-';
       const imageStyle = record.representativeImage ? `background-image:url('${record.representativeImage}')` : '';
+      const priceText = record.isPaid ? `${Number(record.coinPrice || 0).toLocaleString()} COIN` : '무료';
       return `
         <div class="published-guide-row" style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.58); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px;">
           <div style="width: 54px; height: 42px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, rgba(112,162,183,0.22), rgba(175,212,153,0.22)); background-size: cover; background-position: center; ${imageStyle}"></div>
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 13px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(record.tourName)}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">핀 ${record.pinCount || 0} · 메모 ${record.memoCount || 0} · 쿠폰 ${record.couponCount || 0}</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">핀 ${record.pinCount || 0} · 메모 ${record.memoCount || 0} · 쿠폰 ${record.couponCount || 0} · ${priceText}</div>
             <div style="font-size: 10px; color: var(--text-muted);">${dateText}</div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 5px;">
             <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.openPublishedGuideEditor('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px;">수정</button>
+            <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.openPublishedGuideShare('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px; color: var(--color-ocean);"><i class="fa-solid fa-share-nodes"></i> 공유</button>
             <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.deletePublishedGuide('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px; color: var(--accent-pink);">삭제</button>
           </div>
         </div>
       `;
     }).join('');
+  }
+
+  let sharingPublishedGuideId = null;
+
+  function getPublishedGuideById(id) {
+    return getPublishedGuideRecords().find(record => String(record.id) === String(id));
+  }
+
+  function buildPublishedGuideShareUrl(record) {
+    const baseUrl = `${window.location.origin || ''}${window.location.pathname || ''}`;
+    const cleanBase = baseUrl && baseUrl !== 'null' ? baseUrl : 'travelog://guide';
+    return `${cleanBase}#travelog-guide=${encodeURIComponent(record.id || '')}`;
+  }
+
+  function buildPublishedGuideShareText(record) {
+    const pinCount = Number(record.pinCount || (record.pins || []).length || 0);
+    const memoCount = Number(record.memoCount || 0);
+    const couponCount = Number(record.couponCount || (record.eventCoupons || []).length || 0);
+    const priceText = record.isPaid ? `${Number(record.coinPrice || 0).toLocaleString()} COIN` : '무료';
+    return `${record.tourName || 'Travelog 가이드'}\n코스 ${pinCount}개 · 메모 ${memoCount}개 · 쿠폰 ${couponCount}개 · ${priceText}\nTravelog에서 함께 여행해요!`;
+  }
+
+  function ensurePublishedGuideShareModal() {
+    let modal = document.getElementById('published-guide-share-modal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'published-guide-share-modal';
+    modal.className = 'onboarding-backdrop';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.cssText = 'display:none; z-index: 220000; padding: 18px;';
+    modal.innerHTML = `
+      <div class="glass-panel arch-card" style="width:min(94vw, 460px); max-height:86vh; overflow-y:auto; background:rgba(255,255,255,0.96); padding:22px; position:relative;">
+        <button type="button" class="btn-circle" id="published-guide-share-close-btn" style="position:absolute; top:12px; right:12px; width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+        <div style="display:flex; gap:12px; align-items:center; padding-right:36px; margin-bottom:14px;">
+          <div id="published-guide-share-image" style="width:68px; height:54px; flex-shrink:0; border-radius:14px; background:linear-gradient(135deg, rgba(112,162,183,0.22), rgba(175,212,153,0.22)); background-size:cover; background-position:center;"></div>
+          <div style="min-width:0;">
+            <div style="font-size:11px; font-weight:900; color:var(--color-ocean); letter-spacing:.04em;">GUIDE SHARE</div>
+            <h3 id="published-guide-share-title" style="font-size:18px; margin:2px 0 4px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">가이드 공유</h3>
+            <p id="published-guide-share-summary" style="font-size:12px; color:var(--text-secondary); margin:0;"></p>
+          </div>
+        </div>
+
+        <div style="background:rgba(112,162,183,0.08); border:1px solid var(--glass-border); border-radius:14px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:8px;">플랫폼 친구목록으로 공유</div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+            <button type="button" class="btn-rect" id="share-kakao-btn" style="justify-content:center; padding:10px 8px; font-size:12px; background:#FEE500; color:#3C1E1E;"><i class="fa-solid fa-comment"></i> 카카오톡</button>
+            <button type="button" class="btn-rect" id="share-facebook-btn" style="justify-content:center; padding:10px 8px; font-size:12px; background:#1877F2;"><i class="fa-brands fa-facebook-f"></i> 페이스북</button>
+            <button type="button" class="btn-rect" id="share-instagram-btn" style="justify-content:center; padding:10px 8px; font-size:12px; background:linear-gradient(135deg,#833AB4,#FD1D1D,#FCAF45);"><i class="fa-brands fa-instagram"></i> 인스타</button>
+          </div>
+          <p style="font-size:10px; color:var(--text-muted); margin:8px 0 0 0; line-height:1.45;">모바일에서는 공유창에서 각 앱의 친구목록을 선택할 수 있습니다. 앱이 없거나 브라우저가 막으면 링크가 복사됩니다.</p>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.72); border:1px solid var(--glass-border); border-radius:14px; padding:12px; margin-bottom:14px;">
+          <label style="display:block; font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:8px;">공유 링크</label>
+          <div style="display:flex; gap:8px;">
+            <input id="published-guide-share-link" readonly style="flex:1; min-width:0; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:9px 10px; border-radius:10px; font-size:12px;">
+            <button type="button" class="btn-rect secondary" id="copy-published-guide-share-link-btn" style="padding:9px 12px; font-size:12px; border-radius:10px; white-space:nowrap;"><i class="fa-solid fa-copy"></i> 링크 복사</button>
+          </div>
+        </div>
+
+        <div style="background:rgba(175,212,153,0.10); border:1px solid rgba(175,212,153,0.35); border-radius:14px; padding:12px;">
+          <div style="font-size:12px; font-weight:800; color:var(--text-primary); margin-bottom:8px;">Travelog 친구에게 쪽지로 공유</div>
+          <div id="published-guide-share-friend-list" style="display:flex; flex-direction:column; gap:8px; max-height:150px; overflow-y:auto;"></div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#published-guide-share-close-btn')?.addEventListener('click', closePublishedGuideShare);
+    modal.querySelector('#share-kakao-btn')?.addEventListener('click', () => sharePublishedGuideToPlatform('kakao'));
+    modal.querySelector('#share-facebook-btn')?.addEventListener('click', () => sharePublishedGuideToPlatform('facebook'));
+    modal.querySelector('#share-instagram-btn')?.addEventListener('click', () => sharePublishedGuideToPlatform('instagram'));
+    modal.querySelector('#copy-published-guide-share-link-btn')?.addEventListener('click', copyPublishedGuideShareLink);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closePublishedGuideShare();
+    });
+    return modal;
+  }
+
+  function openPublishedGuideShare(id) {
+    const record = getPublishedGuideById(id);
+    if (!record) {
+      window.TravelogApp?.showToast?.(t('공유할 가이드를 찾지 못했습니다.', 'Guide not found.', '共有するガイドが見つかりません。'));
+      return;
+    }
+
+    sharingPublishedGuideId = id;
+    const modal = ensurePublishedGuideShareModal();
+    const url = buildPublishedGuideShareUrl(record);
+    const summary = `핀 ${record.pinCount || 0} · 메모 ${record.memoCount || 0} · 쿠폰 ${record.couponCount || 0} · ${record.isPaid ? `${Number(record.coinPrice || 0).toLocaleString()} COIN` : '무료'}`;
+
+    const imageEl = modal.querySelector('#published-guide-share-image');
+    if (imageEl) imageEl.style.backgroundImage = record.representativeImage ? `url('${record.representativeImage}')` : '';
+    const titleEl = modal.querySelector('#published-guide-share-title');
+    if (titleEl) titleEl.textContent = record.tourName || 'Travelog 가이드';
+    const summaryEl = modal.querySelector('#published-guide-share-summary');
+    if (summaryEl) summaryEl.textContent = summary;
+    const linkEl = modal.querySelector('#published-guide-share-link');
+    if (linkEl) linkEl.value = url;
+
+    renderPublishedGuideShareFriends(record, url);
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closePublishedGuideShare() {
+    const modal = document.getElementById('published-guide-share-modal');
+    if (!modal) return;
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = 'none';
+  }
+
+  function getCurrentSharingGuide() {
+    return getPublishedGuideById(sharingPublishedGuideId);
+  }
+
+  async function copyTextToClipboard(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    textarea.remove();
+    return ok;
+  }
+
+  async function copyPublishedGuideShareLink() {
+    const record = getCurrentSharingGuide();
+    if (!record) return;
+    const url = buildPublishedGuideShareUrl(record);
+    try {
+      await copyTextToClipboard(url);
+      window.TravelogApp?.showToast?.(t('공유 링크가 복사되었습니다.', 'Share link copied.', '共有リンクをコピーしました。'));
+    } catch (error) {
+      console.warn('[Travelog Share] link copy failed:', error);
+      window.TravelogApp?.showToast?.(t('링크 복사에 실패했습니다. 입력창에서 직접 복사해 주세요.', 'Copy failed. Please copy the field manually.', 'コピーに失敗しました。入力欄から直接コピーしてください。'));
+    }
+  }
+
+  async function sharePublishedGuideToPlatform(platform) {
+    const record = getCurrentSharingGuide();
+    if (!record) return;
+    const url = buildPublishedGuideShareUrl(record);
+    const text = buildPublishedGuideShareText(record);
+    const title = record.tourName || 'Travelog Guide';
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        window.TravelogApp?.showToast?.(t('공유창을 열었습니다.', 'Share sheet opened.', '共有画面を開きました。'));
+        return;
+      }
+    } catch (error) {
+      if (error && error.name === 'AbortError') return;
+      console.warn('[Travelog Share] native share failed:', error);
+    }
+
+    if (platform === 'facebook') {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer,width=640,height=640');
+      return;
+    }
+
+    try {
+      await copyTextToClipboard(`${text}\n${url}`);
+    } catch (error) {
+      console.warn('[Travelog Share] fallback copy failed:', error);
+    }
+
+    if (platform === 'kakao') {
+      window.location.href = `kakaotalk://sendurl?msg=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+      setTimeout(() => window.TravelogApp?.showToast?.(t('카카오톡 앱이 열리지 않으면 링크가 복사되어 있습니다.', 'If KakaoTalk did not open, the link has been copied.', 'KakaoTalkが開かない場合、リンクはコピーされています。')), 500);
+    } else if (platform === 'instagram') {
+      window.open('https://www.instagram.com/', '_blank', 'noopener,noreferrer');
+      window.TravelogApp?.showToast?.(t('인스타그램에 붙여넣을 공유 문구와 링크를 복사했습니다.', 'Copied the share text and link for Instagram.', 'Instagram用の共有文とリンクをコピーしました。'));
+    }
+  }
+
+  function renderPublishedGuideShareFriends(record, url) {
+    const container = document.getElementById('published-guide-share-friend-list');
+    if (!container) return;
+    const friends = window.TravelogApp?.getState?.().friends || [];
+    if (!Array.isArray(friends) || friends.length === 0) {
+      container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px 0;">등록된 친구가 없습니다.</div>';
+      return;
+    }
+    container.innerHTML = friends.map(friend => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:white; border:1px solid var(--glass-border); border-radius:12px; padding:8px 10px;">
+        <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+          <div style="width:28px; height:28px; border-radius:50%; background:var(--grad-hero); color:white; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${escapeHtml((friend.name || '?').slice(0, 1))}</div>
+          <div style="min-width:0;">
+            <div style="font-size:12px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.name || '친구')}</div>
+            <div style="font-size:10px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.memo || '친구')}</div>
+          </div>
+        </div>
+        <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.sharePublishedGuideToFriend('${escapeHtml(friend.id)}')" style="padding:5px 10px; font-size:11px; border-radius:999px;"><i class="fa-solid fa-paper-plane"></i> 쪽지</button>
+      </div>
+    `).join('');
+  }
+
+  function sharePublishedGuideToFriend(friendId) {
+    const record = getCurrentSharingGuide();
+    const appState = window.TravelogApp?.getState?.();
+    const friend = (appState?.friends || []).find(item => String(item.id) === String(friendId));
+    if (!record || !friend || !appState) return;
+
+    const url = buildPublishedGuideShareUrl(record);
+    const messageBody = `${buildPublishedGuideShareText(record)}\n${url}`;
+    if (!Array.isArray(appState.messages)) appState.messages = [];
+    appState.messages.unshift({
+      id: Date.now(),
+      sender: `나 → ${friend.name}`,
+      date: new Date().toISOString().slice(0, 10),
+      body: messageBody,
+      unread: false
+    });
+    try {
+      localStorage.setItem('travelog_home_messages_v1', JSON.stringify(appState.messages));
+    } catch (error) {
+      console.warn('[Travelog Share] message save failed:', error);
+    }
+    if (window.TravelogApp && typeof window.TravelogApp.renderHomeTab === 'function') {
+      window.TravelogApp.renderHomeTab();
+    }
+    window.TravelogApp?.showToast?.(t(`${friend.name}에게 가이드 공유 쪽지를 보냈습니다.`, `Guide shared with ${friend.name}.`, `${friend.name}にガイドを共有しました。`));
   }
 
   function deletePublishedGuide(id) {
@@ -2118,6 +2410,16 @@ const TravelogCreatorModule = (() => {
     setGuideIntroMediaStatus('audio', '');
     setGuideIntroMediaStatus('video', '');
 
+    const freeRadio = document.getElementById('guide-price-free');
+    const paidRadio = document.getElementById('guide-price-paid');
+    const priceInput = document.getElementById('guide-price-coin-input');
+    if (freeRadio) freeRadio.checked = true;
+    if (paidRadio) paidRadio.checked = false;
+    if (priceInput) {
+      priceInput.value = '100';
+      priceInput.disabled = true;
+    }
+
     const vendorInput = document.getElementById('coupon-vendor-input');
     if (vendorInput) vendorInput.value = '';
     updateCouponOfferOptions();
@@ -2524,6 +2826,11 @@ const TravelogCreatorModule = (() => {
     moveCoordinateTo: moveCoordinateTo,
     removeRegisteredCoupon: removeRegisteredCoupon,
     openPublishedGuideEditor: openPublishedGuideEditor,
+    openPublishedGuideShare: openPublishedGuideShare,
+    closePublishedGuideShare: closePublishedGuideShare,
+    copyPublishedGuideShareLink: copyPublishedGuideShareLink,
+    sharePublishedGuideToPlatform: sharePublishedGuideToPlatform,
+    sharePublishedGuideToFriend: sharePublishedGuideToFriend,
     deletePublishedGuide: deletePublishedGuide,
     connectPinsOnMap: connectPinsOnMap,
     previewCurrentGuide: previewCurrentGuide,

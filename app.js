@@ -20,8 +20,8 @@ const TravelogState = {
   },
   // 사용자가 획득한 가이드 목록 및 위젯 노출 여부
   userGuides: [
-    { id: 'guide-gyeongbok', name: '경복궁 역사/문화 가이드 투어', author: '민호 (로컬 가이드)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', isWidget: true },
-    { id: 'guide-kyoto', name: '교토 대나무숲 청정 힐링 걷기', author: '사쿠라 (로컬 가이드)', rating: '4.8', bg: 'assets/images/blogs/blog-kyoto-temple-bamboo.svg', isWidget: true },
+    { id: 'guide-gyeongbok', name: '경복궁 역사/문화 가이드 투어', author: '민호 (로컬 가이드)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', isWidget: false, isPurchased: false },
+    { id: 'guide-kyoto', name: '교토 대나무숲 청정 힐링 걷기', author: '사쿠라 (로컬 가이드)', rating: '4.8', bg: 'assets/images/blogs/blog-kyoto-temple-bamboo.svg', isWidget: false, isPurchased: false },
     { id: 'guide-switzerland', name: '스위스 인터라켄 융프라우 코스', author: '한스 (스타 가이드)', rating: '5.0', bg: 'assets/images/blogs/blog-switzerland-interlaken.svg', isWidget: false },
     { id: 'guide-paris', name: '파리 센강 일몰 산책로', author: '소피 (스타 가이드)', rating: '4.9', bg: 'assets/images/explore/vlog-paris-seine-sunset.svg', isWidget: false }
   ],
@@ -29,6 +29,10 @@ const TravelogState = {
     { id: 1, sender: '로컬 가이드 민호', date: '2026-07-21', body: '안녕하세요! 경복궁 가이드 투어에 참여해주셔서 감사합니다. 도움이 필요하시면 언제든 쪽지 주세요!', unread: true },
     { id: 2, sender: '여행고래 (스타 가이드)', date: '2026-07-20', body: '수원 화성 퀘스트 꿀팁 알려드립니다! 북문 근처 매점 뒤의 힌트를 찾아보세요.', unread: true },
     { id: 3, sender: '트레블로그 시스템', date: '2026-07-19', body: '신규 가입 환영! 무료 1,250 코인이 지급되었습니다.', unread: false }
+  ],
+  friends: [
+    { id: 'friend-minji', name: '민지', memo: '여행 친구' },
+    { id: 'friend-jun', name: '준호', memo: '맛집 탐험 친구' }
   ],
   activeGuide: {
     id: 'guide-minho',
@@ -59,7 +63,7 @@ const LocalizationDictionary = {
   home_charge_pay: { en: 'Store', ko: '유료 충전', ja: '有料チャージ' },
   home_widget_title: { en: 'My Guide Chest', ko: '내 가이드 보관함 (위젯)', ja: 'マイガイド保管箱 (ウィジェット)' },
   home_widget_edit: { en: 'Edit Widgets', ko: '위젯 편집', ja: 'ウィジェット編集' },
-  home_widget_desc: { en: 'Add or remove quick launch widgets of purchased or event guides.', ko: '구매 또는 선물받은 여행 가이드 중 자주 보거나 보관하고 싶은 가이드 위젯을 더하고 뺄 수 있습니다.', ja: '購入または獲得したガイドのうち、ホーム에 배치할 위젯을 설정할 수 있습니다.' },
+  home_widget_desc: { en: 'Only purchased guides are shown here. Add or remove purchased guide widgets.', ko: '내가 구매한 여행 가이드만 보관함에 표시됩니다. 구매한 가이드 위젯을 더하고 뺄 수 있습니다.', ja: '購入済みガイドだけを保管箱に表示します。購入済みガイドのウィジェットを設定できます。' },
   home_rec_title: { en: 'Recommended Guides', ko: '추천 가이드', ja: 'おすすめのガイド' },
   home_today_title: { en: "Today's Logs", ko: '오늘의 가이드 (오늘의 로그)', ja: '今日のログ（おすすめガイド）' },
   home_today_info: { en: '30-Day selection block applied', ko: '오로 30일 룰 적용', ja: '30日ローテーション適用' },
@@ -80,7 +84,7 @@ const LocalizationDictionary = {
   pay_desc: { en: 'Spend on premium audio guides.', ko: '프리미엄 로컬 오디오 가이드 구입에 사용하세요.', ja: 'プレミアム音声ガイドの購入に使えます。' },
   widget_badge: { en: 'Home Widgets', ko: '홈 위젯 설정', ja: 'ホームウィジェット設定' },
   widget_config_title: { en: 'Edit Widgets', ko: '보관함 위젯 편집', ja: '保管箱ウィジェット編集' },
-  widget_config_desc: { en: 'Choose which guides to show on Home dashboard.', ko: '홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.', ja: '홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.' },
+  widget_config_desc: { en: 'Choose which purchased guides to show on Home dashboard.', ko: '홈 화면의 내 가이드 보관함에 노출할 구매 완료 가이드만 체크하세요.', ja: 'ホーム画面の保管箱に表示する購入済みガイドだけを選択してください。' },
   widget_limit_hint: { en: 'Max 4 recommended', ko: '최대 4개까지 노출 권장', ja: '最大4個までの表示を推奨' },
   active_guide_title: { en: '<i class="fa-solid fa-user-astronaut"></i> Active Guide', ko: '<i class="fa-solid fa-user-astronaut"></i> 현재 가이드', ja: '<i class="fa-solid fa-user-astronaut"></i> 現在のガイド' },
   intro_video: { en: '<i class="fa-solid fa-circle-play"></i> Intro Video', ko: '<i class="fa-solid fa-circle-play"></i> 소개 영상', ja: '<i class="fa-solid fa-circle-play"></i> 紹介動画' },
@@ -229,6 +233,7 @@ const LocalizationDictionary = {
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initLanguageToggle();
+  loadHomePersistentState();
   updatePointsDisplay();
   initOnboarding();
   
@@ -373,6 +378,10 @@ function sanitizePublishedGuideCard(guide) {
     guideIntroAudio: guide?.guideIntroAudio || null,
     guideIntroVideo: guide?.guideIntroVideo || null,
     badge: guide?.badge || '오늘의 가이드',
+    isPaid: guide?.isPaid === true || guide?.monetization?.isPaid === true || Number(guide?.coinPrice || guide?.priceCoins || guide?.monetization?.coinPrice || 0) > 0,
+    coinPrice: Number(guide?.coinPrice || guide?.priceCoins || guide?.monetization?.coinPrice || 0) || 0,
+    monetization: guide?.monetization || { isPaid: guide?.isPaid === true, coinPrice: Number(guide?.coinPrice || guide?.priceCoins || 0) || 0 },
+    isPurchased: guide?.isPurchased === true,
     isWidget: guide?.isWidget !== false,
     isPublishedGuide: guide?.isPublishedGuide === true || stops.length > 0,
     createdAt: guide?.createdAt || new Date().toISOString(),
@@ -447,6 +456,9 @@ function makeCreatorRecordFromGuideCard(guideCard) {
     pinCount: guideCard.pinCount || (guideCard.stops || []).length,
     memoCount: guideCard.memoCount || 0,
     couponCount: guideCard.couponCount || (guideCard.eventCoupons || []).length || 0,
+    isPaid: guideCard.isPaid === true,
+    coinPrice: Number(guideCard.coinPrice || guideCard.priceCoins || 0) || 0,
+    monetization: guideCard.monetization || { isPaid: guideCard.isPaid === true, coinPrice: Number(guideCard.coinPrice || 0) || 0 },
     pins: (guideCard.stops || []).map(stop => ({ ...stop })),
     eventCoupons: (guideCard.eventCoupons || []).map(coupon => ({ ...coupon })),
     guideCard: { ...guideCard }
@@ -563,6 +575,134 @@ function removePublishedGuide(guideId) {
   renderHomeTab();
 }
 
+function saveHomePersistentState() {
+  try {
+    localStorage.setItem(HOME_COINS_STORAGE_KEY, String(TravelogState.coins));
+    localStorage.setItem(HOME_FRIENDS_STORAGE_KEY, JSON.stringify(TravelogState.friends || []));
+    localStorage.setItem(HOME_MESSAGES_STORAGE_KEY, JSON.stringify(TravelogState.messages || []));
+  } catch (error) {
+    console.warn('Home state could not be saved locally.', error);
+  }
+}
+
+function loadHomePersistentState() {
+  try {
+    const savedCoins = localStorage.getItem(HOME_COINS_STORAGE_KEY);
+    if (savedCoins !== null && Number.isFinite(Number(savedCoins))) {
+      TravelogState.coins = Number(savedCoins);
+    }
+    const savedFriends = localStorage.getItem(HOME_FRIENDS_STORAGE_KEY);
+    if (savedFriends) {
+      const friends = JSON.parse(savedFriends);
+      if (Array.isArray(friends)) TravelogState.friends = friends;
+    }
+    const savedMessages = localStorage.getItem(HOME_MESSAGES_STORAGE_KEY);
+    if (savedMessages) {
+      const messages = JSON.parse(savedMessages);
+      if (Array.isArray(messages)) TravelogState.messages = messages;
+    }
+    loadPurchasedGuides();
+  } catch (error) {
+    console.warn('Home state could not be loaded locally.', error);
+  }
+}
+
+function getPurchasedGuideCards() {
+  try {
+    const raw = localStorage.getItem(PURCHASED_GUIDES_STORAGE_KEY);
+    const guides = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(guides)) return [];
+
+    // 내 가이드 보관함은 결제를 완료했거나 무료 구매 버튼을 누른 가이드만 사용합니다.
+    // 예전에 홈 위젯에 있던 기본/출간/추천 가이드가 섞여 저장된 경우를 방지합니다.
+    return guides.filter(guide => guide && guide.isPurchased === true);
+  } catch (_) {
+    return [];
+  }
+}
+
+function savePurchasedGuideCards(guides) {
+  try {
+    const purchasedOnly = Array.isArray(guides)
+      ? guides.filter(guide => guide && guide.isPurchased === true)
+      : [];
+    localStorage.setItem(PURCHASED_GUIDES_STORAGE_KEY, JSON.stringify(purchasedOnly));
+  } catch (error) {
+    console.warn('Purchased guides could not be saved locally.', error);
+  }
+}
+
+function loadPurchasedGuides() {
+  const purchased = getPurchasedGuideCards();
+  purchased.forEach(guide => {
+    const existing = TravelogState.userGuides.find(item => item.id === guide.id);
+    if (existing) {
+      Object.assign(existing, { ...guide, isPurchased: true, isWidget: guide.isWidget !== false });
+    } else {
+      TravelogState.userGuides.unshift({ ...guide, isWidget: guide.isWidget !== false, isPurchased: true });
+    }
+  });
+}
+
+function getMyGuideChestGuides() {
+  const purchasedMap = new Map();
+
+  getPurchasedGuideCards().forEach(guide => {
+    if (guide?.id) {
+      purchasedMap.set(guide.id, { ...guide, isPurchased: true, isWidget: guide.isWidget !== false });
+    }
+  });
+
+  TravelogState.userGuides
+    .filter(guide => guide && guide.isPurchased === true)
+    .forEach(guide => {
+      const saved = purchasedMap.get(guide.id) || {};
+      purchasedMap.set(guide.id, { ...guide, ...saved, isPurchased: true, isWidget: saved.isWidget ?? guide.isWidget ?? true });
+    });
+
+  return Array.from(purchasedMap.values());
+}
+
+function getGuideCoinPrice(guide) {
+  const raw = guide?.coinPrice ?? guide?.priceCoins ?? guide?.monetization?.coinPrice;
+  const price = Number(raw);
+  return Number.isFinite(price) && price > 0 ? Math.floor(price) : 0;
+}
+
+function isGuidePaid(guide) {
+  if (!guide) return false;
+  if (guide.isPaid === true || guide.monetization?.isPaid === true) return getGuideCoinPrice(guide) > 0;
+  return getGuideCoinPrice(guide) > 0;
+}
+
+function getGuidePriceLabel(guide) {
+  return isGuidePaid(guide) ? `${getGuideCoinPrice(guide).toLocaleString()} COIN` : '무료';
+}
+
+function isGuidePurchased(guideId) {
+  return getPurchasedGuideCards().some(guide => guide.id === guideId) || TravelogState.userGuides.some(guide => guide.id === guideId && guide.isPurchased);
+}
+
+function addGuideToMyChest(guideCard) {
+  const normalized = sanitizePublishedGuideCard({ ...guideCard, isWidget: true, isPurchased: true });
+  normalized.isPurchased = true;
+  normalized.isWidget = true;
+
+  const purchased = [normalized, ...getPurchasedGuideCards().filter(item => item.id !== normalized.id)].slice(0, 100);
+  savePurchasedGuideCards(purchased);
+
+  TravelogState.userGuides = [normalized, ...TravelogState.userGuides.filter(item => item.id !== normalized.id)];
+  saveHomePersistentState();
+  renderHomeTab();
+  return normalized;
+}
+
+function updateCoins(delta) {
+  TravelogState.coins = Math.max(0, Number(TravelogState.coins || 0) + Number(delta || 0));
+  saveHomePersistentState();
+  renderHomeTab();
+}
+
 function initHomeTab() {
   // Bind Dashboard actions
   const profileTrigger = document.getElementById('home-profile-trigger');
@@ -610,6 +750,8 @@ function initHomeTab() {
   if (widgetCloseBtn) widgetCloseBtn.addEventListener('click', closeWidgetConfig);
   if (widgetSaveBtn) widgetSaveBtn.addEventListener('click', saveWidgetConfig);
 
+  bindFriendUiEvents();
+
   // Start banner ad rotation
   startAdRolling();
   
@@ -645,6 +787,8 @@ function renderHomeTab() {
     badgeEl.style.display = unreadMsgCount > 0 ? 'block' : 'none';
   }
 
+  renderFriendList();
+
   // 3. Render Widget Guides blocks
   renderGuideWidgets();
 
@@ -659,26 +803,27 @@ function renderGuideWidgets() {
   const container = document.getElementById('home-widget-grid');
   if (!container) return;
 
-  const activeWidgets = TravelogState.userGuides.filter(g => g.isWidget);
+  const activeWidgets = getMyGuideChestGuides().filter(g => g.isWidget !== false);
 
   if (activeWidgets.length === 0) {
     container.innerHTML = `
       <div class="widget-empty-state">
         <i class="fa-solid fa-folder-open" style="font-size: 24px; margin-bottom: 8px; display: block; color: var(--text-secondary);"></i>
-        <span data-localize="empty_widgets">등록된 위젯 가이드가 없습니다. 우측 상단 편집을 눌러 보관함을 추가하세요.</span>
+        <span data-localize="empty_widgets">아직 구매한 가이드가 없습니다. 홈의 투어 소개 팝업에서 구매한 가이드만 이 보관함에 표시됩니다.</span>
       </div>`;
     return;
   }
 
   container.innerHTML = activeWidgets.map(guide => {
     return `
-      <div class="widget-block" id="widget-${guide.id}">
+      <div class="widget-block" id="widget-${guide.id}" style="position:relative;">
         <div class="widget-block-bg" style="background-image: url('${guide.bg}')"></div>
+        <span style="position:absolute; top:10px; right:10px; z-index:2; font-size:10px; font-weight:900; color:#fff; background:${isGuidePaid(guide) ? 'rgba(255,46,99,.92)' : 'rgba(52,168,83,.92)'}; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.18);">${getGuidePriceLabel(guide)}</span>
         <div>
           <h4 class="widget-block-title">${escapeHtml(guide.name)}</h4>
           <span class="widget-block-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
         </div>
-        <button class="widget-block-btn" onclick="window.openGuideIntroFromHome('${guide.id}')">
+        <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
           <i class="fa-solid fa-circle-play"></i> <span data-localize="start_guide">가이드 시작</span>
         </button>
       </div>`;
@@ -699,10 +844,166 @@ function renderGuidesScrollList(containerId, listData) {
           <div class="guide-card-footer">
             <span class="guide-card-rating"><i class="fa-solid fa-star"></i> ${item.rating}</span>
             <span class="guide-card-badge">${item.badge}</span>
+            <span style="background:${isGuidePaid(item) ? '#ff2e63' : '#34A853'}; color:white; border-radius:999px; padding:3px 7px; font-size:10px; font-weight:900;">${getGuidePriceLabel(item)}</span>
           </div>
         </div>
       </div>`;
   }).join('');
+}
+
+// Friends Logic
+let currentMessageFriendId = null;
+
+function bindFriendUiEvents() {
+  const editBtn = document.getElementById('friend-edit-btn');
+  const editCloseBtn = document.getElementById('friend-edit-close-btn');
+  const addBtn = document.getElementById('friend-add-btn');
+  const messageCloseBtn = document.getElementById('friend-message-close-btn');
+  const messageSendBtn = document.getElementById('friend-message-send-btn');
+
+  if (editBtn && !editBtn.dataset.bound) {
+    editBtn.dataset.bound = 'true';
+    editBtn.addEventListener('click', openFriendEditModal);
+  }
+  if (editCloseBtn && !editCloseBtn.dataset.bound) {
+    editCloseBtn.dataset.bound = 'true';
+    editCloseBtn.addEventListener('click', closeFriendEditModal);
+  }
+  if (addBtn && !addBtn.dataset.bound) {
+    addBtn.dataset.bound = 'true';
+    addBtn.addEventListener('click', addFriendFromInput);
+  }
+  if (messageCloseBtn && !messageCloseBtn.dataset.bound) {
+    messageCloseBtn.dataset.bound = 'true';
+    messageCloseBtn.addEventListener('click', closeFriendMessageModal);
+  }
+  if (messageSendBtn && !messageSendBtn.dataset.bound) {
+    messageSendBtn.dataset.bound = 'true';
+    messageSendBtn.addEventListener('click', sendFriendMessage);
+  }
+}
+
+function renderFriendList() {
+  const list = document.getElementById('home-friend-list');
+  if (!list) return;
+  const friends = Array.isArray(TravelogState.friends) ? TravelogState.friends : [];
+  if (friends.length === 0) {
+    list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px 0; text-align:center;">아직 등록된 친구가 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = friends.slice(0, 4).map(friend => `
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(255,255,255,.62); border:1px solid var(--glass-border); border-radius:14px; padding:8px 10px;">
+      <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+        <div style="width:30px; height:30px; border-radius:50%; background:var(--grad-hero); display:flex; align-items:center; justify-content:center; color:white; font-weight:900; flex-shrink:0;">${escapeHtml((friend.name || '?').slice(0, 1))}</div>
+        <div style="min-width:0;">
+          <div style="font-size:13px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.name)}</div>
+          <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(friend.memo || '친구')}</div>
+        </div>
+      </div>
+      <button class="btn-rect secondary" type="button" onclick="window.openFriendMessageModal('${friend.id}')" style="padding:5px 10px; font-size:11px; border-radius:999px;"><i class="fa-solid fa-paper-plane"></i> 쪽지</button>
+    </div>`).join('');
+}
+
+function renderFriendEditList() {
+  const list = document.getElementById('friend-edit-list');
+  if (!list) return;
+  const friends = Array.isArray(TravelogState.friends) ? TravelogState.friends : [];
+  if (friends.length === 0) {
+    list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px 0;">친구를 추가해 주세요.</div>';
+    return;
+  }
+  list.innerHTML = friends.map(friend => `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; border:1px solid var(--glass-border); border-radius:14px; padding:9px 10px; background:rgba(255,255,255,.72);">
+      <div style="font-size:13px; font-weight:800; color:var(--text-primary);">${escapeHtml(friend.name)}</div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn-rect secondary" type="button" onclick="window.openFriendMessageModal('${friend.id}')" style="padding:5px 9px; font-size:11px; border-radius:10px;">쪽지</button>
+        <button class="btn-rect secondary" type="button" onclick="window.deleteFriend('${friend.id}')" style="padding:5px 9px; font-size:11px; border-radius:10px; color:var(--accent-pink);">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+function openFriendEditModal() {
+  renderFriendEditList();
+  const modal = document.getElementById('friend-edit-modal');
+  if (modal) {
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function closeFriendEditModal() {
+  const modal = document.getElementById('friend-edit-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function addFriendFromInput() {
+  const input = document.getElementById('friend-name-input');
+  const name = input ? input.value.trim() : '';
+  if (name.length < 2) {
+    showToast(localizedText('친구 이름을 2글자 이상 입력해 주세요.', 'Enter at least 2 characters for the friend name.', '友だちの名前を2文字以上入力してください。'));
+    return;
+  }
+  const friend = { id: `friend-${Date.now()}`, name, memo: '등록된 친구' };
+  TravelogState.friends = [friend, ...(TravelogState.friends || [])];
+  if (input) input.value = '';
+  saveHomePersistentState();
+  renderFriendList();
+  renderFriendEditList();
+  showToast(localizedText('친구를 추가했습니다.', 'Friend added.', '友だちを追加しました。'));
+}
+
+window.deleteFriend = function(friendId) {
+  TravelogState.friends = (TravelogState.friends || []).filter(friend => friend.id !== friendId);
+  saveHomePersistentState();
+  renderFriendList();
+  renderFriendEditList();
+};
+
+window.openFriendMessageModal = function(friendId) {
+  currentMessageFriendId = friendId;
+  const friend = (TravelogState.friends || []).find(item => item.id === friendId);
+  const modal = document.getElementById('friend-message-modal');
+  const target = document.getElementById('friend-message-target');
+  const text = document.getElementById('friend-message-text');
+  if (target) target.textContent = friend ? `${friend.name}에게 보내는 쪽지` : '친구에게 보내는 쪽지';
+  if (text) text.value = '';
+  if (modal) {
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+};
+
+function closeFriendMessageModal() {
+  const modal = document.getElementById('friend-message-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function sendFriendMessage() {
+  const friend = (TravelogState.friends || []).find(item => item.id === currentMessageFriendId);
+  const textArea = document.getElementById('friend-message-text');
+  const body = textArea ? textArea.value.trim() : '';
+  if (!friend || !body) {
+    showToast(localizedText('쪽지 내용을 입력해 주세요.', 'Please write a message.', 'メッセージを入力してください。'));
+    return;
+  }
+  TravelogState.messages.unshift({
+    id: Date.now(),
+    sender: `나 → ${friend.name}`,
+    date: new Date().toISOString().slice(0, 10),
+    body,
+    unread: false
+  });
+  saveHomePersistentState();
+  closeFriendMessageModal();
+  closeFriendEditModal();
+  renderHomeTab();
+  showToast(localizedText(`${friend.name}에게 쪽지를 보냈습니다.`, `Message sent to ${friend.name}.`, `${friend.name}にメッセージを送りました。`));
 }
 
 // MessageBox Logic
@@ -766,6 +1067,7 @@ function startAdChargeSimulation() {
       clearInterval(interval);
       timerText.innerHTML = '<span style="color:#4caf50;"><i class="fa-solid fa-circle-check"></i> 충전 완료! (+50 COIN)</span>';
       TravelogState.coins += 50;
+      saveHomePersistentState();
       updatePointsDisplay(); // Update pts if linked
       
       // Reveal skip close btn
@@ -804,6 +1106,7 @@ function buyCoinPackage(amount) {
   
   setTimeout(() => {
     TravelogState.coins += amount;
+    saveHomePersistentState();
     showToast(localizedText(`${amount} 코인이 성공적으로 충전되었습니다!`, `Charged ${amount} Coins successfully!`, `${amount}コインがチャージされました！`));
     renderHomeTab();
   }, 1500);
@@ -815,16 +1118,26 @@ function openWidgetConfig() {
   const container = document.getElementById('widget-checkbox-list');
   if (!modal || !container) return;
 
-  container.innerHTML = TravelogState.userGuides.map(guide => {
-    return `
-      <label class="widget-checkbox-item">
-        <input type="checkbox" id="chk-${guide.id}" ${guide.isWidget ? 'checked' : ''}>
-        <div class="widget-checkbox-label">
-          <span class="widget-checkbox-name">${escapeHtml(guide.name)}</span>
-          <span class="widget-checkbox-author">${escapeHtml(guide.author)}</span>
-        </div>
-      </label>`;
-  }).join('');
+  const purchasedGuides = getMyGuideChestGuides();
+
+  if (purchasedGuides.length === 0) {
+    container.innerHTML = `
+      <div class="widget-empty-state" style="padding:16px; text-align:center;">
+        <i class="fa-solid fa-cart-shopping" style="font-size:22px; margin-bottom:8px; display:block; color:var(--text-secondary);"></i>
+        <span>아직 구매한 가이드가 없습니다. 홈의 투어 소개 팝업에서 구매한 가이드만 보관함에 담깁니다.</span>
+      </div>`;
+  } else {
+    container.innerHTML = purchasedGuides.map(guide => {
+      return `
+        <label class="widget-checkbox-item">
+          <input type="checkbox" id="chk-${guide.id}" ${guide.isWidget !== false ? 'checked' : ''}>
+          <div class="widget-checkbox-label">
+            <span class="widget-checkbox-name">${escapeHtml(guide.name)}</span>
+            <span class="widget-checkbox-author">${escapeHtml(guide.author)}</span>
+          </div>
+        </label>`;
+    }).join('');
+  }
 
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
@@ -838,15 +1151,24 @@ function closeWidgetConfig() {
 }
 
 function saveWidgetConfig() {
-  TravelogState.userGuides.forEach(guide => {
+  const purchasedGuides = getMyGuideChestGuides();
+
+  purchasedGuides.forEach(guide => {
     const chk = document.getElementById(`chk-${guide.id}`);
-    if (chk) {
-      guide.isWidget = chk.checked;
+    const nextWidgetState = chk ? chk.checked : guide.isWidget !== false;
+
+    const inRuntime = TravelogState.userGuides.find(item => item.id === guide.id);
+    if (inRuntime) {
+      inRuntime.isWidget = nextWidgetState;
+      inRuntime.isPurchased = true;
     }
+    guide.isWidget = nextWidgetState;
+    guide.isPurchased = true;
   });
 
+  savePurchasedGuideCards(purchasedGuides);
   closeWidgetConfig();
-  showToast(localizedText('위젯 보관함 설정이 완료되었습니다!', 'Widgets configuration saved!', 'ウィジェットの保管箱の設定が完了しました！'));
+  showToast(localizedText('구매한 가이드 보관함 설정이 완료되었습니다!', 'Purchased guide chest settings saved!', '購入済みガイド保管箱の設定が完了しました！'));
   renderHomeTab();
 }
 
@@ -908,6 +1230,10 @@ function buildActiveGuideFromHomeGuide(guideId) {
       pinCount: resolvedPublishedRecord.pinCount || stops.length,
       memoCount: resolvedPublishedRecord.memoCount || guideCard.memoCount || stops.length,
       couponCount: resolvedPublishedRecord.couponCount || guideCard.couponCount || eventCoupons.length || 0,
+      isPaid: resolvedPublishedRecord.isPaid === true || guideCard.isPaid === true,
+      coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0,
+      monetization: resolvedPublishedRecord.monetization || guideCard.monetization || { isPaid: resolvedPublishedRecord.isPaid === true || guideCard.isPaid === true, coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0 },
+      isPurchased: isGuidePurchased(guideId),
       eventCoupons,
       stops
     };
@@ -929,6 +1255,10 @@ function buildActiveGuideFromHomeGuide(guideId) {
     guideIntroVideo: null,
     eventCoupons: [],
     couponCount: 0,
+    isPaid: false,
+    coinPrice: 0,
+    monetization: { isPaid: false, coinPrice: 0 },
+    isPurchased: isGuidePurchased(guideId),
     stops: [
       { nameEn: "Gwanghwamun Gate", nameKo: "광화문", nameJa: "光化門", lat: 37.5760, lng: 126.9768, triggerRadius: 25, description: '경복궁의 남쪽 정문입니다.' },
       { nameEn: "Heungnyemun Court", nameKo: "흥례문 뜰", nameJa: "興礼門の庭", lat: 37.5772, lng: 126.9768, triggerRadius: 20, description: '넓은 조정과 품계석을 볼 수 있는 구간입니다.' },
@@ -942,6 +1272,7 @@ function initHomeGuideIntroModals() {
   const introClose = document.getElementById('home-guide-intro-close-btn');
   const previewClose = document.getElementById('home-guide-preview-close-btn');
   const previewBtn = document.getElementById('home-guide-intro-preview-btn');
+  const purchaseBtn = document.getElementById('home-guide-intro-purchase-btn');
 
   if (introClose && !introClose.dataset.bound) {
     introClose.dataset.bound = 'true';
@@ -955,6 +1286,12 @@ function initHomeGuideIntroModals() {
     previewBtn.dataset.bound = 'true';
     previewBtn.addEventListener('click', () => {
       if (currentIntroGuideId) window.openHomeGuidePreviewModal(currentIntroGuideId);
+    });
+  }
+  if (purchaseBtn && !purchaseBtn.dataset.bound) {
+    purchaseBtn.dataset.bound = 'true';
+    purchaseBtn.addEventListener('click', () => {
+      if (currentIntroGuideId) purchaseCurrentIntroGuide();
     });
   }
 }
@@ -986,6 +1323,73 @@ function renderIntroMedia(activeGuide) {
     : '<div style="font-size:12px; color:var(--text-muted); border:1px dashed var(--glass-border); border-radius:12px; padding:10px;">등록된 투어소개 영상/음성이 없습니다.</div>';
 }
 
+function updateIntroPurchaseButton(activeGuide) {
+  const purchaseBtn = document.getElementById('home-guide-intro-purchase-btn');
+  if (!purchaseBtn || !activeGuide) return;
+  const price = getGuideCoinPrice(activeGuide);
+  const purchased = isGuidePurchased(activeGuide.id);
+  if (purchased) {
+    purchaseBtn.innerHTML = '<i class="fa-solid fa-circle-play"></i> 구매완료 · 가이드 시작';
+    purchaseBtn.style.background = 'var(--grad-pink-purple)';
+  } else if (price > 0) {
+    purchaseBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> 구매 (${price.toLocaleString()} COIN)`;
+    purchaseBtn.style.background = 'var(--color-ocean)';
+  } else {
+    purchaseBtn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> 무료 구매 (0 COIN)';
+    purchaseBtn.style.background = 'var(--color-green, var(--color-leaf))';
+  }
+}
+
+function purchaseCurrentIntroGuide() {
+  if (!currentIntroGuideId) return;
+  const activeGuide = buildActiveGuideFromHomeGuide(currentIntroGuideId);
+  const guideCard = {
+    id: activeGuide.id,
+    name: localizedField(activeGuide, 'name') || activeGuide.nameKo || 'Travelog Guide',
+    author: activeGuide.author || 'Travelog Creator',
+    rating: activeGuide.rating || 'NEW',
+    bg: activeGuide.representativeImage || activeGuide.bg || 'assets/images/brand/travelog-ci-symbol.svg',
+    representativeImage: activeGuide.representativeImage || activeGuide.bg || '',
+    badge: activeGuide.badge || '구매한 가이드',
+    isPublishedGuide: activeGuide.isPublishedGuide === true,
+    pinCount: activeGuide.pinCount || (activeGuide.stops || []).length,
+    memoCount: activeGuide.memoCount || (activeGuide.stops || []).length,
+    couponCount: activeGuide.couponCount || (activeGuide.eventCoupons || []).length || 0,
+    guideIntroText: activeGuide.guideIntroText || '',
+    guideIntroAudio: activeGuide.guideIntroAudio || null,
+    guideIntroVideo: activeGuide.guideIntroVideo || null,
+    stops: (activeGuide.stops || []).map(stop => ({ ...stop })),
+    eventCoupons: (activeGuide.eventCoupons || []).map(coupon => ({ ...coupon })),
+    isPaid: isGuidePaid(activeGuide),
+    coinPrice: getGuideCoinPrice(activeGuide),
+    monetization: activeGuide.monetization || { isPaid: isGuidePaid(activeGuide), coinPrice: getGuideCoinPrice(activeGuide) },
+    isPurchased: true,
+    isWidget: true
+  };
+
+  if (isGuidePurchased(currentIntroGuideId)) {
+    window.closeHomeGuideIntroModal();
+    window.startGuideFromHome(currentIntroGuideId);
+    return;
+  }
+
+  const price = getGuideCoinPrice(activeGuide);
+  if (price > 0 && TravelogState.coins < price) {
+    showToast(localizedText('코인이 부족합니다.', 'Not enough coins.', 'コインが不足しています。'));
+    return;
+  }
+  if (price > 0) {
+    TravelogState.coins -= price;
+    showToast(localizedText(`${price.toLocaleString()}코인이 차감되었습니다.`, `${price.toLocaleString()} coins deducted.`, `${price.toLocaleString()}コインが差し引かれました。`));
+  } else {
+    showToast(localizedText('0코인이 차감되었습니다. 무료 가이드가 보관함에 담겼습니다.', '0 coins deducted. Free guide added to your chest.', '0コインが差し引かれました。無料ガイドを保管箱に追加しました。'));
+  }
+
+  addGuideToMyChest(guideCard);
+  updateIntroPurchaseButton({ ...activeGuide, isPurchased: true });
+  showToast(localizedText('내 가이드 보관함에 담았습니다.', 'Added to My Guide Chest.', 'マイガイド保管箱に追加しました。'));
+}
+
 window.openGuideIntroFromHome = function(guideId) {
   currentIntroGuideId = guideId;
   const activeGuide = buildActiveGuideFromHomeGuide(guideId);
@@ -1011,6 +1415,9 @@ window.openGuideIntroFromHome = function(guideId) {
   if (metaEl) metaEl.textContent = `${activeGuide.author || 'Travelog Creator'} · 코스 ${stops.length}개 · 메모 ${activeGuide.memoCount || stops.length}개 · 쿠폰 ${coupons.length}개`;
   const descEl = document.getElementById('home-guide-intro-description');
   if (descEl) descEl.textContent = description;
+  const priceBadge = document.getElementById('home-guide-intro-badge');
+  if (priceBadge) priceBadge.textContent = `${activeGuide.badge || '오늘의 가이드'} · ${getGuidePriceLabel(activeGuide)}`;
+  updateIntroPurchaseButton(activeGuide);
 
   renderIntroMedia(activeGuide);
 
@@ -1137,6 +1544,8 @@ window.startGuideFromHome = function(guideId) {
   const tabContents = document.querySelectorAll('.tab-content');
 
   navItems.forEach(n => n.classList.remove('active'));
+  const mapNavItem = document.querySelector('.nav-item[data-tab="map-tab"]');
+  if (mapNavItem) mapNavItem.classList.add('active');
   tabContents.forEach(tab => {
     tab.classList.remove('active');
     if (tab.id === 'map-tab') {
@@ -1148,12 +1557,27 @@ window.startGuideFromHome = function(guideId) {
     window.updateMapLayoutForMode('run');
   }
 
+  window.closeHomeGuideIntroModal();
+  window.closeHomeGuidePreviewModal();
+
   if (window.TravelogMapModule) {
-    window.TravelogMapModule.renderTour();
-    window.TravelogMapModule.invalidateSize();
+    if (typeof window.TravelogMapModule.startGuideRun === 'function') {
+      window.TravelogMapModule.startGuideRun(TravelogState.activeGuide);
+    } else {
+      window.TravelogMapModule.renderTour();
+      window.TravelogMapModule.invalidateSize();
+    }
+    if (typeof window.TravelogMapModule.startRealtimeLocationTracking === 'function') {
+      window.TravelogMapModule.startRealtimeLocationTracking();
+    }
   }
 
-  showToast(localizedText('가이드 지도를 로드했습니다.', 'Guide map loaded.', 'ガイドマップを読み込みました。'));
+  const guideStopCount = Array.isArray(TravelogState.activeGuide?.stops) ? TravelogState.activeGuide.stops.length : 0;
+  showToast(localizedText(
+    `가이드가 시작되었습니다. 지도에 연결된 코스핀 ${guideStopCount}개를 표시했습니다.`,
+    `Guide started. ${guideStopCount} connected course pins are now visible on the map.`,
+    `ガイドを開始しました。接続されたコースピン ${guideStopCount}個を地図に表示しました。`
+  ));
 };
 
 // Rolling Ad timer
@@ -1272,6 +1696,10 @@ function triggerModuleLanguageUpdate() {
 const ONBOARDING_STORAGE_KEY = 'travelog_user_profile_v1';
 const PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_published_guides_v1';
 const CREATOR_PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_creator_published_guides_v1';
+const PURCHASED_GUIDES_STORAGE_KEY = 'travelog_purchased_guides_v1';
+const HOME_COINS_STORAGE_KEY = 'travelog_home_coins_v1';
+const HOME_FRIENDS_STORAGE_KEY = 'travelog_home_friends_v1';
+const HOME_MESSAGES_STORAGE_KEY = 'travelog_home_messages_v1';
 const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
 const AVATAR_PRESETS = {
   sun: '☀️',
@@ -2282,6 +2710,16 @@ window.TravelogApp = {
   registerPublishedGuide: registerPublishedGuide,
   removePublishedGuide: removePublishedGuide,
   renderHomeTab: renderHomeTab,
+  addGuideToMyChest: addGuideToMyChest,
+  isGuidePurchased: isGuidePurchased,
+  deductCoins: (amount) => {
+    const price = Number(amount) || 0;
+    if (TravelogState.coins < price) return false;
+    TravelogState.coins -= price;
+    saveHomePersistentState();
+    renderHomeTab();
+    return true;
+  },
   claimCoupon: (coupon) => {
     TravelogState.ownedCoupons.push(coupon);
     if (window.TravelogRewardsModule && typeof window.TravelogRewardsModule.renderCouponWallet === 'function') {
