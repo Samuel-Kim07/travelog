@@ -473,7 +473,8 @@ function createStopsFromCreatorPublishedGuide(record, guideCard = null) {
     .map((pin, index) => {
       const hasVideo = pin.type === 'video' || pin.memoType === 'video' || (Array.isArray(pin.linkedVideos) && pin.linkedVideos.length > 0) || (Array.isArray(pin.linkedVideoFiles) && pin.linkedVideoFiles.length > 0);
       const hasAudio = pin.type === 'audio' || pin.memoType === 'audio' || (Array.isArray(pin.linkedAudios) && pin.linkedAudios.length > 0) || (Array.isArray(pin.linkedAudioFiles) && pin.linkedAudioFiles.length > 0);
-      const type = pin.memoType && pin.memoType !== 'none' ? pin.memoType : (pin.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo'));
+      const rawType = pin.memoType && pin.memoType !== 'none' ? pin.memoType : pin.type;
+      const type = rawType === 'video' || hasVideo ? 'video' : rawType === 'audio' || hasAudio ? 'audio' : rawType === 'coupon' ? 'coupon' : 'memo';
       const icon = pin.icon || (type === 'video' ? 'fa-solid fa-video' : type === 'audio' ? 'fa-solid fa-volume-high' : type === 'coupon' ? 'fa-solid fa-ticket' : 'fa-solid fa-note-sticky');
       const nameKo = pin.nameKo || pin.name || `메모핀 ${index + 1}`;
       const nameEn = pin.nameEn || pin.name || `Memo Pin ${index + 1}`;

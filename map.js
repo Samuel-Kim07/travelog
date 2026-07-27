@@ -265,7 +265,8 @@ const TravelogMapModule = (() => {
   function normalizeActiveGuideStop(stop, index) {
     const hasVideo = stop?.type === 'video' || stop?.memoType === 'video' || (Array.isArray(stop?.linkedVideos) && stop.linkedVideos.length > 0) || (Array.isArray(stop?.linkedVideoFiles) && stop.linkedVideoFiles.length > 0);
     const hasAudio = stop?.type === 'audio' || stop?.memoType === 'audio' || (Array.isArray(stop?.linkedAudios) && stop.linkedAudios.length > 0) || (Array.isArray(stop?.linkedAudioFiles) && stop.linkedAudioFiles.length > 0);
-    const type = stop?.memoType === 'none' ? 'memo' : (stop?.type || stop?.memoType || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo'));
+    const rawType = stop?.memoType && stop.memoType !== 'none' ? stop.memoType : stop?.type;
+    const type = rawType === 'video' || hasVideo ? 'video' : rawType === 'audio' || hasAudio ? 'audio' : rawType === 'coupon' ? 'coupon' : 'memo';
     const icon = stop?.icon || (type === 'video'
       ? 'fa-solid fa-video'
       : type === 'audio'
@@ -821,6 +822,12 @@ const TravelogMapModule = (() => {
     }
     const marker = customCreatedMarkers[pin.id];
     if (marker && marker.openPopup) marker.openPopup();
+
+    // Preview must behave like an actual tour: open/play the memo linked to this pin.
+    const previewNode = normalizeActiveGuideStop(pin, creatorPreviewIndex);
+    if (previewNode) {
+      openPublishedGuideMemoPopup(previewNode);
+    }
     updateCreatorPreviewOverlay();
   }
 
@@ -1950,24 +1957,29 @@ const TravelogMapModule = (() => {
   // ==========================================
   // Creator Custom Pins Placement
   // ==========================================
-  function addNewCreatorPin(lat, lng, description = '') {
-    // Add coordinates to state
+  function addNewCreatorPin(lat, lng, pinName = '', description = '') {
+    // Add coordinates to state. The pin name must come from the creation popup,
+    // not from the temporary "Custom Pin #n" fallback.
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newIndex = customPins.length + 1;
     const pinId = `custom-pin-${Date.now()}`;
+    const fallbackName = t(`메모핀 ${newIndex}`, `Memo Pin ${newIndex}`, `メモピン ${newIndex}`);
+    const cleanName = String(pinName || '').trim() || fallbackName;
+    const cleanDescription = String(description || '').trim();
     
     const newPin = {
       id: pinId,
-      nameEn: `Custom Pin #${newIndex}`,
-      nameKo: `커스텀 핀 #${newIndex}`,
-      nameJa: `カスタムピン #${newIndex}`,
+      name: cleanName,
+      nameEn: cleanName,
+      nameKo: cleanName,
+      nameJa: cleanName,
       lat: lat,
       lng: lng,
       createdAt: new Date().toISOString(),
       timestamp: Date.now(),
       sortOrder: customPins.length,
       color: '#ff2e63',
-      description: description
+      description: cleanDescription
     };
     
     customPins.push(newPin);
@@ -1975,7 +1987,7 @@ const TravelogMapModule = (() => {
     // Draw Pin on Map
     const marker = L.marker([lat, lng], {
       icon: createHtmlIcon('fa-solid fa-location-crosshairs', newPin.color)
-    }).bindPopup(`<b>${escapeHtml(newPin.nameKo)}</b><br>${escapeHtml(description || '')}<br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    }).bindPopup(`<b>${escapeHtml(cleanName)}</b><br>${escapeHtml(cleanDescription || '')}<br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     
     markersLayer.addLayer(marker);
     customCreatedMarkers[pinId] = marker;
@@ -1987,7 +1999,7 @@ const TravelogMapModule = (() => {
     }
     renderTour();
     
-    window.TravelogApp.showToast(t(`새 핀 #${newIndex}이 추가되었습니다.`, `New pin #${newIndex} added.`, `新しいピン #${newIndex} を追加しました。`));
+    window.TravelogApp.showToast(t(`새 핀 [${cleanName}]이 추가되었습니다.`, `New pin [${cleanName}] added.`, `新しいピン［${cleanName}］を追加しました。`));
   }
 
   function clearCreatorPins() {
