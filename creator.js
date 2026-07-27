@@ -485,9 +485,9 @@ const TravelogCreatorModule = (() => {
         typeSelectModal.classList.remove('active');
         openTextMemoModal();
       });
-      document.getElementById('btn-close-type-select').addEventListener('click', () => {
-        typeSelectModal.classList.remove('active');
-      });
+      document.getElementById('btn-close-type-select').addEventListener('click', closePinTypeSelectModal);
+      const pinTypeCloseX = document.getElementById('btn-close-pin-type-select-x');
+      if (pinTypeCloseX) pinTypeCloseX.addEventListener('click', closePinTypeSelectModal);
     }
 
     // 2) 음성 메모 모달 레코딩 바인딩
@@ -497,6 +497,8 @@ const TravelogCreatorModule = (() => {
       document.getElementById('voice-memo-stop').addEventListener('click', stopVoiceMemoRecording);
       document.getElementById('voice-memo-play').addEventListener('click', playVoiceMemoRecording);
       document.getElementById('voice-memo-reset').addEventListener('click', resetVoiceMemoRecording);
+      const voiceCloseBtn = document.getElementById('voice-memo-close-btn');
+      if (voiceCloseBtn) voiceCloseBtn.addEventListener('click', closeVoiceMemoModal);
       voiceComplete.addEventListener('click', completeVoiceMemoRecording);
     }
 
@@ -507,15 +509,17 @@ const TravelogCreatorModule = (() => {
       document.getElementById('video-memo-stop').addEventListener('click', stopVideoMemoRecording);
       document.getElementById('video-memo-play').addEventListener('click', playVideoMemoRecording);
       document.getElementById('video-memo-reset').addEventListener('click', resetVideoMemoRecording);
+      const videoCloseBtn = document.getElementById('video-memo-close-btn');
+      if (videoCloseBtn) videoCloseBtn.addEventListener('click', closeVideoMemoModal);
       videoComplete.addEventListener('click', completeVideoMemoRecording);
     }
 
     // 4) 텍스트 메모 모달 바인딩
     const textComplete = document.getElementById('text-memo-complete');
     if (textComplete) {
-      document.getElementById('text-memo-cancel').addEventListener('click', () => {
-        document.getElementById('text-memo-modal').classList.remove('active');
-      });
+      document.getElementById('text-memo-cancel').addEventListener('click', closeTextMemoModal);
+      const textCloseBtn = document.getElementById('text-memo-close-btn');
+      if (textCloseBtn) textCloseBtn.addEventListener('click', closeTextMemoModal);
       textComplete.addEventListener('click', completeTextMemoRecording);
     }
   }
@@ -837,8 +841,7 @@ const TravelogCreatorModule = (() => {
         <span class="pin-number-label" style="min-width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-weight:800; color:white; background:${pin.color || '#ff2e63'}; font-size:12px;">${index + 1}</span>
         <div style="flex:1; min-width:0;">
           <input type="text" class="pin-name-input" value="${escapeHtml(pick(pin, 'name') || pin.nameKo || '')}" placeholder="${t('핀 이름', 'Pin name', 'ピン名')}" title="핀 이름 변경" style="width:100%; font-weight:800; font-size:13px; padding:4px 6px; border-radius:6px; background:#fff; border:1px solid rgba(0,0,0,0.14); color:#373737 !important;">
-          <div style="font-size:11px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:3px;">${escapeHtml(pin.description || t('메모 없음', 'No memo', 'メモなし'))}</div>
-          <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
+          <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}</div>
         </div>
 
         <div style="min-width:88px; text-align:right; font-size:10px; color:var(--text-muted); line-height:1.3;">${timeStr || '-'}</div>
@@ -855,8 +858,6 @@ const TravelogCreatorModule = (() => {
           <option value="#ffb703" style="color:#ffb703;" ${pin.color === '#ffb703' ? 'selected' : ''}>🟡</option>
           <option value="#8b5cf6" style="color:#8b5cf6;" ${pin.color === '#8b5cf6' ? 'selected' : ''}>🟣</option>
         </select>
-
-        <input type="text" class="pin-description-input" value="${escapeHtml(pin.description || '')}" placeholder="${t('메모 수정...', 'Edit memo...', 'メモ編集...')}" style="width:118px; font-size:11px; padding:4px; border-radius:4px; background:#f8fafc; border:1px solid rgba(0,0,0,0.15); color:#373737 !important;">
 
         <button type="button" class="btn-circle" style="width:24px; height:24px; font-size:11px; background:rgba(255,50,50,0.1); border-color:rgba(255,50,50,0.2); color:var(--accent-pink);" onclick="TravelogCreatorModule.removeCoordinate('${pin.id}')">
           <i class="fa-solid fa-trash-can"></i>
@@ -3126,6 +3127,78 @@ const TravelogCreatorModule = (() => {
   // ==========================================
   // Field Capture Modals Logic
   // ==========================================
+  function setModalHidden(modalId, hidden = true) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.toggle('active', !hidden);
+    modal.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+  }
+
+  function closePinTypeSelectModal() {
+    setModalHidden('pin-type-select-modal', true);
+  }
+
+  function closeVoiceMemoModal() {
+    clearInterval(voiceMemoInterval);
+    if (voiceMemoRecorder && voiceMemoRecorder.state !== 'inactive') {
+      try { voiceMemoRecorder.stop(); } catch (_) {}
+    }
+    if (voiceMemoStream) {
+      voiceMemoStream.getTracks().forEach(track => track.stop());
+      voiceMemoStream = null;
+    }
+    voiceMemoRecorder = null;
+    voiceMemoChunks = [];
+    voiceMemoBlob = null;
+    voiceMemoSeconds = 0;
+    const leftWheel = document.getElementById('tape-wheel-left');
+    const rightWheel = document.getElementById('tape-wheel-right');
+    if (leftWheel) leftWheel.style.animation = 'none';
+    if (rightWheel) rightWheel.style.animation = 'none';
+    const voiceStatus = document.getElementById('voice-memo-status');
+    if (voiceStatus) voiceStatus.textContent = t('마이크 버튼을 눌러 녹음 시작', 'Press Record to start audio guide', '録音ボタンを押して録音開始');
+    const voiceTimer = document.getElementById('voice-memo-timer');
+    if (voiceTimer) voiceTimer.textContent = '00:00';
+    setModalHidden('voice-memo-modal', true);
+  }
+
+  function closeVideoMemoModal() {
+    clearInterval(videoMemoInterval);
+    if (videoMemoRecorder && videoMemoRecorder.state !== 'inactive') {
+      try { videoMemoRecorder.stop(); } catch (_) {}
+    }
+    if (videoMemoStream) {
+      videoMemoStream.getTracks().forEach(track => track.stop());
+      videoMemoStream = null;
+    }
+    videoMemoRecorder = null;
+    videoMemoChunks = [];
+    videoMemoBlob = null;
+    videoMemoSeconds = 0;
+    const webcamEl = document.getElementById('video-memo-webcam');
+    if (webcamEl) {
+      webcamEl.pause?.();
+      webcamEl.srcObject = null;
+      webcamEl.style.display = 'none';
+    }
+    const placeholder = document.getElementById('video-memo-placeholder');
+    if (placeholder) placeholder.style.display = 'block';
+    const timer = document.getElementById('video-memo-timer');
+    if (timer) {
+      timer.style.display = 'none';
+      timer.textContent = '00:00 REC';
+    }
+    const videoStatus = document.getElementById('video-memo-status');
+    if (videoStatus) videoStatus.textContent = t('녹화 버튼을 눌러 카메라 촬영 시작', 'Press Record to start video guide', '録画ボタンを押して撮影開始');
+    setModalHidden('video-memo-modal', true);
+  }
+
+  function closeTextMemoModal() {
+    const input = document.getElementById('text-memo-input');
+    if (input) input.value = '';
+    setModalHidden('text-memo-modal', true);
+  }
+
   function openPinTypeSelectModal(lat, lng) {
     tempPinLat = lat;
     tempPinLng = lng;

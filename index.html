@@ -1127,7 +1127,8 @@
 
   <!-- 1) 핀 미디어 타입 선택 모달 -->
   <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
+      <button class="btn-circle" id="btn-close-pin-type-select-x" type="button" aria-label="핀 생성 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
       <div style="font-size: 40px; color: var(--accent-pink); margin-bottom: 12px;"><i class="fa-solid fa-map-pin"></i></div>
       <h3 style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
       <p style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
@@ -1151,7 +1152,8 @@
 
   <!-- 2) 음성 메모 팝업 (녹음기 디자인) -->
   <div id="voice-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
+      <button class="btn-circle" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
       <p id="voice-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
       <label for="voice-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">오디오 메모 제목</label>
@@ -1180,7 +1182,8 @@
 
   <!-- 3) 영상 메모 팝업 -->
   <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
+    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
+      <button class="btn-circle" id="video-memo-close-btn" type="button" aria-label="영상 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
       <p id="video-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
       <label for="video-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">비디오 메모 제목</label>
@@ -1210,7 +1213,8 @@
 
   <!-- 4) 텍스트 메모 팝업 -->
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px;">
+    <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px; position: relative;">
+      <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
       <p style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
       
