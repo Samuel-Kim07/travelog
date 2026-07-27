@@ -1,7 +1,7 @@
 // ==========================================
 // Travelog Device Storage Module
 // - First-run device storage setup
-// - Saves generated Audio / Video / Text data to the approved place when supported
+// - Saves generated Audio / Video / Photo / Text data to the approved place when supported
 // - Falls back to the browser's app-internal storage on mobile browsers that cannot open a writable folder picker
 // ==========================================
 
@@ -16,12 +16,13 @@ const TravelogDeviceStorage = (() => {
   const FOLDER_NAMES = {
     Audio: 'Audio',
     Video: 'Video',
+    Photo: 'Photo',
     Text: 'Text'
   };
 
   let rootHandle = null;
   let dataHandle = null;
-  let folderHandles = { Audio: null, Video: null, Text: null };
+  let folderHandles = { Audio: null, Video: null, Photo: null, Text: null };
   let currentStatus = loadStatus();
 
   function t(ko, en, ja) {
@@ -116,6 +117,7 @@ const TravelogDeviceStorage = (() => {
     dataHandle = await getOrCreateDirectory(baseHandle, DATA_FOLDER_NAME);
     folderHandles.Audio = await getOrCreateDirectory(dataHandle, FOLDER_NAMES.Audio);
     folderHandles.Video = await getOrCreateDirectory(dataHandle, FOLDER_NAMES.Video);
+    folderHandles.Photo = await getOrCreateDirectory(dataHandle, FOLDER_NAMES.Photo);
     folderHandles.Text = await getOrCreateDirectory(dataHandle, FOLDER_NAMES.Text);
     return { dataHandle, folderHandles };
   }
@@ -130,6 +132,7 @@ const TravelogDeviceStorage = (() => {
   function getKindFolder(kind) {
     if (kind === 'audio' || kind === 'Audio') return 'Audio';
     if (kind === 'video' || kind === 'Video') return 'Video';
+    if (kind === 'photo' || kind === 'Photo' || kind === 'image' || kind === 'Image') return 'Photo';
     if (kind === 'text' || kind === 'Text') return 'Text';
     return 'Root';
   }
@@ -180,7 +183,7 @@ const TravelogDeviceStorage = (() => {
       console.warn('[Travelog Device Storage] OPFS fallback failed. Falling back to IndexedDB.', error);
       rootHandle = null;
       dataHandle = null;
-      folderHandles = { Audio: null, Video: null, Text: null };
+      folderHandles = { Audio: null, Video: null, Photo: null, Text: null };
       saveStatus({
         configured: true,
         mode: 'indexeddb',
@@ -210,7 +213,7 @@ const TravelogDeviceStorage = (() => {
       await writeBlobToHandle(dataHandle, 'storage_ready.txt', new Blob([
         'Travelog device storage is ready.\n',
         `createdAt=${new Date().toISOString()}\n`,
-        'folders=Audio,Video,Text\n'
+        'folders=Audio,Video,Photo,Text\n'
       ], { type: 'text/plain;charset=utf-8' }));
 
       try {
@@ -307,6 +310,9 @@ const TravelogDeviceStorage = (() => {
     }
     for (const file of packageData.videoFiles || []) {
       await saveGeneratedFile('Video', file.fileName, file.blob, file);
+    }
+    for (const file of packageData.photoFiles || []) {
+      await saveGeneratedFile('Photo', file.fileName, file.blob, file);
     }
     for (const file of packageData.textFiles || []) {
       await saveGeneratedFile('Text', file.fileName, file.blob, file);

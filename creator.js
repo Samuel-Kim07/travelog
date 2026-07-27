@@ -31,6 +31,7 @@ const TravelogCreatorModule = (() => {
   let recordedVideoChunks = [];
   let videoStream = null;
   let recordedVideos = [];
+  let recordedPhotos = [];
 
   // Temporary coordinate caching for field captures
   let tempPinLat = 0;
@@ -482,6 +483,13 @@ const TravelogCreatorModule = (() => {
         typeSelectModal.classList.remove('active');
         openVideoMemoModal();
       });
+      const photoMemoTypeBtn = document.getElementById('btn-select-photo-memo');
+      if (photoMemoTypeBtn) {
+        photoMemoTypeBtn.addEventListener('click', () => {
+          typeSelectModal.classList.remove('active');
+          openPhotoMemoModal();
+        });
+      }
       document.getElementById('btn-select-text-memo').addEventListener('click', () => {
         typeSelectModal.classList.remove('active');
         openTextMemoModal();
@@ -522,6 +530,13 @@ const TravelogCreatorModule = (() => {
       const textCloseBtn = document.getElementById('text-memo-close-btn');
       if (textCloseBtn) textCloseBtn.addEventListener('click', closeTextMemoModal);
       textComplete.addEventListener('click', completeTextMemoRecording);
+    }
+
+    // 5) 사진 메모 모달 바인딩
+    const photoComplete = document.getElementById('photo-memo-complete');
+    if (photoComplete) {
+      bindPhotoMemoModalControls();
+      photoComplete.addEventListener('click', completePhotoMemoRecording);
     }
   }
 
@@ -566,7 +581,7 @@ const TravelogCreatorModule = (() => {
   function makePlayableMediaInfo(file, type) {
     if (!file) return null;
     const blob = file.blob instanceof Blob ? file.blob : null;
-    const mimeType = blob?.type || file.mimeType || (type === 'video' ? 'video/webm' : 'audio/webm');
+    const mimeType = blob?.type || file.mimeType || (type === 'video' ? 'video/webm' : type === 'photo' ? 'image/png' : 'audio/webm');
     const info = {
       type,
       fileName: file.fileName || file.name || `${type}_memo_${Date.now()}`,
@@ -1001,6 +1016,10 @@ const TravelogCreatorModule = (() => {
     if (mime.includes('ogg')) return 'ogg';
     if (mime.includes('mpeg')) return 'mp3';
     if (mime.includes('wav')) return 'wav';
+    if (mime.includes('png')) return 'png';
+    if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+    if (mime.includes('webp')) return 'webp';
+    if (mime.includes('image')) return 'png';
     if (mime.includes('text')) return 'txt';
     if (mime.includes('json')) return 'json';
     if (mime.includes('csv')) return 'csv';
@@ -1016,7 +1035,7 @@ const TravelogCreatorModule = (() => {
     const rows = [
       [
         'guide_id', 'tour_name', 'creator', 'created_at', 'item_type', 'pin_order', 'pin_id',
-        'memo_type', 'file_folder', 'file_name', 'memo_text', 'lat', 'lng', 'linked_audio', 'linked_video'
+        'memo_type', 'file_folder', 'file_name', 'memo_text', 'lat', 'lng', 'linked_audio', 'linked_video', 'linked_photo'
       ]
     ];
 
@@ -1036,7 +1055,8 @@ const TravelogCreatorModule = (() => {
         pin.lat,
         pin.lng,
         pin.linkedAudios.join('; '),
-        pin.linkedVideos.join('; ')
+        pin.linkedVideos.join('; '),
+        (pin.linkedPhotos || []).join('; ')
       ]);
     });
 
@@ -1056,6 +1076,7 @@ const TravelogCreatorModule = (() => {
         file.lat || '',
         file.lng || '',
         file.fileName,
+        '',
         ''
       ]);
     });
@@ -1075,6 +1096,28 @@ const TravelogCreatorModule = (() => {
         file.memoText || '',
         file.lat || '',
         file.lng || '',
+        '',
+        file.fileName,
+        ''
+      ]);
+    });
+
+    (packageData.photoFiles || []).forEach(file => {
+      rows.push([
+        packageData.guideId,
+        packageData.tourName,
+        packageData.creator,
+        packageData.createdAt,
+        'photo',
+        file.stopIndex + 1,
+        file.pinId || '',
+        'photo',
+        'Photo',
+        file.fileName,
+        file.memoText || '',
+        file.lat || '',
+        file.lng || '',
+        '',
         '',
         file.fileName
       ]);
@@ -1096,6 +1139,7 @@ const TravelogCreatorModule = (() => {
         '',
         '',
         '',
+        '',
         ''
       ]);
     });
@@ -1110,7 +1154,8 @@ const TravelogCreatorModule = (() => {
   async function ensureRecordedMediaDataUrls() {
     const allMedia = [
       ...recordedAudios.map(item => ({ item, type: 'audio' })),
-      ...recordedVideos.map(item => ({ item, type: 'video' }))
+      ...recordedVideos.map(item => ({ item, type: 'video' })),
+      ...recordedPhotos.map(item => ({ item, type: 'photo' }))
     ];
 
     for (const entry of allMedia) {
@@ -1118,7 +1163,7 @@ const TravelogCreatorModule = (() => {
       if (!item) continue;
       const blob = item.blob instanceof Blob ? item.blob : null;
       if (blob) {
-        item.mimeType = item.mimeType || blob.type || (entry.type === 'video' ? 'video/webm' : 'audio/webm');
+        item.mimeType = item.mimeType || blob.type || (entry.type === 'video' ? 'video/webm' : entry.type === 'photo' ? 'image/png' : 'audio/webm');
         if (!item.objectUrl) {
           try { item.objectUrl = URL.createObjectURL(blob); } catch (_) {}
         }
@@ -1150,16 +1195,21 @@ const TravelogCreatorModule = (() => {
     const pins = orderedPins.map((pin, index) => {
       const linkedAudioItems = recordedAudios.filter(a => Number(a.stopIndex) === index);
       const linkedVideoItems = recordedVideos.filter(v => Number(v.stopIndex) === index);
+      const linkedPhotoItems = recordedPhotos.filter(p => Number(p.stopIndex) === index);
       const linkedAudios = linkedAudioItems.map(a => a.name || a.fileName || 'audio_memo.webm');
       const linkedVideos = linkedVideoItems.map(v => v.name || v.fileName || 'video_memo.webm');
+      const linkedPhotos = linkedPhotoItems.map(p => p.name || p.fileName || 'photo_memo.png');
       const linkedAudioFiles = linkedAudioItems.map(item => makePlayableMediaInfo(item, 'audio')).filter(Boolean);
       const linkedVideoFiles = linkedVideoItems.map(item => makePlayableMediaInfo(item, 'video')).filter(Boolean);
+      const linkedPhotoFiles = linkedPhotoItems.map(item => makePlayableMediaInfo(item, 'photo')).filter(Boolean);
       const linkedAudioTitles = linkedAudioItems.map(item => getMediaDisplayTitle(item, item.name || item.fileName || '')).filter(Boolean);
       const linkedVideoTitles = linkedVideoItems.map(item => getMediaDisplayTitle(item, item.name || item.fileName || '')).filter(Boolean);
+      const linkedPhotoTitles = linkedPhotoItems.map(item => getMediaDisplayTitle(item, item.name || item.fileName || '')).filter(Boolean);
       const description = pin.description || '';
       const hasAudio = linkedAudioFiles.length > 0 || linkedAudios.length > 0;
       const hasVideo = linkedVideoFiles.length > 0 || linkedVideos.length > 0;
-      const memoType = hasVideo ? 'video' : hasAudio ? 'audio' : description ? 'text' : 'none';
+      const hasPhoto = linkedPhotoFiles.length > 0 || linkedPhotos.length > 0;
+      const memoType = hasVideo ? 'video' : hasAudio ? 'audio' : hasPhoto ? 'photo' : description ? 'text' : 'none';
       const textFileName = description ? `text_memo_${String(index + 1).padStart(2, '0')}_${safeFileName(pin.nameKo || pin.nameEn || pin.id, 'pin')}.txt` : '';
       return {
         id: pin.id,
@@ -1178,11 +1228,14 @@ const TravelogCreatorModule = (() => {
         textFileName,
         linkedAudios,
         linkedVideos,
+        linkedPhotos,
         linkedAudioTitles,
         linkedVideoTitles,
-        memoTitle: linkedVideoTitles[0] || linkedAudioTitles[0] || '',
+        linkedPhotoTitles,
+        memoTitle: linkedVideoTitles[0] || linkedAudioTitles[0] || linkedPhotoTitles[0] || '',
         linkedAudioFiles,
-        linkedVideoFiles
+        linkedVideoFiles,
+        linkedPhotoFiles
       };
     });
 
@@ -1226,6 +1279,28 @@ const TravelogCreatorModule = (() => {
       };
     });
 
+    const photoFiles = recordedPhotos.map((photo, index) => {
+      const pin = pinByIndex.get(Number(photo.stopIndex));
+      const blob = photo.blob || new Blob([''], { type: 'image/png' });
+      const extension = photo.name && photo.name.includes('.') ? photo.name.split('.').pop() : getBlobExtension(blob, 'png');
+      const fileName = photo.name || `photo_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
+      return {
+        fileName,
+        title: getMediaDisplayTitle(photo, fileName),
+        displayTitle: getMediaDisplayTitle(photo, fileName),
+        memoTitle: getMediaDisplayTitle(photo, fileName),
+        blob,
+        dataUrl: photo.dataUrl || '',
+        objectUrl: photo.objectUrl || '',
+        mimeType: photo.mimeType || blob.type || 'image/png',
+        stopIndex: Number(photo.stopIndex || 0),
+        pinId: pin?.id || '',
+        memoText: photo.memoText || pin?.description || '',
+        lat: pin?.lat || '',
+        lng: pin?.lng || ''
+      };
+    });
+
     const textFiles = pins
       .filter(pin => pin.description)
       .map(pin => ({
@@ -1257,6 +1332,7 @@ const TravelogCreatorModule = (() => {
       pins,
       audioFiles,
       videoFiles,
+      photoFiles,
       textFiles
     };
 
@@ -1268,7 +1344,7 @@ const TravelogCreatorModule = (() => {
       creator,
       createdAt,
       driveFolderId: DRIVE_PARENT_FOLDER_ID,
-      folders: { audio: 'Audio', video: 'Video', text: 'Text' },
+      folders: { audio: 'Audio', video: 'Video', photo: 'Photo', text: 'Text' },
       representativeImage,
       guideIntroText,
       guideIntroAudio: guideIntroAudioInfo ? { ...guideIntroAudioInfo } : null,
@@ -1281,6 +1357,7 @@ const TravelogCreatorModule = (() => {
       pins: pins.map(pin => ({ ...pin })),
       audioFiles: audioFiles.map(file => ({ ...file, blob: undefined })),
       videoFiles: videoFiles.map(file => ({ ...file, blob: undefined })),
+      photoFiles: photoFiles.map(file => ({ ...file, blob: undefined })),
       textFiles: textFiles.map(file => ({ ...file, blob: undefined }))
     }, null, 2);
 
@@ -1315,7 +1392,7 @@ const TravelogCreatorModule = (() => {
       isPublishedGuide: true,
       createdAt,
       pinCount: pins.length,
-      memoCount: audioFiles.length + videoFiles.length + textFiles.length,
+      memoCount: audioFiles.length + videoFiles.length + photoFiles.length + textFiles.length,
       couponCount: eventCoupons.length,
       eventCoupons: eventCoupons.map(coupon => ({ ...coupon })),
       stops: pins.map(pin => ({
@@ -1333,8 +1410,10 @@ const TravelogCreatorModule = (() => {
         type: pin.type || pin.memoType,
         linkedAudios: [...(pin.linkedAudios || [])],
         linkedVideos: [...(pin.linkedVideos || [])],
+        linkedPhotos: [...(pin.linkedPhotos || [])],
         linkedAudioFiles: (pin.linkedAudioFiles || []).map(file => ({ ...file })),
-        linkedVideoFiles: (pin.linkedVideoFiles || []).map(file => ({ ...file }))
+        linkedVideoFiles: (pin.linkedVideoFiles || []).map(file => ({ ...file })),
+        linkedPhotoFiles: (pin.linkedPhotoFiles || []).map(file => ({ ...file }))
       }))
     };
 
@@ -1408,6 +1487,7 @@ const TravelogCreatorModule = (() => {
         <strong>${escapeHtml(localSaveInfo.selectedFolderName)} / ${escapeHtml(localSaveInfo.dataFolderName)}</strong><br>
         Audio: ${packageData.audioFiles.length}개 저장<br>
         Video: ${packageData.videoFiles.length}개 저장<br>
+        Photo: ${(packageData.photoFiles || []).length}개 저장<br>
         Text: ${packageData.textFiles.length}개 저장<br>
         User Studio Data.csv 저장 완료
       `;
@@ -1705,8 +1785,9 @@ const TravelogCreatorModule = (() => {
       mimeType: blob.type || (type === 'video' ? 'video/webm' : type === 'audio' ? 'audio/webm' : 'text/plain')
     };
 
-    if (type === 'audio' || type === 'video') {
+    if (type === 'audio' || type === 'video' || type === 'photo') {
       memo.base64 = await blobToDataUrl(blob);
+      memo.dataUrl = memo.base64;
     }
 
     return memo;
@@ -1722,6 +1803,10 @@ const TravelogCreatorModule = (() => {
 
     for (const file of packageData.videoFiles || []) {
       memos.push(await convertFileEntryToMemo(file, 'video', 'Travelog video memo'));
+    }
+
+    for (const file of packageData.photoFiles || []) {
+      memos.push(await convertFileEntryToMemo(file, 'photo', file.memoText || 'Travelog photo memo'));
     }
 
     for (const file of packageData.textFiles || []) {
@@ -1746,6 +1831,7 @@ const TravelogCreatorModule = (() => {
         pinCount: (packageData.pins || []).length,
         audioCount: (packageData.audioFiles || []).length,
         videoCount: (packageData.videoFiles || []).length,
+        photoCount: (packageData.photoFiles || []).length,
         textCount: (packageData.textFiles || []).length,
         couponCount: (packageData.eventCoupons || []).length,
         representativeImage: packageData.representativeImage || '',
@@ -1866,7 +1952,7 @@ const TravelogCreatorModule = (() => {
 
   function buildGuideRecordSnapshot(packageData, localSaveInfo = null, status = 'unpublished') {
     const pinCount = (packageData.pins || []).length;
-    const memoCount = (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.textFiles || []).length;
+    const memoCount = (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.photoFiles || []).length + (packageData.textFiles || []).length;
     const couponCount = (packageData.eventCoupons || []).length;
     const priceLabel = packageData.priceLabel || (packageData.isPaid ? `${Number(packageData.coinPrice || 0).toLocaleString()} COIN` : '무료');
     const savedAt = new Date().toISOString();
@@ -1975,9 +2061,9 @@ const TravelogCreatorModule = (() => {
 
   function restoreMediaEntriesFromSavedPins(record, mediaType) {
     const pins = Array.isArray(record.pins) ? record.pins : [];
-    const key = mediaType === 'video' ? 'linkedVideoFiles' : 'linkedAudioFiles';
-    const fallbackKey = mediaType === 'video' ? 'linkedVideos' : 'linkedAudios';
-    const fallbackMime = mediaType === 'video' ? 'video/webm' : 'audio/webm';
+    const key = mediaType === 'video' ? 'linkedVideoFiles' : mediaType === 'photo' ? 'linkedPhotoFiles' : 'linkedAudioFiles';
+    const fallbackKey = mediaType === 'video' ? 'linkedVideos' : mediaType === 'photo' ? 'linkedPhotos' : 'linkedAudios';
+    const fallbackMime = mediaType === 'video' ? 'video/webm' : mediaType === 'photo' ? 'image/png' : 'audio/webm';
 
     return pins.flatMap((pin, pinIndex) => {
       const richFiles = Array.isArray(pin[key]) ? pin[key] : [];
@@ -1985,8 +2071,8 @@ const TravelogCreatorModule = (() => {
       const files = richFiles.length ? richFiles : fileNames.map(fileName => ({ fileName }));
       return files.map((file, mediaIndex) => ({
         id: `${record.id}-${mediaType}-${pinIndex}-${mediaIndex}`,
-        name: file.fileName || file.name || `${mediaType}_memo_${pinIndex + 1}_${mediaIndex + 1}.webm`,
-        fileName: file.fileName || file.name || `${mediaType}_memo_${pinIndex + 1}_${mediaIndex + 1}.webm`,
+        name: file.fileName || file.name || `${mediaType}_memo_${pinIndex + 1}_${mediaIndex + 1}.${mediaType === 'photo' ? 'png' : 'webm'}`,
+        fileName: file.fileName || file.name || `${mediaType}_memo_${pinIndex + 1}_${mediaIndex + 1}.${mediaType === 'photo' ? 'png' : 'webm'}`,
         title: file.title || file.displayTitle || file.memoTitle || '',
         displayTitle: file.displayTitle || file.title || file.memoTitle || '',
         memoTitle: file.memoTitle || file.title || file.displayTitle || '',
@@ -2055,6 +2141,7 @@ const TravelogCreatorModule = (() => {
     if (state) state.customCreatedPins = restoredPins;
     recordedAudios = restoreMediaEntriesFromSavedPins(record, 'audio');
     recordedVideos = restoreMediaEntriesFromSavedPins(record, 'video');
+    recordedPhotos = restoreMediaEntriesFromSavedPins(record, 'photo');
     pendingPublishPackage = null;
     lastSavedPublishSignature = '';
 
@@ -2098,7 +2185,7 @@ const TravelogCreatorModule = (() => {
       guideIntroAudio: packageData.guideIntroAudio ? { ...packageData.guideIntroAudio } : null,
       guideIntroVideo: packageData.guideIntroVideo ? { ...packageData.guideIntroVideo } : null,
       pinCount: (packageData.pins || []).length,
-      memoCount: (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.textFiles || []).length,
+      memoCount: (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.photoFiles || []).length + (packageData.textFiles || []).length,
       couponCount: (packageData.eventCoupons || []).length,
       isPaid: packageData.isPaid === true,
       coinPrice: Number(packageData.coinPrice || 0) || 0,
@@ -2990,6 +3077,7 @@ const TravelogCreatorModule = (() => {
       'voice-memo-modal',
       'video-memo-modal',
       'text-memo-modal',
+      'photo-memo-modal',
       'publish-loading-modal'
     ];
     modalIds.forEach(id => {
@@ -3006,6 +3094,10 @@ const TravelogCreatorModule = (() => {
     if (voiceMemoTitleInput) voiceMemoTitleInput.value = '';
     const videoMemoTitleInput = document.getElementById('video-memo-title-input');
     if (videoMemoTitleInput) videoMemoTitleInput.value = '';
+    const photoMemoTitleInput = document.getElementById('photo-memo-title-input');
+    if (photoMemoTitleInput) photoMemoTitleInput.value = '';
+    const photoMemoTextInput = document.getElementById('photo-memo-text-input');
+    if (photoMemoTextInput) photoMemoTextInput.value = '';
   }
 
   function resetRecordingStateForNewGuide() {
@@ -3094,6 +3186,7 @@ const TravelogCreatorModule = (() => {
 
     recordedAudios = [];
     recordedVideos = [];
+    recordedPhotos = [];
     registeredCoupons = [];
     saveRegisteredCoupons();
 
@@ -3159,10 +3252,11 @@ const TravelogCreatorModule = (() => {
 
     const linkedAudiosCount = recordedAudios.filter(a => a.stopIndex !== -1).length;
     const linkedVideosCount = recordedVideos.filter(v => v.stopIndex !== -1).length;
+    const linkedPhotosCount = recordedPhotos.filter(p => p.stopIndex !== -1).length;
 
     if (pinsCountEl) pinsCountEl.textContent = `${customPins.length}개`;
     if (audiosCountEl) audiosCountEl.textContent = `${linkedAudiosCount}개 (총 ${recordedAudios.length}개)`;
-    if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 (총 ${recordedVideos.length}개)`;
+    if (videosCountEl) videosCountEl.textContent = `${linkedVideosCount}개 + 사진 ${linkedPhotosCount}개`;
     if (couponsCountEl) couponsCountEl.textContent = `${registeredCoupons.length}개`;
 
     updateFinalPublishButtonState();
@@ -3640,6 +3734,318 @@ const TravelogCreatorModule = (() => {
     markPublishDraftDirty();
     renderCoordinatesList();
     renderVideoList();
+    updatePublishPanelCounts();
+  }
+
+
+  // 3) Photo Field Capture
+  let photoMemoMode = 'draw';
+  let photoMemoColor = '#ff2e63';
+  let photoMemoWidth = 5;
+  let photoMemoUndoStack = [];
+  let photoMemoDrawing = false;
+  let photoMemoCanvasReady = false;
+
+  function getPhotoMemoCanvas() {
+    return document.getElementById('photo-memo-canvas');
+  }
+
+  function getPhotoMemoContext() {
+    const canvas = getPhotoMemoCanvas();
+    return canvas ? canvas.getContext('2d') : null;
+  }
+
+  function resetPhotoMemoCanvas() {
+    const canvas = getPhotoMemoCanvas();
+    const ctx = getPhotoMemoContext();
+    if (!canvas || !ctx) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    photoMemoUndoStack = [];
+    photoMemoCanvasReady = false;
+    const completeBtn = document.getElementById('photo-memo-complete');
+    if (completeBtn) completeBtn.disabled = true;
+  }
+
+  function pushPhotoMemoUndoState() {
+    const canvas = getPhotoMemoCanvas();
+    if (!canvas) return;
+    try {
+      photoMemoUndoStack.push(canvas.toDataURL('image/png'));
+      if (photoMemoUndoStack.length > 20) photoMemoUndoStack.shift();
+    } catch (_) {}
+  }
+
+  function restorePhotoMemoDataUrl(dataUrl) {
+    const canvas = getPhotoMemoCanvas();
+    const ctx = getPhotoMemoContext();
+    if (!canvas || !ctx || !dataUrl) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      photoMemoCanvasReady = true;
+      const completeBtn = document.getElementById('photo-memo-complete');
+      if (completeBtn) completeBtn.disabled = false;
+    };
+    img.src = dataUrl;
+  }
+
+  function undoPhotoMemoEdit() {
+    const prev = photoMemoUndoStack.pop();
+    if (prev) restorePhotoMemoDataUrl(prev);
+  }
+
+  function getCanvasPoint(event) {
+    const canvas = getPhotoMemoCanvas();
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const pointer = event.touches && event.touches[0] ? event.touches[0] : event;
+    return {
+      x: ((pointer.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((pointer.clientY - rect.top) / rect.height) * canvas.height
+    };
+  }
+
+  function beginPhotoDraw(event) {
+    const ctx = getPhotoMemoContext();
+    if (!ctx || !photoMemoCanvasReady) return;
+    event.preventDefault();
+    pushPhotoMemoUndoState();
+    photoMemoDrawing = true;
+    const point = getCanvasPoint(event);
+    ctx.beginPath();
+    ctx.moveTo(point.x, point.y);
+  }
+
+  function movePhotoDraw(event) {
+    const ctx = getPhotoMemoContext();
+    if (!ctx || !photoMemoDrawing || !photoMemoCanvasReady) return;
+    event.preventDefault();
+    const point = getCanvasPoint(event);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = photoMemoWidth;
+    if (photoMemoMode === 'erase') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = photoMemoColor;
+    }
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+  }
+
+  function endPhotoDraw() {
+    const ctx = getPhotoMemoContext();
+    if (ctx) ctx.globalCompositeOperation = 'source-over';
+    photoMemoDrawing = false;
+  }
+
+  function loadPhotoMemoFile(file) {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      window.TravelogApp.showToast(t('이미지 파일을 선택해 주세요.', 'Please select an image file.', '画像ファイルを選択してください。'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = getPhotoMemoCanvas();
+        const ctx = getPhotoMemoContext();
+        if (!canvas || !ctx) return;
+        resetPhotoMemoCanvas();
+        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+        const drawW = img.width * scale;
+        const drawH = img.height * scale;
+        const dx = (canvas.width - drawW) / 2;
+        const dy = (canvas.height - drawH) / 2;
+        ctx.drawImage(img, dx, dy, drawW, drawH);
+        photoMemoCanvasReady = true;
+        const completeBtn = document.getElementById('photo-memo-complete');
+        if (completeBtn) completeBtn.disabled = false;
+        const status = document.getElementById('photo-memo-status');
+        if (status) status.textContent = t('사진이 추가되었습니다. 그리기/지우개로 편집할 수 있습니다.', 'Photo added. You can edit it with draw/eraser tools.', '写真を追加しました。描画/消しゴムで編集できます。');
+      };
+      img.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderPhotoColorPalette() {
+    const palette = document.getElementById('photo-memo-color-palette');
+    if (!palette || palette.dataset.bound === 'true') return;
+    const colors = ['#000000','#373737','#ffffff','#ff2e63','#ff5c8a','#e63946','#ff7a00','#ffb703','#ffd166','#34a853','#2dd4bf','#00adb5','#0096c7','#3a86ff','#4361ee','#8338ec','#8b5cf6','#c77dff','#ff00a8','#b5179e','#795548','#9e9e9e','#607d8b','#f8fafc'];
+    palette.innerHTML = colors.map((color, index) => `<button type="button" data-photo-color="${color}" title="색상 ${index + 1}" style="height:22px;border-radius:7px;border:2px solid ${index === 3 ? '#373737' : 'rgba(0,0,0,0.12)'};background:${color};cursor:pointer;"></button>`).join('');
+    palette.querySelectorAll('[data-photo-color]').forEach(button => {
+      button.addEventListener('click', () => {
+        photoMemoColor = button.getAttribute('data-photo-color') || '#ff2e63';
+        photoMemoMode = 'draw';
+        palette.querySelectorAll('[data-photo-color]').forEach(btn => btn.style.borderColor = 'rgba(0,0,0,0.12)');
+        button.style.borderColor = '#373737';
+      });
+    });
+    palette.dataset.bound = 'true';
+  }
+
+  function bindPhotoMemoModalControls() {
+    renderPhotoColorPalette();
+    const canvas = getPhotoMemoCanvas();
+    if (canvas && canvas.dataset.bound !== 'true') {
+      canvas.addEventListener('mousedown', beginPhotoDraw);
+      canvas.addEventListener('mousemove', movePhotoDraw);
+      window.addEventListener('mouseup', endPhotoDraw);
+      canvas.addEventListener('touchstart', beginPhotoDraw, { passive: false });
+      canvas.addEventListener('touchmove', movePhotoDraw, { passive: false });
+      window.addEventListener('touchend', endPhotoDraw);
+      canvas.dataset.bound = 'true';
+    }
+    const cameraInput = document.getElementById('photo-memo-camera-input');
+    const galleryInput = document.getElementById('photo-memo-gallery-input');
+    const cameraBtn = document.getElementById('photo-memo-camera-btn');
+    const galleryBtn = document.getElementById('photo-memo-gallery-btn');
+    const closeBtn = document.getElementById('photo-memo-close-btn');
+    const cancelBtn = document.getElementById('photo-memo-cancel');
+    const drawBtn = document.getElementById('photo-memo-draw-btn');
+    const eraseBtn = document.getElementById('photo-memo-erase-btn');
+    const undoBtn = document.getElementById('photo-memo-undo-btn');
+    const widthSelect = document.getElementById('photo-memo-pen-width');
+
+    if (cameraBtn && cameraBtn.dataset.bound !== 'true') {
+      cameraBtn.addEventListener('click', () => cameraInput?.click());
+      cameraBtn.dataset.bound = 'true';
+    }
+    if (galleryBtn && galleryBtn.dataset.bound !== 'true') {
+      galleryBtn.addEventListener('click', () => galleryInput?.click());
+      galleryBtn.dataset.bound = 'true';
+    }
+    [cameraInput, galleryInput].forEach(input => {
+      if (input && input.dataset.bound !== 'true') {
+        input.addEventListener('change', () => loadPhotoMemoFile(input.files && input.files[0]));
+        input.dataset.bound = 'true';
+      }
+    });
+    if (closeBtn && closeBtn.dataset.bound !== 'true') { closeBtn.addEventListener('click', closePhotoMemoModal); closeBtn.dataset.bound = 'true'; }
+    if (cancelBtn && cancelBtn.dataset.bound !== 'true') { cancelBtn.addEventListener('click', closePhotoMemoModal); cancelBtn.dataset.bound = 'true'; }
+    if (drawBtn && drawBtn.dataset.bound !== 'true') { drawBtn.addEventListener('click', () => { photoMemoMode = 'draw'; }); drawBtn.dataset.bound = 'true'; }
+    if (eraseBtn && eraseBtn.dataset.bound !== 'true') { eraseBtn.addEventListener('click', () => { photoMemoMode = 'erase'; }); eraseBtn.dataset.bound = 'true'; }
+    if (undoBtn && undoBtn.dataset.bound !== 'true') { undoBtn.addEventListener('click', undoPhotoMemoEdit); undoBtn.dataset.bound = 'true'; }
+    if (widthSelect && widthSelect.dataset.bound !== 'true') {
+      widthSelect.addEventListener('change', () => { photoMemoWidth = Number(widthSelect.value || 5); });
+      widthSelect.dataset.bound = 'true';
+    }
+  }
+
+  function openPhotoMemoModal() {
+    bindPhotoMemoModalControls();
+    const modal = document.getElementById('photo-memo-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    const titleInput = document.getElementById('photo-memo-title-input');
+    const textInput = document.getElementById('photo-memo-text-input');
+    const cameraInput = document.getElementById('photo-memo-camera-input');
+    const galleryInput = document.getElementById('photo-memo-gallery-input');
+    if (titleInput) titleInput.value = '';
+    if (textInput) textInput.value = '';
+    if (cameraInput) cameraInput.value = '';
+    if (galleryInput) galleryInput.value = '';
+    const status = document.getElementById('photo-memo-status');
+    if (status) status.textContent = t('카메라 촬영 또는 사진추가로 이미지를 넣고 간단히 편집하세요.', 'Take a camera photo or add an image, then edit it.', 'カメラ撮影または写真追加で画像を入れて編集してください。');
+    photoMemoMode = 'draw';
+    photoMemoColor = '#ff2e63';
+    photoMemoWidth = 5;
+    resetPhotoMemoCanvas();
+  }
+
+  function closePhotoMemoModal() {
+    const titleInput = document.getElementById('photo-memo-title-input');
+    const textInput = document.getElementById('photo-memo-text-input');
+    if (titleInput) titleInput.value = '';
+    if (textInput) textInput.value = '';
+    setModalHidden('photo-memo-modal', true);
+  }
+
+  function canvasToBlob(canvas, mimeType = 'image/png', quality = 0.92) {
+    return new Promise((resolve) => {
+      if (!canvas) {
+        resolve(new Blob([''], { type: mimeType }));
+        return;
+      }
+      canvas.toBlob(blob => resolve(blob || new Blob([''], { type: mimeType })), mimeType, quality);
+    });
+  }
+
+  async function completePhotoMemoRecording() {
+    if (!photoMemoCanvasReady) {
+      window.TravelogApp.showToast(t('사진을 먼저 추가해 주세요.', 'Add a photo first.', '先に写真を追加してください。'));
+      return;
+    }
+    const canvas = getPhotoMemoCanvas();
+    const photoBlob = await canvasToBlob(canvas, 'image/png');
+    const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
+    const memoTitle = getMemoTitleInputValue('photo-memo-title-input', t('사진 메모', 'Photo Memo', '写真メモ'));
+    const memoText = String(document.getElementById('photo-memo-text-input')?.value || '').trim();
+    const memoFileBase = safeFileName(memoTitle, 'photo_memo');
+    const filename = `photo_memo_${memoFileBase}_${Date.now()}.png`;
+
+    document.getElementById('photo-memo-modal')?.classList.remove('active');
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, memoText);
+    }
+
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const newStopIdx = customPins.length - 1;
+    if (customPins[newStopIdx]) {
+      customPins[newStopIdx].memoType = 'photo';
+      customPins[newStopIdx].type = 'photo';
+      customPins[newStopIdx].description = memoText;
+    }
+
+    const photoMemoEntry = {
+      id: Date.now(),
+      name: filename,
+      fileName: filename,
+      title: memoTitle,
+      displayTitle: memoTitle,
+      memoTitle,
+      memoText,
+      blob: photoBlob,
+      dataUrl,
+      mimeType: 'image/png',
+      stopIndex: newStopIdx,
+      pinId: customPins[newStopIdx]?.id || ''
+    };
+    recordedPhotos.push(photoMemoEntry);
+
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
+      window.TravelogDeviceStorage.saveGeneratedFile('Photo', filename, photoBlob, {
+        source: 'field-photo-memo',
+        title: memoTitle,
+        memoTitle,
+        memoText,
+        stopIndex: newStopIdx,
+        lat: tempPinLat,
+        lng: tempPinLng
+      }).then(() => {
+        window.TravelogApp.showToast(t('Photo 폴더에 사진 메모가 저장되었습니다.', 'Photo memo saved to the Photo folder.', 'Photoフォルダに写真メモを保存しました。'));
+      }).catch((error) => {
+        console.warn('[Travelog Device Storage] Photo memo save failed:', error);
+        window.TravelogApp.showToast(t('사진 메모는 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'Photo memo is kept in the app, but device write failed.', '写真メモはアプリに保持されましたが端末保存に失敗しました。'));
+      });
+    } else {
+      window.TravelogApp.showToast(t('사진 메모가 앱에 저장되었습니다.', 'Photo memo saved in the app.', '写真メモをアプリに保存しました。'));
+    }
+
+    markPublishDraftDirty();
+    renderCoordinatesList();
     updatePublishPanelCounts();
   }
 

@@ -129,12 +129,13 @@ const TravelogMapModule = (() => {
   function getMemoTypeLabel(type) {
     if (type === 'video') return t('영상 메모', 'Video memo', '動画メモ');
     if (type === 'audio') return t('음성 메모', 'Audio memo', '音声メモ');
+    if (type === 'photo') return t('사진 메모', 'Photo memo', '写真メモ');
     if (type === 'coupon') return t('쿠폰', 'Coupon', 'クーポン');
     return t('텍스트 메모', 'Text memo', 'テキストメモ');
   }
 
   function looksLikeMemoFileName(value) {
-    return /\.(webm|mp4|m4a|mp3|wav|ogg|mov|txt)$/i.test(String(value || '').trim());
+    return /\.(webm|mp4|m4a|mp3|wav|ogg|mov|png|jpe?g|webp|gif|txt)$/i.test(String(value || '').trim());
   }
 
   function createCountIcon(count, colorClassOrHex) {
@@ -265,22 +266,27 @@ const TravelogMapModule = (() => {
   function normalizeActiveGuideStop(stop, index) {
     const hasVideo = stop?.type === 'video' || stop?.memoType === 'video' || (Array.isArray(stop?.linkedVideos) && stop.linkedVideos.length > 0) || (Array.isArray(stop?.linkedVideoFiles) && stop.linkedVideoFiles.length > 0);
     const hasAudio = stop?.type === 'audio' || stop?.memoType === 'audio' || (Array.isArray(stop?.linkedAudios) && stop.linkedAudios.length > 0) || (Array.isArray(stop?.linkedAudioFiles) && stop.linkedAudioFiles.length > 0);
+    const hasPhoto = stop?.type === 'photo' || stop?.memoType === 'photo' || (Array.isArray(stop?.linkedPhotos) && stop.linkedPhotos.length > 0) || (Array.isArray(stop?.linkedPhotoFiles) && stop.linkedPhotoFiles.length > 0);
     const rawType = stop?.memoType && stop.memoType !== 'none' ? stop.memoType : stop?.type;
-    const type = rawType === 'video' || hasVideo ? 'video' : rawType === 'audio' || hasAudio ? 'audio' : rawType === 'coupon' ? 'coupon' : 'memo';
+    const type = rawType === 'video' || hasVideo ? 'video' : rawType === 'audio' || hasAudio ? 'audio' : rawType === 'photo' || hasPhoto ? 'photo' : rawType === 'coupon' ? 'coupon' : 'memo';
     const icon = stop?.icon || (type === 'video'
       ? 'fa-solid fa-video'
       : type === 'audio'
         ? 'fa-solid fa-volume-high'
-        : type === 'coupon'
-          ? 'fa-solid fa-ticket'
-          : 'fa-solid fa-note-sticky');
+        : type === 'photo'
+          ? 'fa-solid fa-image'
+          : type === 'coupon'
+            ? 'fa-solid fa-ticket'
+            : 'fa-solid fa-note-sticky');
     const color = stop?.color || (type === 'video'
       ? 'pin-video'
       : type === 'audio'
         ? 'pin-audio'
-        : type === 'coupon'
-          ? 'pin-coupon'
-          : 'pin-memo');
+        : type === 'photo'
+          ? '#34a853'
+          : type === 'coupon'
+            ? 'pin-coupon'
+            : 'pin-memo');
     const nameFallback = t(`메모핀 ${index + 1}`, `Memo Pin ${index + 1}`, `メモピン ${index + 1}`);
     const descFallback = stop?.description || stop?.memoText || '';
 
@@ -777,7 +783,7 @@ const TravelogMapModule = (() => {
     if (cover) cover.style.backgroundImage = creatorPreviewPackage.representativeImage ? `url('${creatorPreviewPackage.representativeImage}')` : '';
     if (title) title.textContent = creatorPreviewPackage.tourName || '가이드 미리보기';
     if (courseCount) courseCount.textContent = String(pins.length);
-    if (memoCount) memoCount.textContent = String((creatorPreviewPackage.audioFiles || []).length + (creatorPreviewPackage.videoFiles || []).length + (creatorPreviewPackage.textFiles || []).length);
+    if (memoCount) memoCount.textContent = String((creatorPreviewPackage.audioFiles || []).length + (creatorPreviewPackage.videoFiles || []).length + (creatorPreviewPackage.photoFiles || []).length + (creatorPreviewPackage.textFiles || []).length);
     if (couponCount) couponCount.textContent = String((creatorPreviewPackage.eventCoupons || []).length);
 
     const currentPin = pins[creatorPreviewIndex];
@@ -1472,12 +1478,12 @@ const TravelogMapModule = (() => {
 
   function getNodeMediaInfo(node, type) {
     const source = node?.sourcePin || node?.sourceStop || {};
-    const listKey = type === 'video' ? 'linkedVideoFiles' : 'linkedAudioFiles';
-    const fallbackListKey = type === 'video' ? 'linkedVideos' : 'linkedAudios';
-    const urlKey = type === 'video' ? 'videoUrl' : 'audioUrl';
-    const dataKey = type === 'video' ? 'videoDataUrl' : 'audioDataUrl';
-    const objectKey = type === 'video' ? 'videoObjectUrl' : 'audioObjectUrl';
-    const fallbackMimeType = type === 'video' ? 'video/webm' : 'audio/webm';
+    const listKey = type === 'video' ? 'linkedVideoFiles' : type === 'photo' ? 'linkedPhotoFiles' : 'linkedAudioFiles';
+    const fallbackListKey = type === 'video' ? 'linkedVideos' : type === 'photo' ? 'linkedPhotos' : 'linkedAudios';
+    const urlKey = type === 'video' ? 'videoUrl' : type === 'photo' ? 'photoUrl' : 'audioUrl';
+    const dataKey = type === 'video' ? 'videoDataUrl' : type === 'photo' ? 'photoDataUrl' : 'audioDataUrl';
+    const objectKey = type === 'video' ? 'videoObjectUrl' : type === 'photo' ? 'photoObjectUrl' : 'audioObjectUrl';
+    const fallbackMimeType = type === 'video' ? 'video/webm' : type === 'photo' ? 'image/png' : 'audio/webm';
 
     const sourcePool = [node || {}, source || {}];
 
@@ -1485,7 +1491,7 @@ const TravelogMapModule = (() => {
       if (!rawValue) return '';
       const raw = String(rawValue);
       if (raw.startsWith('data:') || raw.startsWith('blob:') || raw.startsWith('http') || raw.startsWith('assets/')) return raw;
-      if (raw.includes('/') && /\.(webm|mp4|m4a|mp3|wav|ogg|mov)$/i.test(raw)) return raw;
+      if (raw.includes('/') && /\.(webm|mp4|m4a|mp3|wav|ogg|mov|png|jpe?g|webp|gif)$/i.test(raw)) return raw;
       if (/^[A-Za-z0-9+/=\s]+$/.test(raw) && raw.length > 80) return `data:${mimeType};base64,${raw.replace(/\s+/g, '')}`;
       return '';
     }
@@ -1547,6 +1553,18 @@ const TravelogMapModule = (() => {
     if (!mediaEl) return;
     mediaEl.innerHTML = '';
 
+    if (node.type === 'photo') {
+      const media = getNodeMediaInfo(node, 'photo');
+      if (media && media.url) {
+        mediaEl.innerHTML = `
+          <img src="${escapeHtml(media.url)}" alt="${escapeHtml(media.title || '사진 메모')}" style="width:100%; max-height:320px; object-fit:contain; border-radius:14px; background:#f5f5f5; margin:4px 0 10px 0;" data-travelog-memo-media="photo">
+        `;
+        return;
+      }
+      mediaEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);border:1px dashed var(--glass-border);border-radius:12px;padding:10px;margin:4px 0 10px 0;">${t('사진 메모 데이터가 아직 앱에 없습니다. 저장/출간 전에 편집한 사진 데이터가 보존되어야 표시됩니다.', 'Photo memo data is not available in the app yet. The edited photo data must be preserved before saving/publishing.', '写真メモのデータがまだアプリ内にありません。保存・公開前に編集済み写真データを保持する必要があります。')}</div>`;
+      return;
+    }
+
     if (node.type === 'video') {
       const media = getNodeMediaInfo(node, 'video');
       if (media && media.url && !String(media.mimeType || '').includes('text/plain')) {
@@ -1578,12 +1596,14 @@ const TravelogMapModule = (() => {
 
   function getNodeMediaTitle(node) {
     const source = node?.sourcePin || node?.sourceStop || {};
-    const preferredType = node?.type === 'video' ? 'video' : node?.type === 'audio' ? 'audio' : '';
+    const preferredType = node?.type === 'video' ? 'video' : node?.type === 'audio' ? 'audio' : node?.type === 'photo' ? 'photo' : '';
     const keys = preferredType === 'video'
-      ? ['linkedVideoFiles', 'linkedAudioFiles']
+      ? ['linkedVideoFiles', 'linkedAudioFiles', 'linkedPhotoFiles']
       : preferredType === 'audio'
-        ? ['linkedAudioFiles', 'linkedVideoFiles']
-        : ['linkedVideoFiles', 'linkedAudioFiles'];
+        ? ['linkedAudioFiles', 'linkedVideoFiles', 'linkedPhotoFiles']
+        : preferredType === 'photo'
+          ? ['linkedPhotoFiles', 'linkedVideoFiles', 'linkedAudioFiles']
+          : ['linkedVideoFiles', 'linkedAudioFiles', 'linkedPhotoFiles'];
     for (const key of keys) {
       const list = Array.isArray(source[key]) ? source[key] : [];
       const item = list.find(entry => entry && (entry.title || entry.displayTitle || entry.memoTitle));
@@ -1735,10 +1755,12 @@ const TravelogMapModule = (() => {
         ? t('영상 메모를 재생합니다.', 'Playing video memo.', '動画メモを再生します。')
         : node.type === 'audio'
           ? t('음성 메모를 재생합니다.', 'Playing audio memo.', '音声メモを再生します。')
-          : t('등록된 메모 내용이 없습니다.', 'No memo content is registered.', '登録されたメモ内容がありません。'));
+          : node.type === 'photo'
+            ? t('사진 메모를 표시합니다.', 'Showing photo memo.', '写真メモを表示します。')
+            : t('등록된 메모 내용이 없습니다.', 'No memo content is registered.', '登録されたメモ内容がありません。'));
     }
     if (coordsEl) coordsEl.textContent = `${Number(node.lat).toFixed(5)}, ${Number(node.lng).toFixed(5)}`;
-    if (typeEl) typeEl.textContent = node.type === 'audio' ? '음성 메모' : node.type === 'video' ? '영상 메모' : node.type === 'coupon' ? '쿠폰 메모' : '텍스트 메모';
+    if (typeEl) typeEl.textContent = node.type === 'audio' ? '음성 메모' : node.type === 'video' ? '영상 메모' : node.type === 'photo' ? '사진 메모' : node.type === 'coupon' ? '쿠폰 메모' : '텍스트 메모';
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
     window.setTimeout(() => playMemoModalMedia(modal), 80);

@@ -1140,6 +1140,9 @@
         <button class="btn-rect" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.1); border-color: var(--accent-blue); color: #373737 !important;">
           <i class="fa-solid fa-video"></i> 영상 메모 생성하기
         </button>
+        <button class="btn-rect" id="btn-select-photo-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(52, 168, 83, 0.1); border-color: #34a853; color: #373737 !important;">
+          <i class="fa-solid fa-camera-retro"></i> 사진 메모 생성하기
+        </button>
         <button class="btn-rect" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 0, 0, 0.03); border-color: var(--glass-border); color: #373737 !important;">
           <i class="fa-solid fa-pen-to-square"></i> 텍스트 메모 생성하기
         </button>
@@ -1211,7 +1214,54 @@
     </div>
   </div>
 
-  <!-- 4) 텍스트 메모 팝업 -->
+  <!-- 4) 사진 메모 팝업 -->
+  <div id="photo-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel" style="max-width: 640px; width: 94%; max-height: 92vh; overflow-y: auto; text-align: left; padding: 24px; position: relative;">
+      <button class="btn-circle" id="photo-memo-close-btn" type="button" aria-label="사진 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
+      <div style="padding-right: 42px; margin-bottom: 14px;">
+        <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-camera-retro" style="color:#34a853;"></i> 사진 가이드 메모</h3>
+        <p id="photo-memo-status" style="font-size: 12px; color: #555555 !important; margin: 0;">카메라 촬영 또는 사진추가로 이미지를 넣고 간단히 편집하세요.</p>
+      </div>
+
+      <label for="photo-memo-title-input" style="display:block;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">사진 메모 제목</label>
+      <input type="text" id="photo-memo-title-input" maxlength="60" placeholder="예: 골목 벽화 포인트" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:var(--radius-sm);color:#373737 !important;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px;">
+
+      <input type="file" id="photo-memo-camera-input" accept="image/*" capture="environment" style="display:none;">
+      <input type="file" id="photo-memo-gallery-input" accept="image/*" style="display:none;">
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+        <button type="button" class="btn-rect secondary" id="photo-memo-camera-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-camera"></i> 카메라</button>
+        <button type="button" class="btn-rect secondary" id="photo-memo-gallery-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-image"></i> 사진추가</button>
+        <button type="button" class="btn-rect secondary" id="photo-memo-draw-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-pen"></i> 그리기</button>
+        <button type="button" class="btn-rect secondary" id="photo-memo-erase-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-eraser"></i> 지우개</button>
+        <button type="button" class="btn-rect secondary" id="photo-memo-undo-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-rotate-left"></i> 되돌리기</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 120px; gap:10px; align-items:start; margin-bottom:12px;">
+        <div id="photo-memo-color-palette" aria-label="24색 칼라 선택" style="display:grid; grid-template-columns:repeat(12, 1fr); gap:5px;"></div>
+        <select id="photo-memo-pen-width" title="펜 굵기" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:10px;color:#373737 !important;padding:8px 10px;font-size:12px;outline:none;">
+          <option value="2">2픽셀</option>
+          <option value="5" selected>5픽셀</option>
+          <option value="10">10픽셀</option>
+          <option value="20">20픽셀</option>
+          <option value="50">50픽셀</option>
+        </select>
+      </div>
+
+      <div style="width:100%; background:#f3f4f6; border:1px solid var(--glass-border); border-radius:16px; padding:8px; margin-bottom:12px;">
+        <canvas id="photo-memo-canvas" width="720" height="480" style="width:100%; height:auto; max-height:44vh; display:block; background:white; border-radius:12px; touch-action:none; cursor:crosshair;"></canvas>
+      </div>
+
+      <label for="photo-memo-text-input" style="display:block;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">텍스트 메모</label>
+      <textarea id="photo-memo-text-input" maxlength="500" placeholder="사진과 함께 보여줄 짧은 설명을 입력하세요..." style="width:100%; height:84px; background:var(--bg-tertiary); border:1px solid var(--glass-border); border-radius:var(--radius-sm); color:#373737 !important; padding:12px; font-size:13px; resize:none; outline:none; margin-bottom:16px;"></textarea>
+
+      <div style="display:flex; gap:10px; width:100%;">
+        <button class="btn-rect secondary" id="photo-memo-cancel" style="flex:1; justify-content:center;">취소</button>
+        <button class="btn-rect" id="photo-memo-complete" style="flex:1; justify-content:center; background:var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 메모 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5) 텍스트 메모 팝업 -->
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px; position: relative;">
       <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
