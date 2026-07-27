@@ -670,12 +670,25 @@
                 <span id="publish-device-storage-status">앱 시작 시 지정한 저장 위치를 사용하고, 출간은 Apps Script로 전송합니다.</span>
               </div>
               <div style="display: flex; gap: 10px;">
+                <button class="btn-rect secondary" id="save-current-guide-btn" type="button" style="flex: 1; justify-content: center; font-size: 14px;">
+                  <i class="fa-solid fa-floppy-disk"></i> <span>저장하기</span>
+                </button>
                 <button class="btn-rect secondary" id="preview-current-guide-btn" type="button" style="flex: 1; justify-content: center; font-size: 14px;">
                   <i class="fa-solid fa-eye"></i> <span>미리보기</span>
                 </button>
-                <button class="btn-rect" id="publish-final-tour-btn" style="flex: 1; justify-content: center; font-size: 14px; background: var(--grad-pink-purple);">
-                  <i class="fa-solid fa-cloud-arrow-up"></i> <span>최종 출간하기</span>
-                </button>
+              </div>
+              <button class="btn-rect" id="publish-final-tour-btn" type="button" aria-disabled="true" style="width: 100%; justify-content: center; font-size: 14px; background: #b8b8b8; color: #ffffff; margin-top: 10px; cursor: not-allowed; opacity: .78;">
+                <i class="fa-solid fa-cloud-arrow-up"></i> <span>최종 출간하기</span>
+              </button>
+              <p id="publish-ready-hint" style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0 0; line-height: 1.45;">핀을 1개 이상 추가한 뒤 저장하기를 눌러야 출간할 수 있습니다.</p>
+            </div>
+
+            <!-- Saved My Guides Panel -->
+            <div class="glass-panel" style="padding: 24px;">
+              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-box-archive" style="color: var(--color-ocean);"></i> 저장된 나의 가이드</h3>
+              <p style="font-size: 13px; margin-bottom: 14px;">디바이스에 저장한 제작 가이드를 확인하고 다시 불러와 수정할 수 있습니다.</p>
+              <div id="saved-guide-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
+                <div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 저장된 가이드가 없습니다.</div>
               </div>
             </div>
 
@@ -1141,6 +1154,8 @@
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
       <p id="voice-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
+      <label for="voice-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">오디오 메모 제목</label>
+      <input type="text" id="voice-memo-title-input" maxlength="60" placeholder="예: 광화문 앞 역사 해설" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:var(--radius-sm);color:#373737 !important;padding:10px 12px;font-size:13px;outline:none;margin-bottom:16px;">
       
       <div style="background: rgba(0,0,0,0.7); width: 100%; height: 120px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; position: relative;">
         <div style="display: flex; gap: 40px;">
@@ -1168,6 +1183,8 @@
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px;">
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
       <p id="video-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
+      <label for="video-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">비디오 메모 제목</label>
+      <input type="text" id="video-memo-title-input" maxlength="60" placeholder="예: 골목 입구 영상 안내" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:var(--radius-sm);color:#373737 !important;padding:10px 12px;font-size:13px;outline:none;margin-bottom:16px;">
       
       <div style="background: #000; width: 100%; height: 160px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
         <video id="video-memo-webcam" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
@@ -1357,8 +1374,8 @@
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
-  <script src="deviceStorage.js?v=1004" defer></script>
-  <script src="creator.js?v=1008" defer></script>
+  <script src="deviceStorage.js?v=1005" defer></script>
+  <script src="creator.js?v=1009" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="app.js?v=1007" defer></script>
 </body>

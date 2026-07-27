@@ -165,16 +165,30 @@ const TravelogDeviceStorage = (() => {
       return currentStatus;
     }
 
-    const opfsRoot = await navigator.storage.getDirectory();
-    rootHandle = opfsRoot;
-    await ensureFolderStructure(rootHandle);
-    saveStatus({
-      configured: true,
-      mode: 'opfs',
-      selectedFolderName: t('앱 내부 기기 저장소', 'App device storage', 'アプリ内部端末保存先'),
-      fallbackReason: reason || 'DIRECTORY_PICKER_UNSUPPORTED'
-    });
-    return currentStatus;
+    try {
+      const opfsRoot = await navigator.storage.getDirectory();
+      rootHandle = opfsRoot;
+      await ensureFolderStructure(rootHandle);
+      saveStatus({
+        configured: true,
+        mode: 'opfs',
+        selectedFolderName: t('앱 내부 기기 저장소', 'App device storage', 'アプリ内部端末保存先'),
+        fallbackReason: reason || 'DIRECTORY_PICKER_UNSUPPORTED'
+      });
+      return currentStatus;
+    } catch (error) {
+      console.warn('[Travelog Device Storage] OPFS fallback failed. Falling back to IndexedDB.', error);
+      rootHandle = null;
+      dataHandle = null;
+      folderHandles = { Audio: null, Video: null, Text: null };
+      saveStatus({
+        configured: true,
+        mode: 'indexeddb',
+        selectedFolderName: t('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先'),
+        fallbackReason: error?.message || reason || 'OPFS_FAILED'
+      });
+      return currentStatus;
+    }
   }
 
   async function useInternalStorage(reason = 'USER_SELECTED_INTERNAL_STORAGE') {
@@ -237,6 +251,7 @@ const TravelogDeviceStorage = (() => {
       if (currentStatus.mode === 'directory' && (!rootHandle || !dataHandle)) {
         const restored = await loadPersistedDirectoryHandle(true);
         if (restored) return currentStatus;
+        return setupOpfsFallback('DIRECTORY_PERMISSION_RESTORE_FAILED');
       }
       if (currentStatus.mode === 'opfs' && (!rootHandle || !dataHandle)) {
         return setupOpfsFallback('RESTORED_OPFS');
@@ -358,6 +373,7 @@ const TravelogDeviceStorage = (() => {
     useInternalStorage,
     saveGeneratedFile,
     savePublishPackage,
+    ensureReady,
     getStatus,
     renderStatusUI,
     isUserDirectorySupported: () => typeof window.showDirectoryPicker === 'function'

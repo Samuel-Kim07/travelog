@@ -471,9 +471,9 @@ function createStopsFromCreatorPublishedGuide(record, guideCard = null) {
     .slice()
     .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0))
     .map((pin, index) => {
-      const hasVideo = pin.type === 'video' || (Array.isArray(pin.linkedVideos) && pin.linkedVideos.length > 0);
-      const hasAudio = pin.type === 'audio' || (Array.isArray(pin.linkedAudios) && pin.linkedAudios.length > 0);
-      const type = pin.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo');
+      const hasVideo = pin.type === 'video' || pin.memoType === 'video' || (Array.isArray(pin.linkedVideos) && pin.linkedVideos.length > 0) || (Array.isArray(pin.linkedVideoFiles) && pin.linkedVideoFiles.length > 0);
+      const hasAudio = pin.type === 'audio' || pin.memoType === 'audio' || (Array.isArray(pin.linkedAudios) && pin.linkedAudios.length > 0) || (Array.isArray(pin.linkedAudioFiles) && pin.linkedAudioFiles.length > 0);
+      const type = pin.memoType && pin.memoType !== 'none' ? pin.memoType : (pin.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo'));
       const icon = pin.icon || (type === 'video' ? 'fa-solid fa-video' : type === 'audio' ? 'fa-solid fa-volume-high' : type === 'coupon' ? 'fa-solid fa-ticket' : 'fa-solid fa-note-sticky');
       const nameKo = pin.nameKo || pin.name || `메모핀 ${index + 1}`;
       const nameEn = pin.nameEn || pin.name || `Memo Pin ${index + 1}`;
@@ -498,6 +498,11 @@ function createStopsFromCreatorPublishedGuide(record, guideCard = null) {
         triggerTextEn: pin.triggerTextEn || pin.descEn || desc,
         triggerTextJa: pin.triggerTextJa || pin.descJa || desc,
         createdAt: pin.createdAt || null,
+        memoType: pin.memoType || type,
+        linkedAudios: Array.isArray(pin.linkedAudios) ? [...pin.linkedAudios] : [],
+        linkedVideos: Array.isArray(pin.linkedVideos) ? [...pin.linkedVideos] : [],
+        linkedAudioFiles: Array.isArray(pin.linkedAudioFiles) ? pin.linkedAudioFiles.map(file => ({ ...file })) : [],
+        linkedVideoFiles: Array.isArray(pin.linkedVideoFiles) ? pin.linkedVideoFiles.map(file => ({ ...file })) : [],
         sourcePin: { ...pin }
       };
     });

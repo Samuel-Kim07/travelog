@@ -126,6 +126,67 @@ const TravelogMapModule = (() => {
       .replace(/'/g, '&#039;');
   }
 
+  function getMemoTypeLabel(type) {
+    if (type === 'video') return t('영상 메모', 'Video memo', '動画メモ');
+    if (type === 'audio') return t('음성 메모', 'Audio memo', '音声メモ');
+    if (type === 'coupon') return t('쿠폰', 'Coupon', 'クーポン');
+    return t('텍스트 메모', 'Text memo', 'テキストメモ');
+  }
+
+  function looksLikeMemoFileName(value) {
+    return /\.(webm|mp4|m4a|mp3|wav|ogg|mov|txt)$/i.test(String(value || '').trim());
+  }
+
+  function createCountIcon(count, colorClassOrHex) {
+    const filter = colorClassOrHex && colorClassOrHex.startsWith('#')
+      ? getFilterForColorDirect(colorClassOrHex)
+      : getFilterForColorDirect('#ff2e63');
+    return L.divIcon({
+      html: `
+        <div style="position:relative;width:42px;height:46px;">
+          <img src="assets/icons/ui/pin_red.png" alt="" style="width:36px;height:36px;position:absolute;left:3px;bottom:0;filter:${filter};">
+          <span style="position:absolute;right:0;top:0;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#ff2e63;color:#fff;border:2px solid #fff;font-size:11px;font-weight:900;line-height:18px;text-align:center;box-shadow:0 6px 16px rgba(0,0,0,.22);">${Number(count) || 0}</span>
+        </div>
+      `,
+      className: 'travelog-memo-count-pin',
+      iconSize: [42, 46],
+      iconAnchor: [21, 44],
+      popupAnchor: [0, -42]
+    });
+  }
+
+  function getNodeLocationKey(node) {
+    const lat = Number(node?.lat);
+    const lng = Number(node?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return `invalid-${node?.id || Math.random()}`;
+    return `${lat.toFixed(6)},${lng.toFixed(6)}`;
+  }
+
+  function groupNodesByLocation(nodes) {
+    const mapByLocation = new Map();
+    (nodes || []).forEach((node) => {
+      const key = getNodeLocationKey(node);
+      if (!mapByLocation.has(key)) {
+        mapByLocation.set(key, {
+          id: `memo-group-${key.replace(/[^0-9a-zA-Z_-]/g, '-')}`,
+          key,
+          lat: Number(node.lat),
+          lng: Number(node.lng),
+          nodes: []
+        });
+      }
+      mapByLocation.get(key).nodes.push(node);
+    });
+
+    return Array.from(mapByLocation.values()).map(group => {
+      group.nodes.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+      group.primary = group.nodes[0];
+      group.count = group.nodes.length;
+      group.triggerRadius = Math.max(...group.nodes.map(node => Number(node.triggerRadius) || 22));
+      return group;
+    });
+  }
+
   function formatDateTime(timestamp) {
     try {
       return new Date(timestamp).toLocaleString();
@@ -202,9 +263,9 @@ const TravelogMapModule = (() => {
   }
 
   function normalizeActiveGuideStop(stop, index) {
-    const hasVideo = stop?.type === 'video' || (Array.isArray(stop?.linkedVideos) && stop.linkedVideos.length > 0);
-    const hasAudio = stop?.type === 'audio' || (Array.isArray(stop?.linkedAudios) && stop.linkedAudios.length > 0);
-    const type = stop?.type || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo');
+    const hasVideo = stop?.type === 'video' || stop?.memoType === 'video' || (Array.isArray(stop?.linkedVideos) && stop.linkedVideos.length > 0) || (Array.isArray(stop?.linkedVideoFiles) && stop.linkedVideoFiles.length > 0);
+    const hasAudio = stop?.type === 'audio' || stop?.memoType === 'audio' || (Array.isArray(stop?.linkedAudios) && stop.linkedAudios.length > 0) || (Array.isArray(stop?.linkedAudioFiles) && stop.linkedAudioFiles.length > 0);
+    const type = stop?.memoType === 'none' ? 'memo' : (stop?.type || stop?.memoType || (hasVideo ? 'video' : hasAudio ? 'audio' : 'memo'));
     const icon = stop?.icon || (type === 'video'
       ? 'fa-solid fa-video'
       : type === 'audio'
@@ -785,9 +846,10 @@ const TravelogMapModule = (() => {
           icon: createHtmlIcon('fa-solid fa-location-crosshairs', pin.color)
         });
 
+        const displayName = pick(pin, 'name') || pin.name || `Custom Pin #${index + 1}`;
         const popupContent = `
           <div style="color:var(--bg-primary); padding:4px;">
-            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">Custom Pin #${index + 1}</h4>
+            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">${escapeHtml(displayName)}</h4>
             <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(pin.description || '')}</p>
           </div>
         `;
@@ -814,25 +876,56 @@ const TravelogMapModule = (() => {
       if (activeGuide) {
         updateActiveGuideHud(activeGuide, nodes);
       }
-      const routeCoords = [];
+      const routeCoords = nodes.map(node => [node.lat, node.lng]);
 
-      nodes.forEach(node => {
-        routeCoords.push([node.lat, node.lng]);
+      if (activeGuide?.isPublishedGuide) {
+        const locationGroups = groupNodesByLocation(nodes);
+        locationGroups.forEach(group => {
+          const primary = group.primary;
+          const marker = L.marker([group.lat, group.lng], {
+            icon: group.count > 1
+              ? createCountIcon(group.count, primary.color)
+              : createHtmlIcon(primary.icon, primary.color)
+          });
 
-        const marker = L.marker([node.lat, node.lng], {
-          icon: createHtmlIcon(node.icon, node.color)
+          if (group.count > 1) {
+            marker.bindPopup(buildPublishedGuideMemoListPopupContent(group.nodes));
+            marker.on('popupopen', () => bindPublishedGuideMemoListButtons(marker, group.nodes));
+          } else {
+            marker.bindPopup(`
+              <div style="color:var(--bg-primary); padding:4px; min-width:190px;">
+                <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color:#373737 !important;">${escapeHtml(primary.name)}</h4>
+                <p style="margin:0 0 8px 0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(primary.desc || primary.triggerText || '')}</p>
+                <button type="button" class="btn-rect" data-single-guide-memo="true" style="width:100%;justify-content:center;padding:7px 10px;border-radius:10px;font-size:12px;">${t('메모 열기', 'Open memo', 'メモを開く')}</button>
+              </div>
+            `);
+            marker.on('popupopen', () => {
+              const popupEl = marker.getPopup()?.getElement();
+              const btn = popupEl?.querySelector('[data-single-guide-memo]');
+              if (btn) btn.addEventListener('click', () => openPublishedGuideMemoPopup(primary), { once: true });
+            });
+          }
+
+          markersLayer.addLayer(marker);
+          if (group.count === 1) applyColorFilterToMarker(marker, primary.color);
         });
+      } else {
+        nodes.forEach(node => {
+          const marker = L.marker([node.lat, node.lng], {
+            icon: createHtmlIcon(node.icon, node.color)
+          });
 
-        const popupContent = `
-          <div style="color:var(--bg-primary); padding:4px;">
-            <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">${node.name}</h4>
-            <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
-          </div>
-        `;
-        marker.bindPopup(popupContent);
-        markersLayer.addLayer(marker);
-        applyColorFilterToMarker(marker, node.color); // Color rotation
-      });
+          const popupContent = `
+            <div style="color:var(--bg-primary); padding:4px;">
+              <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color: #373737 !important;">${node.name}</h4>
+              <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${node.desc}</p>
+            </div>
+          `;
+          marker.bindPopup(popupContent);
+          markersLayer.addLayer(marker);
+          applyColorFilterToMarker(marker, node.color); // Color rotation
+        });
+      }
 
       // Draw Polyline route
       routePolyline = L.polyline(routeCoords, {
@@ -1329,6 +1422,25 @@ const TravelogMapModule = (() => {
   // Calculate distance & trigger coordinate events
   function checkProximityTrigger(lat, lng) {
     const nodes = getTourNodes();
+    const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+
+    if (activeGuide?.isPublishedGuide) {
+      groupNodesByLocation(nodes).forEach(group => {
+        if (triggeredNodes.has(group.id)) return;
+        const dist = getDistanceInMeters(lat, lng, group.lat, group.lng);
+        if (dist <= group.triggerRadius) {
+          triggeredNodes.add(group.id);
+          if (group.count > 1) {
+            window.TravelogApp.showToast(t(`이 위치에 메모 ${group.count}개가 있습니다.`, `There are ${group.count} memos here.`, `この位置にメモが${group.count}件あります。`));
+            openPublishedGuideMemoListPopup(group.nodes);
+          } else {
+            triggerNodeEvent(group.primary);
+          }
+        }
+      });
+      return;
+    }
+
     nodes.forEach(node => {
       if (triggeredNodes.has(node.id)) return;
 
@@ -1344,7 +1456,238 @@ const TravelogMapModule = (() => {
 
   function getNodeMemoText(node) {
     const source = node?.sourcePin || node?.sourceStop || {};
-    return source.description || source.memoText || source.descKo || node.desc || node.triggerText || '';
+    const raw = source.memoText || source.text || source.description || source.descKo || node.desc || node.triggerText || '';
+    if ((node?.type === 'video' || node?.type === 'audio') && looksLikeMemoFileName(raw)) {
+      return '';
+    }
+    return raw;
+  }
+
+  function getNodeMediaInfo(node, type) {
+    const source = node?.sourcePin || node?.sourceStop || {};
+    const listKey = type === 'video' ? 'linkedVideoFiles' : 'linkedAudioFiles';
+    const fallbackListKey = type === 'video' ? 'linkedVideos' : 'linkedAudios';
+    const urlKey = type === 'video' ? 'videoUrl' : 'audioUrl';
+    const dataKey = type === 'video' ? 'videoDataUrl' : 'audioDataUrl';
+    const objectKey = type === 'video' ? 'videoObjectUrl' : 'audioObjectUrl';
+    const fallbackMimeType = type === 'video' ? 'video/webm' : 'audio/webm';
+
+    const sourcePool = [node || {}, source || {}];
+
+    function normalizeCandidateUrl(rawValue, mimeType = fallbackMimeType) {
+      if (!rawValue) return '';
+      const raw = String(rawValue);
+      if (raw.startsWith('data:') || raw.startsWith('blob:') || raw.startsWith('http') || raw.startsWith('assets/')) return raw;
+      if (raw.includes('/') && /\.(webm|mp4|m4a|mp3|wav|ogg|mov)$/i.test(raw)) return raw;
+      if (/^[A-Za-z0-9+/=\s]+$/.test(raw) && raw.length > 80) return `data:${mimeType};base64,${raw.replace(/\s+/g, '')}`;
+      return '';
+    }
+
+    function makeInfo(rawValue, owner = {}, mimeType = fallbackMimeType) {
+      const url = normalizeCandidateUrl(rawValue, mimeType || fallbackMimeType);
+      if (!url) return null;
+      return {
+        url,
+        mimeType: mimeType || owner.mimeType || fallbackMimeType,
+        fileName: owner.fileName || owner.name || '',
+        title: owner.title || owner.displayTitle || owner.memoTitle || ''
+      };
+    }
+
+    for (const owner of sourcePool) {
+      const mimeType = owner.mimeType || fallbackMimeType;
+      const directBase64 = owner.base64 || owner.data || '';
+      const direct = owner[dataKey] || owner[objectKey] || owner[urlKey] || owner.mediaUrl || owner.dataUrl || owner.objectUrl || owner.url || '';
+      const info = makeInfo(direct || directBase64, owner, mimeType);
+      if (info) return info;
+    }
+
+    const mediaList = [];
+    sourcePool.forEach(owner => {
+      if (Array.isArray(owner[listKey])) mediaList.push(...owner[listKey]);
+      if (Array.isArray(owner.mediaFiles)) mediaList.push(...owner.mediaFiles.filter(item => !item?.type || item.type === type));
+    });
+
+    for (const item of mediaList) {
+      if (!item) continue;
+      const itemMimeType = item.mimeType || fallbackMimeType;
+      let itemUrl = item.dataUrl || item[`${type}DataUrl`] || item.objectUrl || item[`${type}ObjectUrl`] || item.url || item.mediaUrl || item.rawUrl || '';
+      if (!itemUrl && item.blob instanceof Blob) {
+        try { itemUrl = URL.createObjectURL(item.blob); } catch (_) {}
+      }
+      if (!itemUrl && (item.base64 || item.data)) itemUrl = item.base64 || item.data;
+      const info = makeInfo(itemUrl, item, itemMimeType);
+      if (info) return info;
+    }
+
+    // If only file names exist, keep them as metadata but do not pretend they are playable URLs.
+    for (const owner of sourcePool) {
+      const names = Array.isArray(owner[fallbackListKey]) ? owner[fallbackListKey] : [];
+      if (names.length > 0) {
+        return {
+          url: '',
+          mimeType: fallbackMimeType,
+          fileName: names[0] || '',
+          title: owner.memoTitle || owner.title || ''
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function renderPublishedGuideMemoMedia(node, mediaEl) {
+    if (!mediaEl) return;
+    mediaEl.innerHTML = '';
+
+    if (node.type === 'video') {
+      const media = getNodeMediaInfo(node, 'video');
+      if (media && media.url && !String(media.mimeType || '').includes('text/plain')) {
+        mediaEl.innerHTML = `
+          <video controls autoplay playsinline preload="auto" style="width:100%; max-height:280px; border-radius:14px; background:#000; margin:4px 0 10px 0;" data-travelog-memo-media="video">
+            <source src="${escapeHtml(media.url)}" type="${escapeHtml(media.mimeType || 'video/webm')}">
+          </video>
+        `;
+        return;
+      }
+      mediaEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);border:1px dashed var(--glass-border);border-radius:12px;padding:10px;margin:4px 0 10px 0;">${t('영상 메모 파일 데이터가 아직 앱에 없습니다. 저장/출간 전에 녹화한 원본 영상 데이터가 보존되어야 재생됩니다.', 'Video memo media data is not available in the app yet. The original recorded video data must be preserved before saving/publishing.', '動画メモのデータがまだアプリ内にありません。保存・公開前に録画データを保持する必要があります。')}</div>`;
+      return;
+    }
+
+    if (node.type === 'audio') {
+      const media = getNodeMediaInfo(node, 'audio');
+      if (media && media.url && !String(media.mimeType || '').includes('text/plain')) {
+        mediaEl.innerHTML = `
+          <audio controls autoplay preload="auto" style="width:100%; margin:4px 0 10px 0;" data-travelog-memo-media="audio">
+            <source src="${escapeHtml(media.url)}" type="${escapeHtml(media.mimeType || 'audio/webm')}">
+          </audio>
+        `;
+        return;
+      }
+      mediaEl.innerHTML = `<div style="font-size:12px;color:var(--text-muted);border:1px dashed var(--glass-border);border-radius:12px;padding:10px;margin:4px 0 10px 0;">${t('음성 메모 파일 데이터가 아직 앱에 없습니다. 저장/출간 전에 녹음한 원본 음성 데이터가 보존되어야 재생됩니다.', 'Audio memo media data is not available in the app yet. The original recorded audio data must be preserved before saving/publishing.', '音声メモのデータがまだアプリ内にありません。保存・公開前に録音データを保持する必要があります。')}</div>`;
+      return;
+    }
+  }
+
+  function getNodeMediaTitle(node) {
+    const source = node?.sourcePin || node?.sourceStop || {};
+    const preferredType = node?.type === 'video' ? 'video' : node?.type === 'audio' ? 'audio' : '';
+    const keys = preferredType === 'video'
+      ? ['linkedVideoFiles', 'linkedAudioFiles']
+      : preferredType === 'audio'
+        ? ['linkedAudioFiles', 'linkedVideoFiles']
+        : ['linkedVideoFiles', 'linkedAudioFiles'];
+    for (const key of keys) {
+      const list = Array.isArray(source[key]) ? source[key] : [];
+      const item = list.find(entry => entry && (entry.title || entry.displayTitle || entry.memoTitle));
+      if (item) return String(item.title || item.displayTitle || item.memoTitle || '').trim();
+    }
+    return String(source.memoTitle || source.title || source.displayTitle || '').trim();
+  }
+
+  function getNodeDisplayMemoTitle(node, index = 0) {
+    return getNodeMediaTitle(node) || node?.name || `메모 ${index + 1}`;
+  }
+
+  function buildPublishedGuideMemoListPopupContent(nodes) {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    return `
+      <div style="color:var(--bg-primary); padding:6px; min-width:220px;">
+        <h4 style="margin:0 0 8px 0; font-size:14px; font-weight:800; color:#373737 !important;">${t('이 위치의 메모 목록', 'Memos at this location', 'この位置のメモ一覧')}</h4>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${safeNodes.map((node, index) => `
+            <button type="button" data-guide-memo-index="${index}" style="width:100%; text-align:left; border:1px solid var(--glass-border); background:white; border-radius:10px; padding:8px 9px; cursor:pointer; color:#373737;">
+              <strong style="display:block; font-size:12px;">${escapeHtml(node.order || index + 1)}. ${escapeHtml(getNodeDisplayMemoTitle(node, index))}</strong>
+              <span style="display:block; margin-top:3px; font-size:11px; color:#666;">${escapeHtml(getMemoTypeLabel(node.type))}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindPublishedGuideMemoListButtons(marker, nodes) {
+    const popupEl = marker?.getPopup?.()?.getElement?.();
+    if (!popupEl) return;
+    popupEl.querySelectorAll('[data-guide-memo-index]').forEach(button => {
+      button.addEventListener('click', () => {
+        const index = Number(button.getAttribute('data-guide-memo-index'));
+        const node = nodes[index];
+        if (node) {
+          marker.closePopup();
+          openPublishedGuideMemoPopup(node);
+        }
+      });
+    });
+  }
+
+  function openPublishedGuideMemoListPopup(nodes) {
+    const safeNodes = Array.isArray(nodes) ? nodes : [];
+    let modal = document.getElementById('published-guide-memo-list-popup');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'published-guide-memo-list-popup';
+      modal.className = 'profile-manager-modal active';
+      modal.style.zIndex = '3350';
+      modal.innerHTML = `
+        <div class="profile-manager-card glass-panel" style="max-width:480px;width:92%;padding:24px;position:relative;">
+          <button class="btn-circle" id="published-guide-memo-list-close-btn" type="button" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+          <div style="padding-right:42px;">
+            <span style="display:inline-block;font-size:11px;font-weight:900;color:white;background:var(--color-ocean);border-radius:999px;padding:4px 9px;margin-bottom:8px;">MEMO LIST</span>
+            <h2 class="gradient-text" style="font-size:20px;margin:0 0 8px 0;">${t('이 위치의 메모 목록', 'Memos at this location', 'この位置のメモ一覧')}</h2>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0 0 12px 0;">${t('열고 싶은 메모를 선택하세요.', 'Choose a memo to open.', '開きたいメモを選んでください。')}</p>
+            <div id="published-guide-memo-list-items" style="display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;"></div>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#published-guide-memo-list-close-btn').addEventListener('click', () => {
+        modal.classList.remove('active');
+        modal.setAttribute('aria-hidden', 'true');
+      });
+    }
+
+    const itemsEl = modal.querySelector('#published-guide-memo-list-items');
+    if (itemsEl) {
+      itemsEl.innerHTML = safeNodes.map((node, index) => `
+        <button type="button" data-guide-memo-modal-index="${index}" style="width:100%;text-align:left;background:white;border:1px solid var(--glass-border);border-radius:14px;padding:10px 12px;cursor:pointer;">
+          <strong style="display:block;color:#373737;font-size:13px;">${escapeHtml(node.order || index + 1)}. ${escapeHtml(getNodeDisplayMemoTitle(node, index))}</strong>
+          <span style="display:block;margin-top:4px;color:var(--text-secondary);font-size:11px;">${escapeHtml(getMemoTypeLabel(node.type))}</span>
+        </button>
+      `).join('');
+      itemsEl.querySelectorAll('[data-guide-memo-modal-index]').forEach(button => {
+        button.addEventListener('click', () => {
+          const index = Number(button.getAttribute('data-guide-memo-modal-index'));
+          const node = safeNodes[index];
+          if (!node) return;
+          modal.classList.remove('active');
+          modal.setAttribute('aria-hidden', 'true');
+          openPublishedGuideMemoPopup(node);
+        });
+      });
+    }
+
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function pauseMemoModalMedia(modal) {
+    if (!modal) return;
+    modal.querySelectorAll('video, audio').forEach(media => {
+      try { media.pause(); } catch (_) {}
+    });
+  }
+
+  function playMemoModalMedia(modal) {
+    if (!modal) return;
+    const media = modal.querySelector('video, audio');
+    if (!media) return;
+    try { media.currentTime = 0; } catch (_) {}
+    const playPromise = media.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch(() => {
+        window.TravelogApp?.showToast(t('브라우저 정책상 재생 버튼을 눌러 메모를 시작해 주세요.', 'Tap play to start the memo.', '再生ボタンを押してメモを開始してください。'));
+      });
+    }
   }
 
   function openPublishedGuideMemoPopup(node) {
@@ -1360,26 +1703,38 @@ const TravelogMapModule = (() => {
           <div style="padding-right:42px;">
             <span id="published-guide-memo-type" style="display:inline-block;font-size:11px;font-weight:900;color:white;background:var(--color-ocean);border-radius:999px;padding:4px 9px;margin-bottom:8px;">GUIDE MEMO</span>
             <h2 id="published-guide-memo-title" class="gradient-text" style="font-size:20px;margin:0 0 8px 0;">메모핀</h2>
+            <div id="published-guide-memo-media"></div>
             <p id="published-guide-memo-body" style="font-size:13px;color:var(--text-secondary);white-space:pre-line;line-height:1.65;margin:0 0 12px 0;"></p>
             <small id="published-guide-memo-coords" style="display:block;color:var(--text-muted);font-size:11px;"></small>
           </div>
         </div>`;
       document.body.appendChild(modal);
       modal.querySelector('#published-guide-memo-close-btn').addEventListener('click', () => {
+        pauseMemoModalMedia(modal);
         modal.classList.remove('active');
         modal.setAttribute('aria-hidden', 'true');
       });
     }
     const titleEl = modal.querySelector('#published-guide-memo-title');
+    const mediaEl = modal.querySelector('#published-guide-memo-media');
     const bodyEl = modal.querySelector('#published-guide-memo-body');
     const coordsEl = modal.querySelector('#published-guide-memo-coords');
     const typeEl = modal.querySelector('#published-guide-memo-type');
-    if (titleEl) titleEl.textContent = node.name || '메모핀';
-    if (bodyEl) bodyEl.textContent = getNodeMemoText(node) || '등록된 메모 내용이 없습니다.';
+    if (titleEl) titleEl.textContent = getNodeDisplayMemoTitle(node, 0) || '메모핀';
+    renderPublishedGuideMemoMedia(node, mediaEl);
+    if (bodyEl) {
+      const memoText = getNodeMemoText(node);
+      bodyEl.textContent = memoText || (node.type === 'video'
+        ? t('영상 메모를 재생합니다.', 'Playing video memo.', '動画メモを再生します。')
+        : node.type === 'audio'
+          ? t('음성 메모를 재생합니다.', 'Playing audio memo.', '音声メモを再生します。')
+          : t('등록된 메모 내용이 없습니다.', 'No memo content is registered.', '登録されたメモ内容がありません。'));
+    }
     if (coordsEl) coordsEl.textContent = `${Number(node.lat).toFixed(5)}, ${Number(node.lng).toFixed(5)}`;
     if (typeEl) typeEl.textContent = node.type === 'audio' ? '음성 메모' : node.type === 'video' ? '영상 메모' : node.type === 'coupon' ? '쿠폰 메모' : '텍스트 메모';
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
+    window.setTimeout(() => playMemoModalMedia(modal), 80);
   }
 
   function triggerNodeEvent(node) {
@@ -1620,7 +1975,7 @@ const TravelogMapModule = (() => {
     // Draw Pin on Map
     const marker = L.marker([lat, lng], {
       icon: createHtmlIcon('fa-solid fa-location-crosshairs', newPin.color)
-    }).bindPopup(`<b>Custom Pin #${newIndex}</b><br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    }).bindPopup(`<b>${escapeHtml(newPin.nameKo)}</b><br>${escapeHtml(description || '')}<br>Coords: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     
     markersLayer.addLayer(marker);
     customCreatedMarkers[pinId] = marker;
@@ -1661,6 +2016,34 @@ const TravelogMapModule = (() => {
     }
   }
 
+  function refreshCreatorPinPopup(pinId) {
+    const customPins = window.TravelogApp?.getState?.().customCreatedPins || [];
+    const pin = customPins.find(p => String(p.id) === String(pinId));
+    const marker = customCreatedMarkers[pinId];
+    if (!pin || !marker) return;
+    const name = pick(pin, 'name') || pin.name || pin.nameKo || 'Custom Pin';
+    marker.bindPopup(`
+      <div style="color:var(--bg-primary); padding:4px;">
+        <h4 style="margin:0 0 4px 0; font-size:14px; font-weight:700; color:#373737 !important;">${escapeHtml(name)}</h4>
+        <p style="margin:0; font-size:12px; line-height:1.4; color:#666;">${escapeHtml(pin.description || '')}</p>
+        <small style="font-size:10px;color:#888;">${Number(pin.lat).toFixed(5)}, ${Number(pin.lng).toFixed(5)}</small>
+      </div>
+    `);
+  }
+
+  function updateCreatorPinName(pinId, nextName) {
+    const customPins = window.TravelogApp?.getState?.().customCreatedPins || [];
+    const pin = customPins.find(p => String(p.id) === String(pinId));
+    if (pin) {
+      const name = String(nextName || '').trim() || 'Custom Pin';
+      pin.name = name;
+      pin.nameKo = name;
+      pin.nameEn = name;
+      pin.nameJa = name;
+    }
+    refreshCreatorPinPopup(pinId);
+  }
+
   function removeCreatorPin(pinId) {
     const customPins = window.TravelogApp.getState().customCreatedPins;
     window.TravelogApp.getState().customCreatedPins = customPins.filter(p => p.id !== pinId);
@@ -1671,11 +2054,13 @@ const TravelogMapModule = (() => {
       delete customCreatedMarkers[pinId];
     }
     
-    // Recalculate names order
+    // Keep user-edited pin names; only fill missing names after deletion.
     window.TravelogApp.getState().customCreatedPins.forEach((pin, idx) => {
-      pin.nameEn = `Custom Pin #${idx + 1}`;
-      pin.nameKo = `커스텀 핀 #${idx + 1}`;
-      pin.nameJa = `カスタムピン #${idx + 1}`;
+      if (!pin.nameKo && !pin.nameEn && !pin.nameJa && !pin.name) {
+        pin.nameEn = `Custom Pin #${idx + 1}`;
+        pin.nameKo = `커스텀 핀 #${idx + 1}`;
+        pin.nameJa = `カスタムピン #${idx + 1}`;
+      }
     });
 
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.renderCoordinatesList === 'function') {
@@ -1714,10 +2099,14 @@ const TravelogMapModule = (() => {
     addNewCreatorPin: addNewCreatorPin,
     clearCreatorPins: clearCreatorPins,
     updateCreatorPinColor: updateCreatorPinColor,
+    updateCreatorPinName: updateCreatorPinName,
+    refreshCreatorPinPopup: refreshCreatorPinPopup,
     removeCreatorPin: removeCreatorPin,
     connectCreatorPins: connectCreatorPins,
     startCreatorGuidePreview: startCreatorGuidePreview,
     stopCreatorGuidePreview: stopCreatorGuidePreview,
+    openPublishedGuideMemoPopup: openPublishedGuideMemoPopup,
+    openPublishedGuideMemoListPopup: openPublishedGuideMemoListPopup,
     centerToUser: () => {
       if (map) {
         const loc = getCurrentLatLng();

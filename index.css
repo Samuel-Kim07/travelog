@@ -4203,3 +4203,27 @@ textarea::placeholder {
   color: #888888 !important;
 }
 
+
+
+/* Travelog home readability fix: make Home block titles dark gray on light/glass cards */
+#home-tab .section-title-bar h3,
+#home-tab .recommend-title-row h4,
+#home-tab .widget-block-title,
+#home-tab .guide-card-title,
+#home-tab .coin-balance-title > span,
+#home-tab .user-welcome {
+  color: #373737 !important;
+  text-shadow: none !important;
+}
+
+#home-tab .section-title-bar h3 i,
+#home-tab .recommend-title-row h4 i {
+  color: #557E8E !important;
+}
+
+#home-tab .widget-block-meta,
+#home-tab .guide-card-author,
+#home-tab .widget-desc {
+  color: #5f6f73 !important;
+  text-shadow: none !important;
+}
