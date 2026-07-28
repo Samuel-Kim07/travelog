@@ -904,14 +904,14 @@
                 <input type="checkbox" id="onboarding-permission-chk" checked style="margin-top: 2px;">
                 <div>
                   <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">처음 설정에서 내 디바이스 저장폴더 직접 선택</strong>
-                  아래 버튼으로 유저가 직접 저장 위치를 선택하면 앱이 그 안에 Travelog_user_data 폴더와 Audio / Video / Photo / Text 폴더를 만듭니다. 모바일 브라우저가 폴더 선택을 제한하면 앱 내부 저장소로 보관합니다.
+                  아래 버튼으로 유저가 원하는 저장 위치를 직접 선택하면, 앱이 그 안에 travelog_data 폴더와 Audio / Video / Photo / Text 폴더를 자동 생성합니다. 모바일 브라우저가 폴더 선택을 제한하면 앱 내부 저장소로 보관합니다.
                 </div>
               </label>
               <button type="button" class="btn-rect secondary" id="device-storage-select-btn" style="width: 100%; justify-content: center; margin-top: 10px; font-size: 12px; border-radius: 14px;">
-                <i class="fa-solid fa-folder-plus"></i> 디바이스 저장폴더 선택하기
+                <i class="fa-solid fa-folder-plus"></i> 내 디바이스에서 저장폴더 지정하기
               </button>
-              <div id="device-storage-status" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45;">아직 저장 위치가 지정되지 않았습니다.</div>
-              <div id="device-storage-required-hint" style="font-size: 11px; color: #A34E54; margin-top: 6px; line-height: 1.45;">시작 전 저장폴더를 먼저 선택해 주세요.</div>
+              <div id="device-storage-status" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45;">아직 저장 위치가 지정되지 않았습니다. 버튼을 눌러 원하는 위치에 travelog_data 폴더를 만들어 주세요.</div>
+              <div id="device-storage-required-hint" style="font-size: 11px; color: #A34E54; margin-top: 6px; line-height: 1.45;">시작 전 내 디바이스에서 저장폴더를 먼저 지정해 주세요.</div>
             </div>
             
             <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>

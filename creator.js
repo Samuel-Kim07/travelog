@@ -1440,7 +1440,7 @@ const TravelogCreatorModule = (() => {
 
     return {
       selectedFolderName: t('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先'),
-      dataFolderName: 'Travelog_user_data',
+      dataFolderName: 'travelog_data',
       mode: 'browser'
     };
   }

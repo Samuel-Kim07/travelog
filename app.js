@@ -1767,7 +1767,7 @@ function safelyGoToProfileStep(provider) {
   verifiedNickname = draftNickname;
   TravelogState.userProfile.nickname = draftNickname;
   updateOnboardingStartAvailability();
-  showNicknameFeedback(localizedText('로그인 방식이 선택되었습니다. 저장 위치를 지정하고 시작하세요.', 'Login method selected. Set storage and start.', 'ログイン方法を選択しました。保存先を設定して開始してください。'), true);
+  showNicknameFeedback(localizedText('로그인 방식이 선택되었습니다. 내 디바이스에서 저장폴더를 지정하고 시작하세요.', 'Login method selected. Choose a device storage folder and start.', 'ログイン方法を選択しました。端末の保存フォルダを指定して開始してください。'), true);
   showOnboardingScreen('profile');
   syncDeviceStorageStatus();
 }
@@ -1803,10 +1803,10 @@ function updateOnboardingStartAvailability() {
     if (!wantsStorage) {
       hint.textContent = localizedText('기기 저장을 사용하지 않고 시작합니다.', 'Starting without device folder storage.', '端末保存を使わずに開始します。');
     } else if (storageReady) {
-      const folderName = status.selectedFolderName || status.dataFolderName || 'Travelog_user_data';
+      const folderName = status.selectedFolderName || status.dataFolderName || 'travelog_data';
       hint.textContent = localizedText(`저장 위치 설정 완료: ${folderName}`, `Storage location ready: ${folderName}`, `保存先設定完了: ${folderName}`);
     } else {
-      hint.textContent = localizedText('시작 전 저장폴더를 먼저 선택해 주세요.', 'Choose a device storage folder before starting.', '開始前に保存フォルダを選択してください。');
+      hint.textContent = localizedText('시작 전 내 디바이스에서 저장폴더를 먼저 지정해 주세요.', 'Choose a device storage folder on your device before starting.', '開始前に端末の保存フォルダを指定してください。');
     }
   }
 }
@@ -1834,31 +1834,20 @@ async function requestDeviceStorageSetupFromUser() {
     const status = await window.TravelogDeviceStorage.configureFromUserGesture();
     TravelogState.userProfile.storagePermissionGranted = true;
     TravelogState.userProfile.storageMode = status.mode || 'browser';
-    TravelogState.userProfile.storageFolderName = status.selectedFolderName || 'Travelog_user_data';
+    TravelogState.userProfile.storageFolderName = status.selectedFolderName || 'travelog_data';
     syncDeviceStorageStatus();
     return true;
   } catch (error) {
     console.warn('[Travelog] Device storage setup failed:', error);
     if (error && error.name === 'AbortError') {
-      showToast(localizedText('저장 위치 선택이 취소되었습니다. 앱 내부 저장소로 계속 보관합니다.', 'Folder selection was canceled. Data will be kept in app storage.', '保存先選択がキャンセルされました。'));
-      try {
-        const status = typeof window.TravelogDeviceStorage.useInternalStorage === 'function'
-          ? await window.TravelogDeviceStorage.useInternalStorage('USER_CANCELED_DIRECTORY_PICKER')
-          : { mode: 'browser', selectedFolderName: localizedText('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先') };
-        TravelogState.userProfile.storagePermissionGranted = true;
-        TravelogState.userProfile.storageMode = status.mode || 'browser';
-        TravelogState.userProfile.storageFolderName = status.selectedFolderName || localizedText('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先');
-        syncDeviceStorageStatus();
-        return true;
-      } catch (fallbackError) {
-        TravelogState.userProfile.storagePermissionGranted = true;
-        TravelogState.userProfile.storageMode = 'browser';
-        TravelogState.userProfile.storageFolderName = localizedText('브라우저 내부 저장소', 'Browser internal storage', 'ブラウザ内部保存先');
-        syncDeviceStorageStatus();
-        return true;
-      }
+      showToast(localizedText('저장 위치 선택이 취소되었습니다. 다시 버튼을 눌러 원하는 위치를 선택해 주세요.', 'Folder selection was canceled. Press the button again and choose a location.', '保存先選択がキャンセルされました。もう一度ボタンを押して保存先を選択してください。'));
+      TravelogState.userProfile.storagePermissionGranted = false;
+      TravelogState.userProfile.storageMode = 'none';
+      TravelogState.userProfile.storageFolderName = '';
+      syncDeviceStorageStatus();
+      return false;
     }
-    alert(localizedText('저장 위치 권한을 얻지 못했습니다. 다시 시도해 주세요.', 'Could not get storage permission. Please try again.', '保存先権限を取得できませんでした。'));
+    alert(localizedText('저장 위치를 설정하지 못했습니다. 버튼을 다시 눌러 원하는 위치를 선택하면 travelog_data 폴더를 생성합니다.', 'Could not set the storage folder. Press the button again and choose a location to create travelog_data.', '保存先を設定できませんでした。ボタンをもう一度押して保存先を選択してください。'));
     syncDeviceStorageStatus();
     return false;
   }
@@ -1945,7 +1934,7 @@ function bindOnboardingEvents() {
       updateOnboardingStartAvailability();
       if (ok) {
         saveProfile();
-        showToast(localizedText('기기 저장 설정이 완료되었습니다.', 'Device storage is ready.', '端末保存設定が完了しました。'));
+        showToast(localizedText('선택한 위치에 travelog_data 저장폴더를 만들었습니다.', 'Created the travelog_data storage folder in the selected location.', '選択した場所にtravelog_data保存フォルダを作成しました。'));
       }
     });
   }

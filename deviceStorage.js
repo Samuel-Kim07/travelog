@@ -12,7 +12,7 @@ const TravelogDeviceStorage = (() => {
   const FILE_STORE = 'files';
   const ROOT_HANDLE_KEY = 'rootDirectoryHandle';
   const STATUS_KEY = 'travelog_device_storage_status_v1';
-  const DATA_FOLDER_NAME = 'Travelog_user_data';
+  const DATA_FOLDER_NAME = 'travelog_data';
   const FOLDER_NAMES = {
     Audio: 'Audio',
     Video: 'Video',
@@ -213,7 +213,7 @@ const TravelogDeviceStorage = (() => {
       await writeBlobToHandle(dataHandle, 'storage_ready.txt', new Blob([
         'Travelog device storage is ready.\n',
         `createdAt=${new Date().toISOString()}\n`,
-        'folders=Audio,Video,Photo,Text\n'
+        'dataFolder=travelog_data\nfolders=Audio,Video,Photo,Text\n'
       ], { type: 'text/plain;charset=utf-8' }));
 
       try {
@@ -364,8 +364,8 @@ const TravelogDeviceStorage = (() => {
     }
     if (selectBtn) {
       selectBtn.innerHTML = currentStatus?.configured
-        ? '<i class="fa-solid fa-folder-open"></i> 디바이스 저장폴더 다시 선택'
-        : '<i class="fa-solid fa-folder-plus"></i> 디바이스 저장폴더 선택하기';
+        ? '<i class="fa-solid fa-folder-open"></i> 내 디바이스에서 저장폴더 지정하기'
+        : '<i class="fa-solid fa-folder-plus"></i> 내 디바이스에서 저장폴더 지정하기';
     }
   }
 
