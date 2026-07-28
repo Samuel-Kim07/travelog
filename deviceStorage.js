@@ -364,8 +364,8 @@ const TravelogDeviceStorage = (() => {
     }
     if (selectBtn) {
       selectBtn.innerHTML = currentStatus?.configured
-        ? '<i class="fa-solid fa-folder-open"></i> 저장 위치 다시 지정'
-        : '<i class="fa-solid fa-folder-plus"></i> 저장 위치 지정하기';
+        ? '<i class="fa-solid fa-folder-open"></i> 디바이스 저장폴더 다시 선택'
+        : '<i class="fa-solid fa-folder-plus"></i> 디바이스 저장폴더 선택하기';
     }
   }
 

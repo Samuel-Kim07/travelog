@@ -101,8 +101,8 @@
           <div class="home-friend-section glass-panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px;">
             <div class="section-title-bar" style="margin-bottom: 0;">
               <h3 style="font-size: 16px; margin: 0;"><i class="fa-solid fa-user-group" style="color: var(--accent-blue);"></i> 친구 목록</h3>
-              <button class="btn-rect secondary" id="friend-edit-btn" type="button" style="padding: 6px 12px; font-size: 12px;">
-                <i class="fa-solid fa-pen-to-square"></i> 친구 편집
+              <button class="btn-rect secondary friend-edit-icon-btn" id="friend-edit-btn" type="button" title="친구 편집" aria-label="친구 편집">
+                <img src="assets/icons/ui/icon_control.svg" alt="" aria-hidden="true">
               </button>
             </div>
             <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">함께 여행할 친구를 등록하고 쪽지를 보낼 수 있습니다.</p>
@@ -272,9 +272,8 @@
             <span class="map-control-icon" aria-hidden="true">⌖</span>
             <span data-localize="map_control_gps">Live GPS</span>
           </button>
-          <button class="btn-circle map-control-btn" id="create-pin-at-gps-btn" style="background: var(--grad-pink-purple); border-color: transparent;" title="내 위치에서 코스 메모 생성" aria-label="Create Course Memo at My Location">
-            <span class="map-control-icon" style="color: white;" aria-hidden="true"><i class="fa-solid fa-map-pin"></i></span>
-            <span style="color: white; font-weight: bold;">메모생성</span>
+          <button class="btn-circle map-control-btn map-pin-create-btn" id="create-pin-at-gps-btn" title="내 위치에서 코스 메모 생성" aria-label="내 위치에서 코스 메모 생성">
+            <span class="map-control-icon map-pin-create-icon" aria-hidden="true"><img src="assets/icons/ui/map_pin.png" alt=""></span>
           </button>
           <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
             <span class="map-control-icon" aria-hidden="true">↟</span>
@@ -284,10 +283,6 @@
             <span class="map-control-icon" aria-hidden="true">◎</span>
             <span data-localize="map_control_recenter">Center</span>
           </button>
-          <div id="gps-location-pill" class="glass-panel map-status-pill" style="display: none;">
-            <i class="fa-solid fa-satellite-dish"></i>
-            <span id="gps-location-text" data-localize="gps_waiting">Waiting for GPS...</span>
-          </div>
           <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
           </div>
@@ -908,14 +903,15 @@
               <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
                 <input type="checkbox" id="onboarding-permission-chk" checked style="margin-top: 2px;">
                 <div>
-                  <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">기기 내 Travelog_user_data 폴더 생성 및 저장 수락</strong>
-                  앱에서 생성한 음성 메모, 영상 메모, 텍스트 메모를 지정한 저장 위치의 Audio / Video / Text 폴더에 저장합니다. 모바일 브라우저가 폴더 선택을 제한하면 앱 내부 기기 저장소에 먼저 보관하고 출간 시 구글 드라이브로 바로 업로드합니다.
+                  <strong style="color: var(--text-primary); display: block; margin-bottom: 2px;">처음 설정에서 내 디바이스 저장폴더 직접 선택</strong>
+                  아래 버튼으로 유저가 직접 저장 위치를 선택하면 앱이 그 안에 Travelog_user_data 폴더와 Audio / Video / Photo / Text 폴더를 만듭니다. 모바일 브라우저가 폴더 선택을 제한하면 앱 내부 저장소로 보관합니다.
                 </div>
               </label>
               <button type="button" class="btn-rect secondary" id="device-storage-select-btn" style="width: 100%; justify-content: center; margin-top: 10px; font-size: 12px; border-radius: 14px;">
-                <i class="fa-solid fa-folder-plus"></i> 저장 위치 지정하기
+                <i class="fa-solid fa-folder-plus"></i> 디바이스 저장폴더 선택하기
               </button>
               <div id="device-storage-status" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45;">아직 저장 위치가 지정되지 않았습니다.</div>
+              <div id="device-storage-required-hint" style="font-size: 11px; color: #A34E54; margin-top: 6px; line-height: 1.45;">시작 전 저장폴더를 먼저 선택해 주세요.</div>
             </div>
             
             <button type="button" class="btn-rect" id="start-app-btn" onclick="window.TravelogCompleteOnboarding && window.TravelogCompleteOnboarding()" style="width: 100%; margin-top: 16px; justify-content: center; height: 44px; font-size: 15px; border-radius: 20px;" disabled>
@@ -1153,32 +1149,36 @@
     </div>
   </div>
 
-  <!-- 2) 음성 메모 팝업 (녹음기 디자인) -->
+  <!-- 2) 음성 메모 팝업 (카세트 녹음기 디자인) -->
   <div id="voice-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
-      <button class="btn-circle" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
-      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 음성 가이드 녹음기</h3>
-      <p id="voice-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">마이크 권한 획득 완료 · 녹음 대기 중</p>
-      <label for="voice-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">오디오 메모 제목</label>
-      <input type="text" id="voice-memo-title-input" maxlength="60" placeholder="예: 광화문 앞 역사 해설" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:var(--radius-sm);color:#373737 !important;padding:10px 12px;font-size:13px;outline:none;margin-bottom:16px;">
-      
-      <div style="background: rgba(0,0,0,0.7); width: 100%; height: 120px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; display: flex; align-items: center; justify-content: center; position: relative;">
-        <div style="display: flex; gap: 40px;">
-          <div id="tape-wheel-left" style="width: 44px; height: 44px; border: 4px dashed #999; border-radius: 50%;"></div>
-          <div id="tape-wheel-right" style="width: 44px; height: 44px; border: 4px dashed #999; border-radius: 50%;"></div>
+    <div class="voice-memo-recorder-card" role="dialog" aria-modal="true" aria-labelledby="voice-memo-recorder-title">
+      <button class="voice-memo-close-x" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기">×</button>
+      <h3 id="voice-memo-recorder-title" class="voice-memo-recorder-title">
+        <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+        음성 가이드 녹음기
+      </h3>
+      <input type="text" id="voice-memo-title-input" class="voice-memo-title-field" maxlength="60" placeholder="광장 앞 거리" aria-label="오디오 메모 제목">
+
+      <div class="voice-memo-cassette-frame" aria-label="음성 녹음 상태 화면">
+        <div class="voice-memo-cassette-screen">
+          <div class="voice-memo-tape-wheels" aria-hidden="true">
+            <div id="tape-wheel-left" class="voice-memo-tape-wheel"></div>
+            <div id="tape-wheel-right" class="voice-memo-tape-wheel"></div>
+          </div>
+          <div id="voice-memo-timer" class="voice-memo-timer">00:00</div>
         </div>
-        <div id="voice-memo-timer" style="position: absolute; bottom: 8px; font-family: monospace; font-size: 16px; color: var(--accent-pink); font-weight: bold;">00:00</div>
+      </div>
+      <p id="voice-memo-status" class="voice-memo-status-text">마이크 버튼을 눌러 녹음 시작</p>
+
+      <div class="voice-memo-control-strip" aria-label="음성 메모 녹음 컨트롤">
+        <button class="voice-memo-control-btn voice-memo-stop-btn" id="voice-memo-stop" type="button" aria-label="녹음 정지" disabled><i class="fa-solid fa-square"></i></button>
+        <button class="voice-memo-control-btn voice-memo-record-btn" id="voice-memo-record" type="button" aria-label="녹음 시작"><i class="fa-solid fa-circle"></i></button>
+        <button class="voice-memo-control-btn voice-memo-play-btn" id="voice-memo-play" type="button" aria-label="녹음 재생" disabled><i class="fa-solid fa-play"></i></button>
       </div>
 
-      <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 24px;">
-        <button class="btn-circle" id="voice-memo-play" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-play"></i></button>
-        <button class="btn-circle" id="voice-memo-record" style="width: 58px; height: 58px; font-size: 20px; background: #ff2e63; border-color: #ff2e63; color: white;"><i class="fa-solid fa-microphone"></i></button>
-        <button class="btn-circle" id="voice-memo-stop" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-square"></i></button>
-      </div>
-
-      <div style="display: flex; gap: 10px; width: 100%;">
-        <button class="btn-rect secondary" id="voice-memo-reset" style="flex: 1; justify-content: center;" disabled><i class="fa-solid fa-rotate-right"></i> 다시 녹음</button>
-        <button class="btn-rect" id="voice-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 완료</button>
+      <div class="voice-memo-action-row">
+        <button class="voice-memo-action-btn voice-memo-reset-btn" id="voice-memo-reset" type="button" disabled>다시 녹음</button>
+        <button class="voice-memo-action-btn voice-memo-complete-btn" id="voice-memo-complete" type="button" disabled>완료</button>
       </div>
     </div>
   </div>
@@ -1424,13 +1424,13 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="map.js?v=1007" defer></script>
+  <script src="map.js?v=1008" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
-  <script src="deviceStorage.js?v=1005" defer></script>
+  <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1009" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1007" defer></script>
+  <script src="app.js?v=1008" defer></script>
 </body>
 </html>

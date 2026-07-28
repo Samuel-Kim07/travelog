@@ -4227,3 +4227,300 @@ textarea::placeholder {
   color: #5f6f73 !important;
   text-shadow: none !important;
 }
+
+
+/* Travelog voice memo pin recorder - compact cassette design */
+#voice-memo-modal.profile-manager-modal {
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-memo-recorder-card {
+  width: min(268px, calc(100vw - 28px));
+  background: #f7f7f7;
+  border: 1.5px solid rgba(55, 55, 55, 0.58);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+  color: #373737;
+  font-family: var(--font-sans, inherit);
+}
+
+.voice-memo-close-x {
+  position: absolute;
+  top: 3px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  background: transparent;
+  color: #4a4a4a;
+  font-size: 18px;
+  line-height: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  z-index: 3;
+  padding: 0;
+}
+
+.voice-memo-close-x:hover,
+.voice-memo-close-x:focus-visible {
+  color: #111;
+  outline: none;
+}
+
+.voice-memo-recorder-title {
+  margin: 16px 28px 4px;
+  color: #373737 !important;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+}
+
+.voice-memo-recorder-title i {
+  color: #636363 !important;
+  font-size: 15px;
+}
+
+.voice-memo-title-field {
+  width: 170px;
+  height: 12px;
+  padding: 0 8px;
+  border: 1.5px solid #555;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #373737 !important;
+  font-size: 8px;
+  line-height: 12px;
+  outline: none;
+  text-align: left;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.12);
+}
+
+.voice-memo-title-field::placeholder {
+  color: #626262;
+  opacity: 0.95;
+}
+
+.voice-memo-cassette-frame {
+  width: 180px;
+  height: 83px;
+  margin: 2px auto 10px;
+  border: 2px solid #555;
+  background: #f3f3f3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+}
+
+.voice-memo-cassette-screen {
+  width: 142px;
+  height: 67px;
+  border-radius: 6px;
+  background: #555;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.voice-memo-tape-wheels {
+  display: flex;
+  gap: 28px;
+  transform: translateY(-3px);
+}
+
+.voice-memo-tape-wheel {
+  width: 31px;
+  height: 31px;
+  border: 3px dashed #a8a8a8;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.voice-memo-timer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7px;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.voice-memo-status-text {
+  min-height: 12px;
+  margin: 0 12px 5px;
+  color: #666 !important;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-memo-control-strip {
+  border-top: 1.5px solid #777;
+  border-bottom: 1.5px solid rgba(120, 120, 120, 0.45);
+  background: #f4f4f4;
+  height: 53px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.voice-memo-control-btn {
+  width: 40px;
+  height: 48px;
+  border: 2px solid rgba(0, 0, 0, 0.16);
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0;
+  color: rgba(60, 60, 60, 0.38);
+  background: linear-gradient(180deg, #8e8e8e, #727272);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 1px 3px rgba(0,0,0,.25);
+  transition: transform .12s ease, filter .12s ease, opacity .12s ease;
+}
+
+.voice-memo-control-btn:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.voice-memo-control-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.voice-memo-record-btn,
+.voice-memo-record-btn:disabled {
+  background: linear-gradient(180deg, #c71d1d, #ad1414);
+  color: #690606;
+  opacity: 1;
+}
+
+.voice-memo-record-btn i {
+  font-size: 17px;
+}
+
+.voice-memo-stop-btn i,
+.voice-memo-play-btn i {
+  font-size: 16px;
+}
+
+.voice-memo-action-row {
+  background: #fafafa;
+  padding: 10px 21px 11px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.voice-memo-action-btn {
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.08);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+}
+
+.voice-memo-reset-btn {
+  background: #f5ffff;
+  color: #4a4a4a;
+}
+
+.voice-memo-complete-btn {
+  background: linear-gradient(135deg, #c6e7cd, #98ca94);
+  color: #ffffff;
+}
+
+.voice-memo-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+}
+
+@media (max-width: 380px) {
+  .voice-memo-recorder-card {
+    width: min(268px, calc(100vw - 18px));
+  }
+}
+
+/* Travelog custom icon controls */
+.friend-edit-icon-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 6px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 12px !important;
+}
+.friend-edit-icon-btn img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+}
+.map-pin-create-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.22));
+}
+#device-storage-required-hint.storage-ready {
+  color: #557E3F !important;
+}
+
+/* Map create-pin button cleanup: icon-only map pin button, no GPS text pill. */
+#map-tab #create-pin-at-gps-btn.map-pin-create-btn {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(112, 162, 183, 0.26) !important;
+  color: var(--text-primary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+#map-tab #create-pin-at-gps-btn.map-pin-create-btn .map-pin-create-icon {
+  width: 38px !important;
+  height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: visible !important;
+}
+#map-tab #create-pin-at-gps-btn.map-pin-create-btn .map-pin-create-icon img {
+  width: 34px !important;
+  height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.18));
+}
+#map-tab #gps-location-pill {
+  display: none !important;
+}

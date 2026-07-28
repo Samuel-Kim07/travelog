@@ -1766,15 +1766,53 @@ function safelyGoToProfileStep(provider) {
   if (input) input.value = draftNickname;
   verifiedNickname = draftNickname;
   TravelogState.userProfile.nickname = draftNickname;
-  if (startBtn) startBtn.disabled = false;
+  updateOnboardingStartAvailability();
   showNicknameFeedback(localizedText('로그인 방식이 선택되었습니다. 저장 위치를 지정하고 시작하세요.', 'Login method selected. Set storage and start.', 'ログイン方法を選択しました。保存先を設定して開始してください。'), true);
   showOnboardingScreen('profile');
   syncDeviceStorageStatus();
 }
 
-async function requestDeviceStorageSetupFromUser() {
+
+function getOnboardingWantsDeviceStorage() {
   const permissionChk = document.getElementById('onboarding-permission-chk');
-  const wantsStorage = permissionChk ? permissionChk.checked : true;
+  return permissionChk ? permissionChk.checked : true;
+}
+
+function getDeviceStorageStatusSnapshot() {
+  return window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.getStatus === 'function'
+    ? window.TravelogDeviceStorage.getStatus()
+    : null;
+}
+
+function updateOnboardingStartAvailability() {
+  const input = document.getElementById('onboarding-nickname-input');
+  const startBtn = document.getElementById('start-app-btn');
+  const hint = document.getElementById('device-storage-required-hint');
+  if (!startBtn) return;
+
+  const nickname = input ? input.value.trim() : '';
+  const nicknameReady = nickname.length >= 2 && verifiedNickname === nickname;
+  const wantsStorage = getOnboardingWantsDeviceStorage();
+  const status = getDeviceStorageStatusSnapshot();
+  const storageReady = !wantsStorage || !!(status && status.configured);
+
+  startBtn.disabled = !(nicknameReady && storageReady);
+
+  if (hint) {
+    hint.classList.toggle('storage-ready', storageReady);
+    if (!wantsStorage) {
+      hint.textContent = localizedText('기기 저장을 사용하지 않고 시작합니다.', 'Starting without device folder storage.', '端末保存を使わずに開始します。');
+    } else if (storageReady) {
+      const folderName = status.selectedFolderName || status.dataFolderName || 'Travelog_user_data';
+      hint.textContent = localizedText(`저장 위치 설정 완료: ${folderName}`, `Storage location ready: ${folderName}`, `保存先設定完了: ${folderName}`);
+    } else {
+      hint.textContent = localizedText('시작 전 저장폴더를 먼저 선택해 주세요.', 'Choose a device storage folder before starting.', '開始前に保存フォルダを選択してください。');
+    }
+  }
+}
+
+async function requestDeviceStorageSetupFromUser() {
+  const wantsStorage = getOnboardingWantsDeviceStorage();
 
   if (!wantsStorage) {
     TravelogState.userProfile.storagePermissionGranted = false;
@@ -1836,6 +1874,7 @@ function syncDeviceStorageStatus() {
       TravelogState.userProfile.storageFolderName = status.selectedFolderName || TravelogState.userProfile.storageFolderName || '';
     }
   }
+  updateOnboardingStartAvailability();
 }
 
 function attachActivationHandler(element, handler) {
@@ -1878,7 +1917,8 @@ function bindOnboardingEvents() {
     nicknameInput.addEventListener('input', () => {
       verifiedNickname = '';
       const draftNickname = nicknameInput.value.trim();
-      startBtn.disabled = draftNickname.length < 2;
+      startBtn.disabled = true;
+      updateOnboardingStartAvailability();
       hideNicknameFeedback();
     });
 
@@ -1902,11 +1942,18 @@ function bindOnboardingEvents() {
   if (storageSelectBtn) {
     attachActivationHandler(storageSelectBtn, async () => {
       const ok = await requestDeviceStorageSetupFromUser();
+      updateOnboardingStartAvailability();
       if (ok) {
         saveProfile();
         showToast(localizedText('기기 저장 설정이 완료되었습니다.', 'Device storage is ready.', '端末保存設定が完了しました。'));
       }
     });
+  }
+
+  const permissionChk = document.getElementById('onboarding-permission-chk');
+  if (permissionChk && !permissionChk.dataset.bound) {
+    permissionChk.dataset.bound = 'true';
+    permissionChk.addEventListener('change', updateOnboardingStartAvailability);
   }
 
   document.querySelectorAll('.preset-btn[data-preset]').forEach(btn => {
@@ -2212,7 +2259,7 @@ function verifyNickname() {
 
   verifiedNickname = nickname;
   TravelogState.userProfile.nickname = nickname;
-  startBtn.disabled = false;
+  updateOnboardingStartAvailability();
   showNicknameFeedback(validation.message, true);
   return true;
 }
@@ -2456,8 +2503,7 @@ async function completeOnboarding() {
     if (!verifyNickname()) return;
   }
 
-  const permissionChk = document.getElementById('onboarding-permission-chk');
-  const wantsStorage = permissionChk ? permissionChk.checked : true;
+  const wantsStorage = getOnboardingWantsDeviceStorage();
   if (wantsStorage) {
     const existingStatus = window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.getStatus === 'function'
       ? window.TravelogDeviceStorage.getStatus()
