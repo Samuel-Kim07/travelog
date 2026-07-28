@@ -1847,7 +1847,29 @@ async function requestDeviceStorageSetupFromUser() {
       syncDeviceStorageStatus();
       return false;
     }
-    alert(localizedText('저장 위치를 설정하지 못했습니다. 버튼을 다시 눌러 원하는 위치를 선택하면 travelog_data 폴더를 생성합니다.', 'Could not set the storage folder. Press the button again and choose a location to create travelog_data.', '保存先を設定できませんでした。ボタンをもう一度押して保存先を選択してください。'));
+
+    // Samsung/Android browsers can show a native folder permission dialog and still fail
+    // writable-folder setup afterwards. Keep onboarding usable by switching to app-internal
+    // device storage instead of repeating the same blocking alert forever.
+    if (typeof window.TravelogDeviceStorage.useInternalStorage === 'function') {
+      try {
+        const fallbackStatus = await window.TravelogDeviceStorage.useInternalStorage('DIRECTORY_SETUP_FAILED_USE_INTERNAL');
+        TravelogState.userProfile.storagePermissionGranted = true;
+        TravelogState.userProfile.storageMode = fallbackStatus.mode || 'browser';
+        TravelogState.userProfile.storageFolderName = fallbackStatus.selectedFolderName || 'travelog_data';
+        syncDeviceStorageStatus();
+        showToast(localizedText(
+          '선택 폴더 쓰기가 제한되어 앱 내부 기기 저장소의 travelog_data로 저장합니다.',
+          'Folder writing is limited, so Travelog will use app-internal travelog_data storage.',
+          'フォルダ書き込みが制限されたため、アプリ内部のtravelog_dataに保存します。'
+        ));
+        return true;
+      } catch (fallbackError) {
+        console.warn('[Travelog] Internal storage fallback failed:', fallbackError);
+      }
+    }
+
+    alert(localizedText('저장 위치를 설정하지 못했습니다. 이 브라우저의 폴더 쓰기 권한 상태를 확인한 뒤 다시 시도해 주세요.', "Could not set the storage location. Check this browser\'s folder writing permission and try again.", '保存先を設定できませんでした。このブラウザのフォルダ書き込み権限を確認して再試行してください。'));
     syncDeviceStorageStatus();
     return false;
   }
@@ -1934,7 +1956,12 @@ function bindOnboardingEvents() {
       updateOnboardingStartAvailability();
       if (ok) {
         saveProfile();
-        showToast(localizedText('선택한 위치에 travelog_data 저장폴더를 만들었습니다.', 'Created the travelog_data storage folder in the selected location.', '選択した場所にtravelog_data保存フォルダを作成しました。'));
+        const status = getDeviceStorageStatusSnapshot();
+        const isDirectoryMode = status && status.mode === 'directory';
+        showToast(isDirectoryMode
+          ? localizedText('선택한 위치에 travelog_data 저장폴더를 만들었습니다.', 'Created the travelog_data storage folder in the selected location.', '選択した場所にtravelog_data保存フォルダを作成しました。')
+          : localizedText('모바일 제한으로 앱 내부 기기 저장소의 travelog_data를 사용합니다.', 'Using app-internal travelog_data storage because this mobile browser limits folder writing.', 'モバイル制限のためアプリ内部のtravelog_dataを使用します。')
+        );
       }
     });
   }

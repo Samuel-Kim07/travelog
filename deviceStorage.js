@@ -199,41 +199,68 @@ const TravelogDeviceStorage = (() => {
   }
 
   async function configureFromUserGesture() {
-    if (typeof window.showDirectoryPicker === 'function') {
-      const selectedHandle = await window.showDirectoryPicker({
+    if (typeof window.showDirectoryPicker !== 'function') {
+      // Mobile browsers often cannot expose a user-chosen writable folder.
+      // In that case, save to app-internal device storage so the app can continue safely.
+      return setupOpfsFallback('DIRECTORY_PICKER_UNSUPPORTED');
+    }
+
+    let selectedHandle = null;
+    try {
+      selectedHandle = await window.showDirectoryPicker({
         mode: 'readwrite',
         id: 'travelog-user-data',
         startIn: 'documents'
       });
+    } catch (error) {
+      // User cancel should remain a real cancel so the onboarding message can ask them to try again.
+      throw error;
+    }
+
+    try {
       const ok = await verifyPermission(selectedHandle, true, true);
       if (!ok) throw new Error('DIRECTORY_PERMISSION_DENIED');
 
       rootHandle = selectedHandle;
       await ensureFolderStructure(rootHandle);
+    } catch (error) {
+      // Some Android/Samsung browser builds show a folder permission dialog, but still block
+      // writeable directory creation right after permission is granted. Do not trap the user in
+      // onboarding; use OPFS/IndexedDB as the device-storage fallback and let the app proceed.
+      console.warn('[Travelog Device Storage] Selected folder could not be prepared. Falling back to app-internal storage.', error);
+      rootHandle = null;
+      dataHandle = null;
+      folderHandles = { Audio: null, Video: null, Photo: null, Text: null };
+      return setupOpfsFallback('DIRECTORY_SETUP_FAILED_AFTER_SELECTION');
+    }
+
+    let markerWriteOk = true;
+    try {
       await writeBlobToHandle(dataHandle, 'storage_ready.txt', new Blob([
         'Travelog device storage is ready.\n',
         `createdAt=${new Date().toISOString()}\n`,
         'dataFolder=travelog_data\nfolders=Audio,Video,Photo,Text\n'
       ], { type: 'text/plain;charset=utf-8' }));
-
-      try {
-        await idbPut(HANDLE_STORE, rootHandle, ROOT_HANDLE_KEY);
-      } catch (error) {
-        console.warn('[Travelog Device Storage] Folder handle could not be persisted.', error);
-      }
-
-      saveStatus({
-        configured: true,
-        mode: 'directory',
-        selectedFolderName: selectedHandle.name || t('선택한 저장 위치', 'Selected folder', '選択した保存先'),
-        fallbackReason: ''
-      });
-      return currentStatus;
+    } catch (error) {
+      // Do not fail setup only because the tiny verification file could not be written.
+      // Actual memo/package saves still have their own IndexedDB fallback.
+      markerWriteOk = false;
+      console.warn('[Travelog Device Storage] Folder marker file could not be written. Setup will continue.', error);
     }
 
-    // Mobile browsers often cannot expose a user-chosen writable folder.
-    // In that case, save to app-internal device storage so publish can still upload directly to Drive.
-    return setupOpfsFallback('DIRECTORY_PICKER_UNSUPPORTED');
+    try {
+      await idbPut(HANDLE_STORE, rootHandle, ROOT_HANDLE_KEY);
+    } catch (error) {
+      console.warn('[Travelog Device Storage] Folder handle could not be persisted.', error);
+    }
+
+    saveStatus({
+      configured: true,
+      mode: 'directory',
+      selectedFolderName: selectedHandle.name || t('선택한 저장 위치', 'Selected folder', '選択した保存先'),
+      fallbackReason: markerWriteOk ? '' : 'DIRECTORY_MARKER_WRITE_FAILED'
+    });
+    return currentStatus;
   }
 
   async function init() {
@@ -344,9 +371,9 @@ const TravelogDeviceStorage = (() => {
       );
     }
     if (currentStatus.mode === 'opfs') {
-      return t('모바일 제한으로 앱 내부 기기 저장소에 저장 중입니다.', 'Using app-internal device storage because this mobile browser limits folder selection.', 'モバイル制限のためアプリ内部保存先を使用中です。');
+      return t('모바일 제한으로 앱 내부 기기 저장소의 travelog_data를 사용 중입니다.', 'Using app-internal travelog_data storage because this mobile browser limits folder writing.', 'モバイル制限のためアプリ内部のtravelog_dataを使用中です。');
     }
-    return t('브라우저 내부 저장소에 저장 중입니다.', 'Using browser internal storage.', 'ブラウザ内部保存先を使用中です。');
+    return t('브라우저 내부 저장소의 travelog_data를 사용 중입니다.', 'Using browser-internal travelog_data storage.', 'ブラウザ内部のtravelog_dataを使用中です。');
   }
 
   function renderStatusUI() {
