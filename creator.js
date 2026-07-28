@@ -998,6 +998,17 @@ const TravelogCreatorModule = (() => {
     return raw.replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_').slice(0, 80);
   }
 
+  function createTravelogGuideId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+      const random = Math.random() * 16 | 0;
+      const value = char === 'x' ? random : (random & 0x3 | 0x8);
+      return value.toString(16);
+    });
+  }
+
   function formatTimestampForFile(dateValue = Date.now()) {
     const d = new Date(dateValue);
     const year = d.getFullYear();
@@ -1183,7 +1194,7 @@ const TravelogCreatorModule = (() => {
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : {};
     const creator = state.userProfile?.nickname || 'Travelog Creator';
     const createdAt = new Date().toISOString();
-    const guideId = `published-${Date.now()}`;
+    const guideId = createTravelogGuideId();
     const tourSlug = safeFileName(tourName, 'travelog_guide');
     const representativeImage = getGuideCoverDataUrl();
     const guideIntroText = getGuideIntroText();
@@ -1683,7 +1694,7 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
-    publishPreparedGuideToDrive();
+    publishPreparedGuideOnline();
   }
 
 
@@ -2593,6 +2604,86 @@ const TravelogCreatorModule = (() => {
     const homeNav = document.querySelector('.nav-item[data-tab="home-tab"]');
     if (homeNav) {
       homeNav.click();
+    }
+  }
+
+  async function publishPreparedGuideOnline() {
+    const readiness = getPublishReadiness();
+    if (!readiness.ready) {
+      updateFinalPublishButtonState();
+      window.TravelogApp.showToast(readiness.reason);
+      return;
+    }
+
+    if (!window.TravelogSupabase || typeof window.TravelogSupabase.publishGuidePackage !== 'function') {
+      console.warn('[Travelog Publish] Supabase connector is not ready. Falling back to Google Drive publisher.');
+      publishPreparedGuideToDrive();
+      return;
+    }
+
+    try {
+      showPublishModalLoading(
+        t('Supabase 서버로 출간 중입니다...', 'Publishing to Supabase...', 'Supabaseサーバーに公開しています...'),
+        t('가이드 정보는 Database에, 대표 이미지/음성/영상/사진은 Storage에 업로드합니다.', 'Saving guide data to Database and media to Storage.', 'ガイド情報をDatabaseへ、メディアをStorageへ保存します。')
+      );
+
+      const publishResult = await window.TravelogSupabase.publishGuidePackage(pendingPublishPackage);
+      const completedPackage = {
+        ...pendingPublishPackage,
+        guideId: publishResult.guideId || pendingPublishPackage.guideId,
+        publishedAt: new Date().toISOString(),
+        supabaseGuideId: publishResult.guideId || pendingPublishPackage.guideId,
+        guideCard: {
+          ...(publishResult.guideCard || pendingPublishPackage.guideCard || {}),
+          isSupabaseGuide: true,
+          supabaseGuideId: publishResult.guideId || pendingPublishPackage.guideId,
+          offlineReady: true,
+          offlineStatus: 'creator-local'
+        }
+      };
+
+      storePublishedGuideRecord(completedPackage);
+      markSavedGuideAsPublished(completedPackage);
+      registerGuideOnHome(completedPackage);
+
+      const statusTitle = document.getElementById('publish-status-title');
+      const statusDesc = document.getElementById('publish-status-desc');
+      const spinner = document.getElementById('publish-loading-spinner');
+      const successIcon = document.getElementById('publish-success-icon');
+      const summary = document.getElementById('publish-local-summary');
+      const actions = document.getElementById('publish-ready-actions');
+
+      if (statusTitle) statusTitle.textContent = t('Supabase 출간이 완료되었습니다.', 'Supabase publishing complete.', 'Supabase公開が完了しました。');
+      if (statusDesc) statusDesc.textContent = t('홈 화면의 오늘의 가이드에 등록되었고, 다른 유저는 구매 후 오프라인 다운로드할 수 있습니다.', 'Registered on Home. Other users can purchase and download it for offline use.', 'ホームに登録され、他のユーザーは購入後オフライン用にダウンロードできます。');
+      if (spinner) spinner.style.display = 'none';
+      if (successIcon) successIcon.style.display = 'block';
+      if (summary) {
+        summary.innerHTML = `
+          Supabase Guide ID: ${completedPackage.supabaseGuideId}<br>
+          업로드 용량: ${Number(publishResult.totalBytes || 0).toLocaleString()} bytes<br>
+          오프라인 다운로드 원본 서버 등록 완료
+        `;
+        summary.style.display = 'block';
+      }
+      if (actions) actions.style.display = 'none';
+
+      window.TravelogApp.addPoints(150);
+      window.TravelogApp.showToast(t(`가이드 [${completedPackage.tourName}] Supabase 출간 완료!`, `Guide [${completedPackage.tourName}] published to Supabase!`, `ガイド［${completedPackage.tourName}］をSupabaseに公開しました！`));
+
+      resetCreatorStudioForNewGuide();
+
+      setTimeout(() => {
+        closePublishModal();
+        moveToHomeTab();
+      }, 1500);
+    } catch (error) {
+      console.error('[Travelog Publish] Supabase publish failed:', error);
+      closePublishModal();
+      alert(t(
+        'Supabase 출간 중 오류가 발생했습니다. Anonymous/Auth 설정, RLS 정책, Storage bucket 권한을 확인해 주세요. 기존 Google Drive 출간은 실행하지 않았습니다.',
+        'Supabase publishing failed. Check Anonymous/Auth settings, RLS policies, and Storage bucket permissions. Google Drive publishing was not run.',
+        'Supabase公開中にエラーが発生しました。Anonymous/Auth設定、RLSポリシー、Storage bucket権限を確認してください。Google Drive公開は実行していません。'
+      ));
     }
   }
 

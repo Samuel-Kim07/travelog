@@ -263,6 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Home Tab UI & Events
   loadPublishedGuides();
   initHomeTab();
+  initSupabaseRuntime();
 });
 
 // Tab Navigation logic
@@ -362,6 +363,28 @@ const RECOMMEND_GUIDES_DATA = {
 };
 
 
+async function initSupabaseRuntime() {
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchPublishedGuideCards !== 'function') return;
+  try {
+    window.TravelogSupabase.init?.();
+    if (TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.syncProfile === 'function') {
+      window.TravelogSupabase.syncProfile(TravelogState.userProfile).catch(error => {
+        console.warn('[Travelog Supabase] Profile sync skipped:', error);
+      });
+    }
+
+    const remoteCards = await window.TravelogSupabase.fetchPublishedGuideCards();
+    if (Array.isArray(remoteCards) && remoteCards.length > 0) {
+      remoteCards.forEach(card => mergePublishedGuideIntoCollections(card));
+      renderHomeTab();
+      showToast(localizedText(`Supabase 가이드 ${remoteCards.length}개를 불러왔습니다.`, `Loaded ${remoteCards.length} Supabase guides.`, `Supabaseガイド${remoteCards.length}件を読み込みました。`));
+    }
+  } catch (error) {
+    console.warn('[Travelog Supabase] Runtime init failed:', error);
+  }
+}
+
+
 function sanitizePublishedGuideCard(guide) {
   const nowId = `published-${Date.now()}`;
   const stops = Array.isArray(guide?.stops) ? guide.stops.map(stop => ({ ...stop })) : [];
@@ -384,6 +407,12 @@ function sanitizePublishedGuideCard(guide) {
     isPurchased: guide?.isPurchased === true,
     isWidget: guide?.isWidget !== false,
     isPublishedGuide: guide?.isPublishedGuide === true || stops.length > 0,
+    isSupabaseGuide: guide?.isSupabaseGuide === true,
+    supabaseGuideId: guide?.supabaseGuideId || guide?.id || '',
+    offlineReady: guide?.offlineReady === true,
+    offlineStatus: guide?.offlineStatus || (guide?.offlineReady === true ? 'downloaded' : 'not_downloaded'),
+    totalBytes: Number(guide?.totalBytes || guide?.total_bytes || 0) || 0,
+    version: guide?.version || 1,
     createdAt: guide?.createdAt || new Date().toISOString(),
     pinCount: Number(guide?.pinCount ?? stops.length ?? 0),
     memoCount: Number(guide?.memoCount ?? 0),
@@ -688,6 +717,47 @@ function getGuidePriceLabel(guide) {
   return isGuidePaid(guide) ? `${getGuideCoinPrice(guide).toLocaleString()} COIN` : '무료';
 }
 
+function getGuideByIdFromCollections(guideId) {
+  if (!guideId) return null;
+  return getPurchasedGuideCards().find(guide => guide.id === guideId)
+    || TravelogState.userGuides.find(guide => guide.id === guideId)
+    || RECOMMEND_GUIDES_DATA.today.find(guide => guide.id === guideId)
+    || RECOMMEND_GUIDES_DATA.recommended.find(guide => guide.id === guideId)
+    || RECOMMEND_GUIDES_DATA.star.find(guide => guide.id === guideId)
+    || RECOMMEND_GUIDES_DATA.event.find(guide => guide.id === guideId)
+    || null;
+}
+
+function needsOfflineDownload(guide) {
+  if (!guide || guide.isSupabaseGuide !== true) return false;
+  if (guide.offlineReady === true || guide.offlineStatus === 'downloaded' || guide.offlineStatus === 'creator-local') return false;
+  return guide.isPurchased === true || isGuidePurchased(guide.id);
+}
+
+async function downloadSupabaseGuideForOffline(guideId) {
+  const currentGuide = getGuideByIdFromCollections(guideId);
+  if (!currentGuide || currentGuide.isSupabaseGuide !== true) return currentGuide;
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.downloadGuideOffline !== 'function') {
+    throw new Error('SUPABASE_OFFLINE_DOWNLOADER_NOT_READY');
+  }
+
+  showToast(localizedText('오프라인 가이드 패키지를 다운로드 중입니다...', 'Downloading the offline guide package...', 'オフラインガイドパッケージをダウンロード中です...'));
+  const offlineCard = await window.TravelogSupabase.downloadGuideOffline(currentGuide.supabaseGuideId || currentGuide.id);
+  const normalized = addGuideToMyChest({
+    ...currentGuide,
+    ...offlineCard,
+    id: currentGuide.id,
+    isSupabaseGuide: true,
+    supabaseGuideId: currentGuide.supabaseGuideId || currentGuide.id,
+    isPurchased: true,
+    isWidget: true,
+    offlineReady: true,
+    offlineStatus: 'downloaded'
+  });
+  showToast(localizedText('오프라인 다운로드 완료. 이제 인터넷 없이 GPS로 실행할 수 있습니다.', 'Offline download complete. You can now run it with GPS without internet.', 'オフラインダウンロード完了。インターネットなしでGPS実行できます。'));
+  return normalized;
+}
+
 function isGuidePurchased(guideId) {
   return getPurchasedGuideCards().some(guide => guide.id === guideId) || TravelogState.userGuides.some(guide => guide.id === guideId && guide.isPurchased);
 }
@@ -833,7 +903,8 @@ function renderGuideWidgets() {
           <span class="widget-block-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
         </div>
         <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
-          <i class="fa-solid fa-circle-play"></i> <span data-localize="start_guide">가이드 시작</span>
+          <i class="fa-solid ${needsOfflineDownload(guide) ? 'fa-cloud-arrow-down' : 'fa-circle-play'}"></i>
+          <span>${needsOfflineDownload(guide) ? '다운로드 후 시작' : '가이드 시작'}</span>
         </button>
       </div>`;
   }).join('');
@@ -1243,6 +1314,12 @@ function buildActiveGuideFromHomeGuide(guideId) {
       coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0,
       monetization: resolvedPublishedRecord.monetization || guideCard.monetization || { isPaid: resolvedPublishedRecord.isPaid === true || guideCard.isPaid === true, coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0 },
       isPurchased: isGuidePurchased(guideId),
+      isSupabaseGuide: guideCard.isSupabaseGuide === true,
+      supabaseGuideId: guideCard.supabaseGuideId || guideCard.id || guideId,
+      offlineReady: guideCard.offlineReady === true,
+      offlineStatus: guideCard.offlineStatus || (guideCard.offlineReady === true ? 'downloaded' : 'not_downloaded'),
+      totalBytes: Number(guideCard.totalBytes || 0) || 0,
+      version: guideCard.version || 1,
       eventCoupons,
       stops
     };
@@ -1337,9 +1414,15 @@ function updateIntroPurchaseButton(activeGuide) {
   if (!purchaseBtn || !activeGuide) return;
   const price = getGuideCoinPrice(activeGuide);
   const purchased = isGuidePurchased(activeGuide.id);
+  const statusGuide = { ...activeGuide, ...(getGuideByIdFromCollections(activeGuide.id) || {}) };
   if (purchased) {
-    purchaseBtn.innerHTML = '<i class="fa-solid fa-circle-play"></i> 구매완료 · 가이드 시작';
-    purchaseBtn.style.background = 'var(--grad-pink-purple)';
+    if (needsOfflineDownload(statusGuide)) {
+      purchaseBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> 구매완료 · 다운로드 후 시작';
+      purchaseBtn.style.background = 'var(--color-ocean)';
+    } else {
+      purchaseBtn.innerHTML = '<i class="fa-solid fa-circle-play"></i> 구매완료 · 가이드 시작';
+      purchaseBtn.style.background = 'var(--grad-pink-purple)';
+    }
   } else if (price > 0) {
     purchaseBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> 구매 (${price.toLocaleString()} COIN)`;
     purchaseBtn.style.background = 'var(--color-ocean)';
@@ -1349,7 +1432,7 @@ function updateIntroPurchaseButton(activeGuide) {
   }
 }
 
-function purchaseCurrentIntroGuide() {
+async function purchaseCurrentIntroGuide() {
   if (!currentIntroGuideId) return;
   const activeGuide = buildActiveGuideFromHomeGuide(currentIntroGuideId);
   const guideCard = {
@@ -1377,8 +1460,12 @@ function purchaseCurrentIntroGuide() {
   };
 
   if (isGuidePurchased(currentIntroGuideId)) {
-    window.closeHomeGuideIntroModal();
-    window.startGuideFromHome(currentIntroGuideId);
+    try {
+      await window.startGuideFromHome(currentIntroGuideId);
+    } catch (error) {
+      console.error('[Travelog] Guide start/download failed:', error);
+      showToast(localizedText('가이드 다운로드 또는 시작에 실패했습니다.', 'Guide download or start failed.', 'ガイドのダウンロードまたは開始に失敗しました。'));
+    }
     return;
   }
 
@@ -1394,9 +1481,32 @@ function purchaseCurrentIntroGuide() {
     showToast(localizedText('0코인이 차감되었습니다. 무료 가이드가 보관함에 담겼습니다.', '0 coins deducted. Free guide added to your chest.', '0コインが差し引かれました。無料ガイドを保管箱に追加しました。'));
   }
 
-  addGuideToMyChest(guideCard);
-  updateIntroPurchaseButton({ ...activeGuide, isPurchased: true });
-  showToast(localizedText('내 가이드 보관함에 담았습니다.', 'Added to My Guide Chest.', 'マイガイド保管箱に追加しました。'));
+  if (activeGuide.isSupabaseGuide === true && window.TravelogSupabase && typeof window.TravelogSupabase.purchaseGuide === 'function') {
+    try {
+      await window.TravelogSupabase.purchaseGuide(activeGuide);
+    } catch (error) {
+      console.error('[Travelog Supabase] Purchase record failed:', error);
+      showToast(localizedText('Supabase 구매 기록 저장에 실패했습니다. 로그인/Auth 설정을 확인해 주세요.', 'Failed to save the Supabase purchase record. Check login/Auth settings.', 'Supabase購入記録の保存に失敗しました。ログイン/Auth設定を確認してください。'));
+      if (price > 0) {
+        TravelogState.coins += price;
+        saveHomePersistentState();
+        renderHomeTab();
+      }
+      return;
+    }
+  }
+
+  addGuideToMyChest({
+    ...guideCard,
+    isSupabaseGuide: activeGuide.isSupabaseGuide === true,
+    supabaseGuideId: activeGuide.supabaseGuideId || activeGuide.id,
+    offlineReady: activeGuide.isSupabaseGuide === true ? false : true,
+    offlineStatus: activeGuide.isSupabaseGuide === true ? 'not_downloaded' : 'downloaded'
+  });
+  updateIntroPurchaseButton({ ...activeGuide, isPurchased: true, offlineReady: activeGuide.isSupabaseGuide !== true });
+  showToast(activeGuide.isSupabaseGuide === true
+    ? localizedText('내 가이드 보관함에 담았습니다. 다운로드 후 오프라인으로 시작할 수 있습니다.', 'Added to My Guide Chest. Download it to start offline.', 'マイガイド保管箱に追加しました。ダウンロード後にオフラインで開始できます。')
+    : localizedText('내 가이드 보관함에 담았습니다.', 'Added to My Guide Chest.', 'マイガイド保管箱に追加しました。'));
 }
 
 window.openGuideIntroFromHome = function(guideId) {
@@ -1545,7 +1655,18 @@ window.closeHomeGuidePreviewModal = function() {
   }
 };
 
-window.startGuideFromHome = function(guideId) {
+window.startGuideFromHome = async function(guideId) {
+  let selectedGuide = getGuideByIdFromCollections(guideId);
+  if (needsOfflineDownload(selectedGuide)) {
+    try {
+      selectedGuide = await downloadSupabaseGuideForOffline(guideId);
+    } catch (error) {
+      console.error('[Travelog Supabase] Offline download failed:', error);
+      showToast(localizedText('오프라인 다운로드에 실패했습니다. 인터넷/Auth 설정을 확인해 주세요.', 'Offline download failed. Check internet/Auth settings.', 'オフラインダウンロードに失敗しました。インターネット/Auth設定を確認してください。'));
+      return;
+    }
+  }
+
   TravelogState.activeGuide = buildActiveGuideFromHomeGuide(guideId);
 
   // Perform programmatic tab switch to Map
@@ -1732,6 +1853,7 @@ const PROFILE_SAMPLE_AVATARS = [
 
 let verifiedNickname = '';
 let profileManagerDraft = null;
+let onboardingAuthInProgress = false;
 
 function initOnboarding() {
   loadSavedProfile();
@@ -1747,10 +1869,13 @@ function initOnboarding() {
 }
 
 
-function safelyGoToProfileStep(provider) {
-  // Prototype login: after choosing a provider, move to the profile/storage setup step.
+async function safelyGoToProfileStep(provider) {
+  // Login choice: try Supabase Auth for server features, then continue locally even if Auth is unavailable.
   // The app enters only after nickname + device storage agreement are completed.
   const authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
+  if (onboardingAuthInProgress) return;
+  onboardingAuthInProgress = true;
+  try {
   const defaultNicknames = {
     Google: '구글 여행자',
     Naver: '네이버 여행자',
@@ -1759,6 +1884,16 @@ function safelyGoToProfileStep(provider) {
   };
 
   TravelogState.userProfile.authProvider = authProvider;
+  if (window.TravelogSupabase && typeof window.TravelogSupabase.connectLoginProvider === 'function') {
+    try {
+      const authResult = await window.TravelogSupabase.connectLoginProvider(authProvider, TravelogState.userProfile);
+      TravelogState.userProfile.supabaseAuthMode = authResult?.mode || 'local-only';
+      TravelogState.userProfile.supabaseUserId = authResult?.user?.id || TravelogState.userProfile.supabaseUserId || '';
+    } catch (error) {
+      console.warn('[Travelog Supabase] Onboarding auth failed; continuing locally.', error);
+      TravelogState.userProfile.supabaseAuthMode = 'local-only';
+    }
+  }
   const input = document.getElementById('onboarding-nickname-input');
   const startBtn = document.getElementById('start-app-btn');
   const draftNickname = TravelogState.userProfile.nickname || defaultNicknames[authProvider] || '여행자';
@@ -1770,6 +1905,9 @@ function safelyGoToProfileStep(provider) {
   showNicknameFeedback(localizedText('로그인 방식이 선택되었습니다. 내 디바이스에서 저장폴더를 지정하고 시작하세요.', 'Login method selected. Choose a device storage folder and start.', 'ログイン方法を選択しました。端末の保存フォルダを指定して開始してください。'), true);
   showOnboardingScreen('profile');
   syncDeviceStorageStatus();
+  } finally {
+    onboardingAuthInProgress = false;
+  }
 }
 
 
@@ -2592,6 +2730,12 @@ function saveProfile() {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(TravelogState.userProfile));
   } catch (error) {
     console.warn('Travelog profile could not be saved locally.', error);
+  }
+
+  if (window.TravelogSupabase && typeof window.TravelogSupabase.syncProfile === 'function') {
+    window.TravelogSupabase.syncProfile(TravelogState.userProfile).catch(error => {
+      console.warn('[Travelog Supabase] Profile sync failed after local save:', error);
+    });
   }
 }
 

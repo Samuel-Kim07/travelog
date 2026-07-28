@@ -13,6 +13,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Supabase JS SDK for published guide server / offline download source -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <!-- Core Stylesheet -->
   <link rel="stylesheet" href="index.css">
 </head>
@@ -651,18 +654,18 @@
                 </label>
               </div>
 
-              <!-- Google Drive Open Link -->
-              <div style="background: rgba(52, 168, 83, 0.1); border: 1px solid rgba(52, 168, 83, 0.3); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <!-- Supabase Cloud Status -->
+              <div style="background: rgba(52, 168, 83, 0.1); border: 1px solid rgba(52, 168, 83, 0.3); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                 <div>
-                  <span style="display: block; font-weight: 700; color: #34A853;">Google Drive Cloud</span>
-                  <span style="font-size: 11px; color: var(--text-muted);">공유 오픈 드라이브 저장소</span>
+                  <span style="display: block; font-weight: 700; color: #34A853;">Supabase Cloud</span>
+                  <span style="font-size: 11px; color: var(--text-muted);">가이드 원본 서버 / 오프라인 다운로드 소스</span>
                 </div>
-                <a href="https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link" target="_blank" rel="noopener noreferrer" style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px;"><i class="fa-brands fa-google-drive"></i> 폴더 열기</a>
+                <span style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><i class="fa-solid fa-database"></i> 연결 준비 완료</span>
               </div>
 
               <div style="font-size: 11px; color: var(--text-secondary); background: rgba(112,162,183,0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px;">
                 <strong style="display:block; color: var(--text-primary); margin-bottom: 4px;">기기 저장 상태</strong>
-                <span id="publish-device-storage-status">앱 시작 시 지정한 저장 위치를 사용하고, 출간은 Apps Script로 전송합니다.</span>
+                <span id="publish-device-storage-status">앱 시작 시 지정한 저장 위치를 사용하고, 최종 출간은 Supabase 서버로 전송합니다.</span>
               </div>
               <div style="display: flex; gap: 10px;">
                 <button class="btn-rect secondary" id="save-current-guide-btn" type="button" style="flex: 1; justify-content: center; font-size: 14px;">
@@ -1287,7 +1290,7 @@
         <i class="fa-solid fa-circle-check"></i>
       </div>
       <h2 id="publish-status-title" class="gradient-text" style="font-size: 22px; margin: 0;">출간 중입니다...</h2>
-      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">앱 시작 시 지정한 저장 위치의 데이터를 Apps Script를 통해 구글 드라이브로 업로드합니다.</p>
+      <p id="publish-status-desc" style="font-size: 13px; margin: 0; color: var(--text-secondary);">Supabase 서버에 가이드 정보와 미디어를 업로드하고, 구매자는 오프라인 패키지로 내려받습니다.</p>
       <div id="publish-local-summary" style="display: none; width: 100%; text-align: left; font-size: 12px; line-height: 1.7; color: var(--text-secondary); background: rgba(112, 162, 183, 0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px;">
         <!-- Saved folder summary -->
       </div>
@@ -1424,13 +1427,14 @@
   </div>
 
   <!-- Javascript Logic Files -->
+  <script src="supabaseClient.js?v=1002" defer></script>
   <script src="map.js?v=1008" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1006" defer></script>
-  <script src="creator.js?v=1009" defer></script>
+  <script src="creator.js?v=1010" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1008" defer></script>
+  <script src="app.js?v=1009" defer></script>
 </body>
 </html>
