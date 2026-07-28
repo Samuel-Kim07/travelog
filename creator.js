@@ -2679,11 +2679,12 @@ const TravelogCreatorModule = (() => {
     } catch (error) {
       console.error('[Travelog Publish] Supabase publish failed:', error);
       closePublishModal();
-      alert(t(
-        'Supabase 출간 중 오류가 발생했습니다. Anonymous/Auth 설정, RLS 정책, Storage bucket 권한을 확인해 주세요. 기존 Google Drive 출간은 실행하지 않았습니다.',
-        'Supabase publishing failed. Check Anonymous/Auth settings, RLS policies, and Storage bucket permissions. Google Drive publishing was not run.',
-        'Supabase公開中にエラーが発生しました。Anonymous/Auth設定、RLSポリシー、Storage bucket権限を確認してください。Google Drive公開は実行していません。'
-      ));
+      const detailMessage = error?.detail || error?.message || '';
+      alert(`${t(
+        'Supabase 출간 중 오류가 발생했습니다. 기존 Google Drive 출간은 실행하지 않았습니다.',
+        'Supabase publishing failed. Google Drive publishing was not run.',
+        'Supabase公開中にエラーが発生しました。Google Drive公開は実行していません。'
+      )}${detailMessage ? `\n\n상세 오류: ${detailMessage}` : ''}`);
     }
   }
 

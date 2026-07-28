@@ -13,6 +13,7 @@ const TravelogSupabase = (() => {
   const OFFLINE_DB_VERSION = 1;
   const OFFLINE_STORE = 'guides';
   const OFFLINE_STATUS_KEY = 'travelog_offline_guide_status_v1';
+  const AUTO_GUEST_CREDENTIAL_KEY = 'travelog_supabase_auto_guest_v1';
 
   let client = null;
   let authWarningShown = false;
@@ -61,6 +62,53 @@ const TravelogSupabase = (() => {
     return data?.session || null;
   }
 
+  function randomToken() {
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(12);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    }
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  function getOrCreateAutoGuestCredentials(displayName = 'Travelog User') {
+    try {
+      const saved = JSON.parse(localStorage.getItem(AUTO_GUEST_CREDENTIAL_KEY) || 'null');
+      if (saved?.email && saved?.password) {
+        return {
+          email: saved.email,
+          password: saved.password,
+          displayName: saved.displayName || displayName
+        };
+      }
+    } catch (_) {}
+
+    const token = randomToken();
+    const credentials = {
+      email: `travelog_guest_${token}@example.com`,
+      password: `Travelog-${token}-2026!`,
+      displayName: displayName || 'Travelog User',
+      createdAt: new Date().toISOString()
+    };
+    try { localStorage.setItem(AUTO_GUEST_CREDENTIAL_KEY, JSON.stringify(credentials)); } catch (_) {}
+    return credentials;
+  }
+
+  async function ensureEmailSession(email, password, displayName = 'Travelog User') {
+    const signedIn = await signInOrSignUpWithEmail(email, password, displayName);
+    const session = await getSession();
+    if (session?.user) return session;
+    if (signedIn?.session?.user) return signedIn.session;
+
+    const err = new Error('SUPABASE_EMAIL_SESSION_REQUIRED');
+    err.detail = t(
+      '이메일 인증 확인이 켜져 있으면 자동 테스트 계정은 세션을 만들 수 없습니다. Supabase Email 설정에서 이메일 확인을 끄거나 앱의 이메일 로그인으로 실제 계정을 먼저 로그인해 주세요.',
+      'If email confirmation is enabled, the auto test account cannot create a session. Disable email confirmation or sign in with a real email account first.',
+      'メール認証が有効な場合、自動テストアカウントはセッションを作成できません。メール確認を無効にするか、実メールで先にログインしてください。'
+    );
+    throw err;
+  }
+
   async function ensureSession(options = {}) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
@@ -69,29 +117,46 @@ const TravelogSupabase = (() => {
     if (existing?.user) return existing;
 
     if (options.email && options.password) {
-      const signedIn = await signInOrSignUpWithEmail(options.email, options.password, options.displayName || 'Travelog User');
-      if (signedIn?.user || signedIn?.session?.user) {
-        const session = await getSession();
-        return session || signedIn.session || { user: signedIn.user };
-      }
+      return ensureEmailSession(options.email, options.password, options.displayName || 'Travelog User');
     }
 
+    // 1순위: Supabase Anonymous Auth. 켜져 있으면 가장 자연스럽게 게스트를 서버 유저로 만듭니다.
     const { data, error } = await supabase.auth.signInAnonymously();
+    if (!error && data?.session?.user) {
+      return data.session;
+    }
     if (!error && data?.user) {
-      return data.session || await getSession() || { user: data.user };
+      const session = await getSession();
+      if (session?.user) return session;
     }
 
-    if (!authWarningShown) {
-      authWarningShown = true;
-      console.warn('[Travelog Supabase] Anonymous sign-in failed. Enable Anonymous Sign-Ins or use Email login.', error);
-      toast(t(
-        'Supabase 익명 로그인이 꺼져 있을 수 있습니다. 출간/구매/다운로드는 이메일 로그인 또는 Anonymous 설정 후 사용할 수 있습니다.',
-        'Supabase anonymous login may be disabled. Publishing/purchase/download need Email login or Anonymous Auth.',
-        'Supabase匿名ログインが無効の可能性があります。公開・購入・ダウンロードにはメールログインまたはAnonymous設定が必要です。'
-      ));
+    // 2순위: 대시보드에서 Anonymous 항목이 보이지 않는 프로젝트용 fallback.
+    // Email provider가 ON이면 로컬에 저장한 테스트용 이메일/비밀번호로 자동 가입/로그인합니다.
+    const fallbackCredentials = getOrCreateAutoGuestCredentials(options.displayName || 'Travelog User');
+    try {
+      const session = await ensureEmailSession(fallbackCredentials.email, fallbackCredentials.password, fallbackCredentials.displayName);
+      if (!authWarningShown) {
+        authWarningShown = true;
+        console.info('[Travelog Supabase] Anonymous Auth unavailable. Using auto email guest session instead.');
+        toast(t(
+          'Supabase 게스트 세션을 자동 생성했습니다. 이제 출간/구매/다운로드를 테스트할 수 있습니다.',
+          'Created a Supabase guest session automatically. Publishing/purchase/download are ready for testing.',
+          'Supabaseゲストセッションを自動作成しました。公開・購入・ダウンロードをテストできます。'
+        ));
+      }
+      return session;
+    } catch (fallbackError) {
+      if (!authWarningShown) {
+        authWarningShown = true;
+        console.warn('[Travelog Supabase] Auth fallback failed. Anonymous may be disabled and Email session may require confirmation.', { anonymousError: error, fallbackError });
+        toast(t(
+          'Supabase 로그인 세션을 만들지 못했습니다. Email provider ON, 이메일 확인 OFF 또는 실제 이메일 로그인을 확인해 주세요.',
+          'Could not create a Supabase session. Check Email provider ON, email confirmation OFF, or sign in with a real email.',
+          'Supabaseログインセッションを作成できませんでした。Email provider ON、メール確認OFF、または実メールログインを確認してください。'
+        ));
+      }
+      throw fallbackError || error || new Error('SUPABASE_AUTH_REQUIRED');
     }
-
-    throw error || new Error('SUPABASE_AUTH_REQUIRED');
   }
 
   async function signInOrSignUpWithEmail(email, password, displayName = 'Travelog User') {
@@ -124,9 +189,9 @@ const TravelogSupabase = (() => {
       if (!email) return { mode: 'local-only', user: null };
       const password = window.prompt(t('비밀번호를 입력해 주세요. 새 이메일이면 자동 가입을 시도합니다.', 'Enter a password. New emails will be signed up automatically.', 'パスワードを入力してください。新しいメールなら自動登録を試します。'));
       if (!password) return { mode: 'local-only', user: null };
-      const data = await signInOrSignUpWithEmail(email, password, displayName);
+      const session = await ensureEmailSession(email, password, displayName);
       await syncProfile({ ...profile, nickname: displayName });
-      return { mode: 'email', user: data?.user || data?.session?.user || null };
+      return { mode: 'email', user: session?.user || null };
     }
 
     try {
