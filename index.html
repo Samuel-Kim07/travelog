@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1014">
+  <link rel="stylesheet" href="index.css?v=1015">
 </head>
 <body>
 
@@ -1018,18 +1018,21 @@
 
   <!-- Message Box Modal -->
   <div id="msg-box-modal" class="profile-manager-modal" aria-hidden="true">
-    <div class="profile-manager-card glass-panel arch-card" style="max-width: 420px;">
-      <div class="profile-manager-topbar">
+    <div class="profile-manager-card glass-panel arch-card msg-box-card">
+      <div class="profile-manager-topbar msg-box-topbar">
         <div>
-          <span class="step-pill" data-localize="msg_badge">쪽지함</span>
-          <h2 class="gradient-text" data-localize="msg_title">받은 쪽지함</h2>
-          <p data-localize="msg_desc">Supabase 친구와 시스템에서 보낸 쪽지를 확인합니다.</p>
+          <h2 class="gradient-text msg-box-title" data-localize="msg_title">쪽지함</h2>
+          <p data-localize="msg_desc">받은 쪽지와 보낸 쪽지를 나눠서 확인합니다.</p>
         </div>
         <button id="msg-box-close-btn" class="btn-circle profile-close-btn" aria-label="Close message box">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-      <div class="profile-manager-body" style="display: block; max-height: 320px; overflow-y: auto; padding: 10px 0;">
+      <div class="msg-box-tabs" role="tablist" aria-label="쪽지함 분류">
+        <button id="msg-tab-received" class="msg-tab-btn active" type="button" role="tab" aria-selected="true" data-msg-tab="received">받은쪽지</button>
+        <button id="msg-tab-sent" class="msg-tab-btn" type="button" role="tab" aria-selected="false" data-msg-tab="sent">보낸쪽지</button>
+      </div>
+      <div class="profile-manager-body msg-box-body">
         <div id="msg-list-container" class="msg-list">
           <!-- Dynamically populated via app.js -->
         </div>
@@ -1449,6 +1452,6 @@
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1012" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1016" defer></script>
+  <script src="app.js?v=1017" defer></script>
 </body>
 </html>

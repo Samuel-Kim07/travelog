@@ -72,9 +72,9 @@ const LocalizationDictionary = {
   ad_promo_1: { en: 'Jeju Air Earlybird tickets open! 10% Extra Discount ✈️', ko: '제주항공 특별 공동구매 티켓 오픈! 즉시 10% 추가 할인 ✈️', ja: 'チェジュ航空アーリーバードオープン！10%追加割引 ✈️' },
   ad_promo_2: { en: 'Travelog Pass: Unlimited audio guides 👑', ko: '트레블로그 패스 구독 시 글로벌 도슨트 오디오 가이드 무제한 무료 👑', ja: 'Travelogパス購読でグローバル音声ガイドが完全無料 👑' },
   ad_promo_3: { en: 'Suwon Hwaseong Quest: Complete to get Starbucks Coupon 🎁', ko: '수원 화성 성곽 보물찾기 퀘스트 완료 시 즉시 편의점 5천원권 100% 지급 🎁', ja: '水原華城クエスト完了でコンビニ500円券プレゼント 🎁' },
-  msg_badge: { en: 'Inbox', ko: '쪽지함', ja: 'メッセージ' },
-  msg_title: { en: 'My Inbox', ko: '받은 쪽지함', ja: 'メッセージボックス' },
-  msg_desc: { en: 'Messages from guides and system.', ko: '로컬 가이드와 시스템에서 보낸 소식입니다.', ja: 'ガイドやシステムからのメッセージです。' },
+  msg_badge: { en: 'Messages', ko: '쪽지함', ja: 'メッセージ' },
+  msg_title: { en: 'Messages', ko: '쪽지함', ja: 'メッセージ' },
+  msg_desc: { en: 'View received and sent messages separately.', ko: '받은 쪽지와 보낸 쪽지를 나눠서 확인합니다.', ja: '受信メッセージと送信メッセージを分けて確認します。' },
   confirm: { en: 'Confirm', ko: '확인', ja: '確認' },
   ad_sim_title: { en: 'Sponsor Ad Playing', ko: '스폰서 광고 재생 중', ja: 'スポンサー広告再生中' },
   ad_sim_desc: { en: 'Earn 50 coins after watching the full ad.', ko: '광고를 끝까지 시청하시면 50 트레블 코인이 지급됩니다.', ja: '最後まで視聴すると50コインがプレゼントされます。' },
@@ -839,6 +839,13 @@ function initHomeTab() {
   if (msgCloseBtn) msgCloseBtn.addEventListener('click', closeMessageBox);
   if (msgConfirmBtn) msgConfirmBtn.addEventListener('click', closeMessageBox);
 
+  document.querySelectorAll('[data-msg-tab]').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      const tab = tabBtn.dataset.msgTab === 'sent' ? 'sent' : 'received';
+      switchMessageBoxTab(tab);
+    });
+  });
+
   // Bind Coins Actions
   const adBtn = document.getElementById('charge-ad-btn');
   if (adBtn) adBtn.addEventListener('click', startAdChargeSimulation);
@@ -974,6 +981,7 @@ let currentMessageFriendId = null;
 let latestFriendSearchResults = [];
 let supabaseFriendSyncInProgress = false;
 let supabaseMessageSyncInProgress = false;
+let currentMessageBoxTab = 'received';
 
 function isSupabaseFriendFeatureReady() {
   return !!(window.TravelogSupabase && typeof window.TravelogSupabase.fetchFriends === 'function');
@@ -1279,7 +1287,8 @@ async function sendFriendMessage() {
     sender: `나 → ${friend.name}`,
     date: new Date().toISOString().slice(0, 10),
     body,
-    unread: false
+    unread: false,
+    isMine: true
   });
   saveHomePersistentState();
   closeFriendMessageModal();
@@ -1337,22 +1346,60 @@ function shouldShowMessageAddFriendButton(msg) {
   );
 }
 
+function isSentMessage(msg) {
+  if (!msg) return false;
+  return msg.isMine === true || String(msg.sender || '').trim().startsWith('나 →');
+}
+
+function getMessagesForCurrentTab() {
+  const messages = getVisibleMessages();
+  if (currentMessageBoxTab === 'sent') {
+    return messages.filter(isSentMessage);
+  }
+  return messages.filter(msg => !isSentMessage(msg));
+}
+
+function updateMessageBoxTabs() {
+  document.querySelectorAll('[data-msg-tab]').forEach(tabBtn => {
+    const isActive = tabBtn.dataset.msgTab === currentMessageBoxTab;
+    tabBtn.classList.toggle('active', isActive);
+    tabBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+}
+
+function switchMessageBoxTab(tab) {
+  currentMessageBoxTab = tab === 'sent' ? 'sent' : 'received';
+  updateMessageBoxTabs();
+  renderMessageBoxMessages(document.getElementById('msg-list-container'));
+}
+
+function getEmptyMessageText() {
+  if (currentMessageBoxTab === 'sent') {
+    return localizedText('보낸 쪽지가 없습니다.', 'No sent messages.', '送信メッセージがありません。');
+  }
+  return localizedText('받은 쪽지가 없습니다.', 'No received messages.', '受信メッセージがありません。');
+}
+
 function renderMessageBoxMessages(container) {
   if (!container) return;
-  const messages = getVisibleMessages();
+  updateMessageBoxTabs();
+  const messages = getMessagesForCurrentTab();
   if (messages.length === 0) {
-    container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:18px 0; text-align:center;">받은 쪽지가 없습니다.</div>';
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:18px 0; text-align:center;">${escapeHtml(getEmptyMessageText())}</div>`;
     return;
   }
 
   container.innerHTML = messages.map(msg => {
     const messageId = escapeHtml(String(msg.id));
-    const showAddFriend = shouldShowMessageAddFriendButton(msg);
+    const sent = isSentMessage(msg);
+    const showAddFriend = !sent && shouldShowMessageAddFriendButton(msg);
+    const senderLabel = sent ? (msg.sender || '').replace(/^나\s*→\s*/, '받는 사람: ') : msg.sender;
     return `
-      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage('${messageId}')">
+      <div class="msg-item ${msg.unread ? 'unread' : ''} ${sent ? 'sent' : 'received'}" onclick="window.readMessage('${messageId}')">
         <div class="msg-item-header">
           <div class="msg-item-meta">
-            <span class="msg-item-sender">${escapeHtml(msg.sender)}</span>
+            <span class="msg-direction-pill ${sent ? 'sent' : 'received'}">${sent ? '보낸쪽지' : '받은쪽지'}</span>
+            <span class="msg-item-sender">${escapeHtml(senderLabel || (sent ? '보낸 쪽지' : 'Travelog User'))}</span>
             <span class="msg-item-date">${escapeHtml(msg.date || '')}</span>
           </div>
           <div class="msg-action-group">
@@ -1370,6 +1417,8 @@ async function openMessageBox() {
   const container = document.getElementById('msg-list-container');
   if (!modal || !container) return;
 
+  currentMessageBoxTab = 'received';
+  updateMessageBoxTabs();
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
   container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:18px 0; text-align:center;">Supabase 쪽지함을 불러오는 중입니다...</div>';
