@@ -60,6 +60,10 @@ const TravelogCreatorModule = (() => {
   let registeredCoupons = [];
   let editingPublishedGuideId = null;
   let savedGuideRecordsRuntime = null;
+  let activeStudioEditGuideId = null;
+  let activeStudioEditStatus = 'new';
+  let activeStudioEditTitle = '';
+  let activeStudioEditCreatedAt = '';
 
   function escapeHtml(value) {
     return String(value || '')
@@ -157,6 +161,16 @@ const TravelogCreatorModule = (() => {
   function getPublishReadiness() {
     const pinCount = getOrderedCustomPins().length;
     const hasPins = pinCount > 0;
+
+    if (isStudioEditMode()) {
+      return {
+        ready: hasPins,
+        reason: hasPins
+          ? t('수정 완료를 누르면 기존 가이드 데이터를 덮어씁니다.', 'Tap Complete Edit to overwrite the existing guide.', '修正完了で既存ガイドを上書きします。')
+          : t('핀을 1개 이상 추가해야 수정 완료할 수 있습니다.', 'Add at least one pin before completing the edit.', 'ピンを1つ以上追加してから修正完了してください。')
+      };
+    }
+
     const currentSignature = getPublishContentSignature();
     const hasSavedPackage = !!pendingPublishPackage && !!lastSavedPublishSignature;
     const isDirtyAfterSave = hasSavedPackage && currentSignature !== lastSavedPublishSignature;
@@ -189,6 +203,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function updateFinalPublishButtonState() {
+    updateStudioModeUi();
     const finalPublishBtn = document.getElementById('publish-final-tour-btn');
     const hint = document.getElementById('publish-ready-hint');
     const readiness = getPublishReadiness();
@@ -209,6 +224,64 @@ const TravelogCreatorModule = (() => {
 
   function markPublishDraftDirty() {
     updateFinalPublishButtonState();
+  }
+
+  function isStudioEditMode() {
+    return !!activeStudioEditGuideId;
+  }
+
+  function isActiveEditPublished() {
+    if (!activeStudioEditGuideId) return false;
+    if (activeStudioEditStatus === 'published') return true;
+    return getPublishedGuideRecords().some(record => String(record.id) === String(activeStudioEditGuideId));
+  }
+
+  function updateStudioModeUi() {
+    const banner = document.getElementById('creator-mode-banner');
+    const label = document.getElementById('creator-mode-label');
+    const title = document.getElementById('creator-mode-title');
+    const desc = document.getElementById('creator-mode-desc');
+    const publishBtn = document.getElementById('publish-final-tour-btn');
+    const publishBtnText = publishBtn?.querySelector('span');
+    const publishBtnIcon = publishBtn?.querySelector('i');
+    const saveBtnText = document.querySelector('#save-current-guide-btn span');
+
+    if (isStudioEditMode()) {
+      banner?.classList.add('editing');
+      if (label) label.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 가이드 수정중';
+      if (title) title.textContent = document.getElementById('new-tour-name')?.value?.trim() || activeStudioEditTitle || '수정 중인 가이드';
+      if (desc) desc.textContent = isActiveEditPublished()
+        ? '출간된 가이드를 수정 중입니다. 수정 완료 시 기존 Supabase 데이터와 저장 기록을 덮어씁니다.'
+        : '저장된 가이드를 수정 중입니다. 수정 완료 시 기존 저장 데이터를 덮어씁니다.';
+      if (publishBtnText) publishBtnText.textContent = '수정 완료';
+      if (publishBtnIcon) publishBtnIcon.className = 'fa-solid fa-circle-check';
+      if (saveBtnText) saveBtnText.textContent = '수정 저장';
+      return;
+    }
+
+    banner?.classList.remove('editing');
+    if (label) label.innerHTML = '<i class="fa-solid fa-pen-nib"></i> 가이드 제작중';
+    if (title) title.textContent = '새 가이드 제작';
+    if (desc) desc.textContent = '새로운 가이드 출간을 준비하고 있습니다.';
+    if (publishBtnText) publishBtnText.textContent = '최종 출간하기';
+    if (publishBtnIcon) publishBtnIcon.className = 'fa-solid fa-cloud-arrow-up';
+    if (saveBtnText) saveBtnText.textContent = '저장하기';
+  }
+
+  function setStudioEditMode(record, status = 'unpublished') {
+    activeStudioEditGuideId = record?.id || null;
+    activeStudioEditStatus = status || record?.status || 'unpublished';
+    activeStudioEditTitle = record?.tourName || '';
+    activeStudioEditCreatedAt = record?.createdAt || '';
+    updateStudioModeUi();
+  }
+
+  function clearStudioEditMode() {
+    activeStudioEditGuideId = null;
+    activeStudioEditStatus = 'new';
+    activeStudioEditTitle = '';
+    activeStudioEditCreatedAt = '';
+    updateStudioModeUi();
   }
 
   function bindPublishReadinessWatchers() {
@@ -1193,8 +1266,8 @@ const TravelogCreatorModule = (() => {
     const tourName = document.getElementById('new-tour-name')?.value?.trim() || 'My Walking Tour';
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : {};
     const creator = state.userProfile?.nickname || 'Travelog Creator';
-    const createdAt = new Date().toISOString();
-    const guideId = createTravelogGuideId();
+    const createdAt = activeStudioEditCreatedAt || new Date().toISOString();
+    const guideId = activeStudioEditGuideId || createTravelogGuideId();
     const tourSlug = safeFileName(tourName, 'travelog_guide');
     const representativeImage = getGuideCoverDataUrl();
     const guideIntroText = getGuideIntroText();
@@ -1685,12 +1758,102 @@ const TravelogCreatorModule = (() => {
     }
   }
 
+  async function completeStudioGuideEdit() {
+    const readiness = getPublishReadiness();
+    updateFinalPublishButtonState();
+
+    if (!readiness.ready) {
+      window.TravelogApp.showToast(readiness.reason);
+      return;
+    }
+
+    const editGuideId = activeStudioEditGuideId;
+    const shouldRepublishOnline = isActiveEditPublished();
+    let packageData = null;
+
+    try {
+      showPublishModalLoading(
+        shouldRepublishOnline ? t('출간 가이드 수정 반영 중입니다...', 'Updating published guide...', '公開ガイドを更新しています...') : t('저장 가이드 수정 반영 중입니다...', 'Updating saved guide...', '保存ガイドを更新しています...'),
+        shouldRepublishOnline ? t('기존 Supabase 가이드 데이터와 디바이스 저장 데이터를 덮어씁니다.', 'Overwriting the existing Supabase guide and device save.', '既存Supabaseガイドと端末保存データを上書きします。') : t('기존 저장 데이터를 같은 가이드 ID로 덮어씁니다.', 'Overwriting the saved guide with the same guide ID.', '同じガイドIDで保存データを上書きします。')
+      );
+
+      packageData = await buildGuidePublishPackage();
+      const localSaveInfo = await savePackageToLocalDevice(packageData);
+      pendingPublishPackage = packageData;
+      lastSavedPublishSignature = getPublishContentSignature();
+      storeSavedGuideRecord(packageData, localSaveInfo, shouldRepublishOnline ? 'published' : 'unpublished');
+
+      if (shouldRepublishOnline && window.TravelogSupabase && typeof window.TravelogSupabase.publishGuidePackage === 'function') {
+        const publishResult = await window.TravelogSupabase.publishGuidePackage(packageData);
+        packageData = {
+          ...packageData,
+          guideId: publishResult.guideId || packageData.guideId,
+          supabaseGuideId: publishResult.guideId || packageData.guideId,
+          publishedAt: new Date().toISOString(),
+          guideCard: {
+            ...(publishResult.guideCard || packageData.guideCard || {}),
+            isSupabaseGuide: true,
+            supabaseGuideId: publishResult.guideId || packageData.guideId,
+            offlineReady: true,
+            offlineStatus: 'creator-local'
+          }
+        };
+        storePublishedGuideRecord(packageData);
+        markSavedGuideAsPublished(packageData);
+        registerGuideOnHome(packageData);
+      }
+
+      const statusTitle = document.getElementById('publish-status-title');
+      const statusDesc = document.getElementById('publish-status-desc');
+      const spinner = document.getElementById('publish-loading-spinner');
+      const successIcon = document.getElementById('publish-success-icon');
+      const summary = document.getElementById('publish-local-summary');
+      const actions = document.getElementById('publish-ready-actions');
+
+      if (statusTitle) statusTitle.textContent = t('수정 완료', 'Edit complete', '修正完了');
+      if (statusDesc) statusDesc.textContent = shouldRepublishOnline
+        ? t('출간된 가이드와 저장된 제작 데이터가 덮어쓰기 완료되었습니다.', 'The published guide and saved working data were overwritten.', '公開ガイドと保存制作データを上書きしました。')
+        : t('저장된 제작 가이드가 덮어쓰기 완료되었습니다.', 'The saved guide was overwritten.', '保存済み制作ガイドを上書きしました。');
+      if (spinner) spinner.style.display = 'none';
+      if (successIcon) successIcon.style.display = 'block';
+      if (summary) {
+        summary.innerHTML = `
+          Guide ID: ${escapeHtml(editGuideId || packageData.guideId)}<br>
+          저장 위치: ${escapeHtml(localSaveInfo.selectedFolderName || '')} / ${escapeHtml(localSaveInfo.dataFolderName || 'travelog_data')}<br>
+          ${shouldRepublishOnline ? 'Supabase 덮어쓰기 완료' : '디바이스 저장 데이터 덮어쓰기 완료'}
+        `;
+        summary.style.display = 'block';
+      }
+      if (actions) actions.style.display = 'none';
+
+      window.TravelogApp.showToast(shouldRepublishOnline
+        ? t('출간된 가이드 수정이 완료되었습니다. 새 가이드 제작 화면으로 초기화합니다.', 'Published guide edit complete. Studio reset for a new guide.', '公開ガイドの修正が完了しました。新規制作画面に初期化します。')
+        : t('저장된 가이드 수정이 완료되었습니다. 새 가이드 제작 화면으로 초기화합니다.', 'Saved guide edit complete. Studio reset for a new guide.', '保存ガイドの修正が完了しました。新規制作画面に初期化します。')
+      );
+
+      resetCreatorStudioForNewGuide();
+      setTimeout(() => {
+        closePublishModal();
+      }, 1200);
+    } catch (error) {
+      console.error('[Travelog Creator] Edit completion failed:', error);
+      closePublishModal();
+      const detailMessage = error?.detail || error?.message || '';
+      alert(`${t('가이드 수정 완료 중 오류가 발생했습니다.', 'Completing the guide edit failed.', 'ガイド修正完了中にエラーが発生しました。')}${detailMessage ? `\n\n상세 오류: ${detailMessage}` : ''}`);
+    }
+  }
+
   function handleFinalPublishClick() {
     const readiness = getPublishReadiness();
     updateFinalPublishButtonState();
 
     if (!readiness.ready) {
       window.TravelogApp.showToast(readiness.reason);
+      return;
+    }
+
+    if (isStudioEditMode()) {
+      completeStudioGuideEdit();
       return;
     }
 
@@ -2160,10 +2323,11 @@ const TravelogCreatorModule = (() => {
     renderAudioList();
     renderVideoList();
     renderRegisteredCouponList();
+    setStudioEditMode(record, record.status === 'published' ? 'published' : 'unpublished');
     updatePublishPanelCounts();
     updateFinalPublishButtonState();
 
-    window.TravelogApp?.showToast?.(t('저장된 가이드를 스튜디오로 불러왔습니다. 수정 후 다시 저장해 주세요.', 'Saved guide loaded into Studio. Save again after editing.', '保存済みガイドをスタジオに読み込みました。編集後に再保存してください。'));
+    window.TravelogApp?.showToast?.(t('저장된 가이드를 스튜디오로 불러왔습니다. 상단 상태가 가이드 수정중으로 바뀌었고, 수정 완료를 누르면 기존 저장 데이터를 덮어씁니다.', 'Saved guide loaded into Studio. Complete Edit overwrites the existing saved guide.', '保存済みガイドをスタジオに読み込みました。修正完了で既存保存データを上書きします。'));
   }
 
   function deleteSavedGuide(id) {
@@ -2509,49 +2673,18 @@ const TravelogCreatorModule = (() => {
   }
 
   function openPublishedGuideEditor(id) {
-    const record = getPublishedGuideRecords().find(item => item.id === id);
+    const record = getPublishedGuideRecords().find(item => String(item.id) === String(id));
     if (!record) return;
-    editingPublishedGuideId = id;
 
-    const modal = document.getElementById('guide-edit-page-modal');
-    const titleInput = document.getElementById('guide-edit-title-input');
-    const coverPreview = document.getElementById('guide-edit-cover-preview');
-    const summary = document.getElementById('guide-edit-summary');
-    const pinList = document.getElementById('guide-edit-pin-list');
-    const couponList = document.getElementById('guide-edit-coupon-list');
-
-    if (titleInput) titleInput.value = record.tourName || '';
-    if (coverPreview) {
-      coverPreview.style.backgroundImage = record.representativeImage ? `url('${record.representativeImage}')` : '';
-      coverPreview.textContent = record.representativeImage ? '' : '대표 이미지 없음';
-    }
-    if (summary) {
-      summary.innerHTML = `핀 ${record.pinCount || 0}개 · 메모 ${record.memoCount || 0}개 · 쿠폰 ${record.couponCount || 0}개<br>소개글: ${record.guideIntroText ? '등록됨' : '없음'} · 소개미디어: ${record.guideIntroVideo ? '영상' : record.guideIntroAudio ? '음성' : '없음'}<br>출간자: ${escapeHtml(record.creator || '')}`;
-    }
-    if (pinList) {
-      const pins = Array.isArray(record.pins) ? record.pins : [];
-      pinList.innerHTML = pins.length ? pins.map(pin => `
-        <div style="background: white; border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px; font-size: 12px;">
-          <strong>${pin.order}. ${escapeHtml(pin.nameKo || pin.nameEn || pin.id)}</strong><br>
-          <span style="color: var(--text-secondary);">${escapeHtml(pin.description || '메모 없음')}</span><br>
-          <small style="color: var(--text-muted);">${Number(pin.lat).toFixed(5)}, ${Number(pin.lng).toFixed(5)}</small>
-        </div>
-      `).join('') : '<div style="color: var(--text-muted); font-size: 12px; text-align:center; padding: 12px;">핀 정보가 없습니다.</div>';
-    }
-    if (couponList) {
-      const coupons = Array.isArray(record.eventCoupons) ? record.eventCoupons : [];
-      couponList.innerHTML = coupons.length ? coupons.map((coupon, index) => `
-        <div style="background: white; border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px; font-size: 12px;">
-          <strong>${index + 1}. ${escapeHtml(coupon.vendor)}</strong><br>
-          <span style="color: var(--text-secondary);">${escapeHtml(coupon.offer)}</span>
-        </div>
-      `).join('') : '<div style="color: var(--text-muted); font-size: 12px; text-align:center; padding: 12px;">등록된 쿠폰이 없습니다.</div>';
-    }
-
-    if (modal) {
-      modal.classList.add('active');
-      modal.setAttribute('aria-hidden', 'false');
-    }
+    const savedRecords = getSavedGuideRecords();
+    const mergedRecord = { ...record, status: 'published' };
+    saveSavedGuideRecords([
+      mergedRecord,
+      ...savedRecords.filter(item => String(item.id) !== String(id))
+    ].slice(0, 80));
+    renderSavedGuidesList();
+    openSavedGuideEditor(id);
+    window.TravelogApp?.showToast?.(t('출간된 가이드를 스튜디오로 불러왔습니다. 수정 완료를 누르면 기존 Supabase 출간 데이터를 덮어씁니다.', 'Published guide loaded into Studio. Complete Edit overwrites the existing Supabase guide.', '公開済みガイドをスタジオに読み込みました。修正完了で既存Supabase公開データを上書きします。'));
   }
 
   function closePublishedGuideEditor() {
@@ -3271,6 +3404,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function resetCreatorStudioForNewGuide() {
+    clearStudioEditMode();
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
     if (state) {
       state.customCreatedPins = [];

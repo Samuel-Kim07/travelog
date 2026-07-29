@@ -4524,3 +4524,163 @@ textarea::placeholder {
 #map-tab #gps-location-pill {
   display: none !important;
 }
+
+/* ==========================================
+   Mobile visual viewport / browser toolbar safety
+   Keeps app content above Android/Samsung browser bottom bars.
+   ========================================== */
+html {
+  height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+:root {
+  --app-visual-height: 100dvh;
+  --browser-ui-bottom-offset: 0px;
+  --mobile-page-bottom-padding: calc(var(--nav-height) + 48px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom-offset, 0px));
+}
+
+#app-container {
+  height: var(--app-visual-height, 100dvh) !important;
+  max-height: var(--app-visual-height, 100dvh) !important;
+  min-height: 0;
+}
+
+main {
+  min-height: 0;
+}
+
+nav.bottom-nav {
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+.tab-content,
+#creator-tab,
+#home-tab,
+#explore-tab,
+#rewards-tab,
+#adventure-tab {
+  min-height: 0;
+}
+
+#creator-tab,
+.home-layout,
+.explore-layout,
+.rewards-layout,
+.adventure-layout {
+  padding-bottom: var(--mobile-page-bottom-padding) !important;
+}
+
+.onboarding-backdrop,
+.profile-manager-modal,
+.modal {
+  height: var(--app-visual-height, 100dvh) !important;
+  max-height: var(--app-visual-height, 100dvh) !important;
+}
+
+.onboarding-backdrop {
+  align-items: flex-start !important;
+  overflow-y: auto !important;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 14px calc(28px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom-offset, 0px)) !important;
+}
+
+.onboarding-card {
+  margin: auto 0 !important;
+  max-height: calc(var(--app-visual-height, 100dvh) - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.profile-manager-modal.active,
+.modal.active {
+  overflow-y: auto;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom-offset, 0px));
+}
+
+.creator-mode-banner {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto 16px auto;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.creator-mode-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.creator-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(112,162,183,0.14);
+  color: var(--color-ocean);
+  border: 1px solid rgba(112,162,183,0.24);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+#creator-mode-title {
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#creator-mode-desc {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.creator-mode-banner.editing .creator-mode-pill {
+  background: rgba(175,212,153,0.20);
+  color: #557E3F;
+  border-color: rgba(175,212,153,0.42);
+}
+
+@media (max-width: 600px) {
+  :root {
+    --mobile-page-bottom-padding: calc(var(--nav-height) + 70px + env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom-offset, 0px));
+  }
+
+  nav.bottom-nav {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .creator-mode-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+
+  #creator-mode-desc {
+    text-align: left;
+  }
+
+  .onboarding-card {
+    width: min(94vw, 440px) !important;
+    padding: 24px 18px !important;
+  }
+}

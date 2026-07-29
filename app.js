@@ -227,10 +227,38 @@ const LocalizationDictionary = {
   puzzle_placeholder: { en: 'Enter password/answer...', ko: '암호 또는 정답 입력...', ja: '暗号または答えを入力...' }
 };
 
+
+function syncMobileVisualViewport() {
+  const root = document.documentElement;
+  const visualViewport = window.visualViewport;
+  const viewportHeight = Math.round(visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0);
+  const layoutHeight = Math.round(window.innerHeight || document.documentElement.clientHeight || viewportHeight || 0);
+  const viewportTop = Math.round(visualViewport?.offsetTop || 0);
+  const hiddenBottom = Math.max(0, layoutHeight - viewportHeight - viewportTop);
+
+  if (viewportHeight > 0) {
+    root.style.setProperty('--app-visual-height', `${viewportHeight}px`);
+  }
+  root.style.setProperty('--browser-ui-bottom-offset', `${hiddenBottom}px`);
+
+  document.body?.classList.toggle('has-mobile-browser-ui', hiddenBottom > 0);
+}
+
+function initMobileViewportSafety() {
+  syncMobileVisualViewport();
+  window.addEventListener('resize', syncMobileVisualViewport, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(syncMobileVisualViewport, 250), { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncMobileVisualViewport, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncMobileVisualViewport, { passive: true });
+  }
+}
+
 // ==========================================
 // Main Initialization & Event Binding
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
+  initMobileViewportSafety();
   initNavigation();
   initLanguageToggle();
   loadHomePersistentState();
