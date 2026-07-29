@@ -14,6 +14,7 @@ const TravelogSupabase = (() => {
   const OFFLINE_STORE = 'guides';
   const OFFLINE_STATUS_KEY = 'travelog_offline_guide_status_v1';
   const AUTO_GUEST_CREDENTIAL_KEY = 'travelog_supabase_auto_guest_v1';
+  const DELETED_MESSAGE_BODY = '__TRAVELOG_MESSAGE_DELETED__';
 
   let client = null;
   let authWarningShown = false;
@@ -1193,7 +1194,7 @@ const TravelogSupabase = (() => {
       profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
     }
 
-    return (rows || []).map(row => {
+    return (rows || []).filter(row => row.body !== DELETED_MESSAGE_BODY).map(row => {
       const isMine = row.sender_id === userId;
       const senderProfile = profileMap.get(row.sender_id);
       const receiverProfile = profileMap.get(row.receiver_id);
@@ -1208,6 +1209,7 @@ const TravelogSupabase = (() => {
         date: String(row.created_at || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
         body: row.body || '',
         unread: !isMine && row.is_read !== true,
+        isMine,
         isRemote: true,
         guideId: row.guide_id || null
       };
@@ -1223,6 +1225,22 @@ const TravelogSupabase = (() => {
       .eq('id', messageId);
     if (error) {
       console.warn('[Travelog Supabase] markMessageRead failed:', error);
+      return false;
+    }
+    return true;
+  }
+
+  async function deleteMessage(messageId) {
+    const supabase = getClient();
+    if (!supabase || !messageId) return false;
+    // 현재 RLS는 receiver_id = auth.uid()인 쪽지에 update를 허용하므로,
+    // 실제 행 삭제 대신 삭제 표시값으로 soft-delete 처리하고 fetch 단계에서 숨깁니다.
+    const { error } = await supabase
+      .from('messages')
+      .update({ body: DELETED_MESSAGE_BODY, is_read: true })
+      .eq('id', messageId);
+    if (error) {
+      console.warn('[Travelog Supabase] deleteMessage failed:', error);
       return false;
     }
     return true;
@@ -1253,6 +1271,7 @@ const TravelogSupabase = (() => {
     sendMessage,
     fetchMessages,
     markMessageRead,
+    deleteMessage,
     publishGuidePackage,
     fetchPublishedGuideCards,
     purchaseGuide,

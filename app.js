@@ -1035,7 +1035,8 @@ async function syncSupabaseMessages(options = {}) {
   try {
     const messages = await window.TravelogSupabase.fetchMessages({ requireSession: options.requireSession === true, interactiveLogin: options.interactiveLogin === true });
     if (Array.isArray(messages)) {
-      TravelogState.messages = messages;
+      const hidden = getHiddenMessageIdSet();
+      TravelogState.messages = messages.filter(msg => msg && !hidden.has(String(msg.id)) && !hidden.has(String(msg.supabaseMessageId || '')));
       saveHomePersistentState();
       renderHomeTab();
       return true;
@@ -1287,6 +1288,55 @@ async function sendFriendMessage() {
   showToast(localizedText(`${friend.name}에게 로컬 쪽지를 보냈습니다.`, `Local message sent to ${friend.name}.`, `${friend.name}にローカルメッセージを送りました。`));
 }
 
+
+function getHiddenMessageIdSet() {
+  try {
+    const raw = localStorage.getItem(HIDDEN_MESSAGES_STORAGE_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(list) ? list.map(id => String(id)) : []);
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function addHiddenMessageId(id) {
+  if (!id) return;
+  try {
+    const hidden = getHiddenMessageIdSet();
+    hidden.add(String(id));
+    localStorage.setItem(HIDDEN_MESSAGES_STORAGE_KEY, JSON.stringify([...hidden]));
+  } catch (error) {
+    console.warn('Hidden message id could not be saved.', error);
+  }
+}
+
+function getVisibleMessages() {
+  const hidden = getHiddenMessageIdSet();
+  return (Array.isArray(TravelogState.messages) ? TravelogState.messages : [])
+    .filter(msg => msg && !hidden.has(String(msg.id)) && !hidden.has(String(msg.supabaseMessageId || '')));
+}
+
+function renderMessageBoxMessages(container) {
+  if (!container) return;
+  const messages = getVisibleMessages();
+  if (messages.length === 0) {
+    container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:18px 0; text-align:center;">받은 쪽지가 없습니다.</div>';
+    return;
+  }
+
+  container.innerHTML = messages.map(msg => `
+      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage('${escapeHtml(String(msg.id))}')">
+        <div class="msg-item-header">
+          <div class="msg-item-meta">
+            <span class="msg-item-sender">${escapeHtml(msg.sender)}</span>
+            <span class="msg-item-date">${escapeHtml(msg.date || '')}</span>
+          </div>
+          <button class="msg-delete-btn" type="button" onclick="event.stopPropagation(); window.deleteMessageFromInbox('${escapeHtml(String(msg.id))}')" aria-label="쪽지 삭제">삭제</button>
+        </div>
+        <p class="msg-item-body">${escapeHtml(msg.body)}</p>
+      </div>`).join('');
+}
+
 async function openMessageBox() {
   const modal = document.getElementById('msg-box-modal');
   const container = document.getElementById('msg-list-container');
@@ -1300,20 +1350,7 @@ async function openMessageBox() {
     await syncSupabaseMessages({ requireSession: true, interactiveLogin: true, showError: true });
   }
 
-  const messages = Array.isArray(TravelogState.messages) ? TravelogState.messages : [];
-  if (messages.length === 0) {
-    container.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:18px 0; text-align:center;">받은 쪽지가 없습니다.</div>';
-    return;
-  }
-
-  container.innerHTML = messages.map(msg => `
-      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage('${msg.id}')">
-        <div class="msg-item-header">
-          <span class="msg-item-sender">${escapeHtml(msg.sender)}</span>
-          <span class="msg-item-date">${escapeHtml(msg.date || '')}</span>
-        </div>
-        <p class="msg-item-body">${escapeHtml(msg.body)}</p>
-      </div>`).join('');
+  renderMessageBoxMessages(container);
 }
 
 function closeMessageBox() {
@@ -1334,8 +1371,36 @@ window.readMessage = async function(id) {
       });
     }
     saveHomePersistentState();
-    openMessageBox();
+    renderHomeTab();
+    renderMessageBoxMessages(document.getElementById('msg-list-container'));
   }
+};
+
+window.deleteMessageFromInbox = async function(id) {
+  const msg = TravelogState.messages.find(m => String(m.id) === String(id));
+  if (!msg) return;
+  const ok = window.confirm(localizedText('이 쪽지를 삭제할까요?', 'Delete this message?', 'このメッセージを削除しますか？'));
+  if (!ok) return;
+
+  const remoteId = msg.supabaseMessageId || msg.id;
+  let remoteDeleted = false;
+  if (msg.isRemote && window.TravelogSupabase && typeof window.TravelogSupabase.deleteMessage === 'function') {
+    try {
+      remoteDeleted = await window.TravelogSupabase.deleteMessage(remoteId);
+    } catch (error) {
+      console.warn('[Travelog Supabase] Remote message delete failed:', error);
+    }
+  }
+
+  addHiddenMessageId(msg.id);
+  if (remoteId) addHiddenMessageId(remoteId);
+  TravelogState.messages = TravelogState.messages.filter(m => String(m.id) !== String(id) && String(m.supabaseMessageId || '') !== String(remoteId));
+  saveHomePersistentState();
+  renderHomeTab();
+  renderMessageBoxMessages(document.getElementById('msg-list-container'));
+  showToast(remoteDeleted
+    ? localizedText('쪽지를 삭제했습니다.', 'Message deleted.', 'メッセージを削除しました。')
+    : localizedText('이 기기의 쪽지함에서 삭제했습니다.', 'Removed from this device inbox.', 'この端末のメッセージ一覧から削除しました。'));
 };
 
 // Ad Reward Coin Simulation
@@ -2045,6 +2110,7 @@ const PURCHASED_GUIDES_STORAGE_KEY = 'travelog_purchased_guides_v1';
 const HOME_COINS_STORAGE_KEY = 'travelog_home_coins_v1';
 const HOME_FRIENDS_STORAGE_KEY = 'travelog_home_friends_v1';
 const HOME_MESSAGES_STORAGE_KEY = 'travelog_home_messages_v1';
+const HIDDEN_MESSAGES_STORAGE_KEY = 'travelog_hidden_messages_v1';
 const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
 const AVATAR_PRESETS = {
   sun: '☀️',
