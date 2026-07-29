@@ -38,3 +38,9 @@ Supabase Dashboard > Authentication > Users > Add user 로 이동합니다.
 - service_role key, database password, JWT secret은 절대 앱 코드나 GitHub에 넣지 마세요.
 - Publishable key/anon key만 프론트엔드에서 사용합니다.
 - 유료 코인 차감은 정식 운영 전 Edge Function으로 서버 처리하는 것이 안전합니다.
+
+
+[2026-07-29 추가 수정]
+- Supabase Storage 업로드 파일명에는 한글/공백/특수문자가 들어가지 않도록 앱에서 자동 안전 파일명으로 변환합니다.
+- 예: 화면 표시 제목은 "회사앞"으로 유지하지만 Storage 경로는 guides/{guideId}/audio/pin_audio_01_타임스탬프.webm 형태의 ASCII 안전 경로로 저장합니다.
+- 기존에 guides 테이블에 draft로 남은 실패 테스트 데이터가 있으면 Supabase Dashboard에서 삭제 후 다시 테스트해도 됩니다.

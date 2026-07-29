@@ -374,6 +374,34 @@ const TravelogSupabase = (() => {
       .slice(0, 90) || fallback;
   }
 
+  function safeStorageSegment(value, fallback = 'travelog_file') {
+    const raw = String(value || fallback).trim() || fallback;
+    const dotIndex = raw.lastIndexOf('.');
+    const hasExt = dotIndex > 0 && dotIndex < raw.length - 1;
+    const rawBase = hasExt ? raw.slice(0, dotIndex) : raw;
+    const rawExt = hasExt ? raw.slice(dotIndex + 1) : '';
+    const cleanBase = rawBase
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9._-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^[._-]+|[._-]+$/g, '')
+      .slice(0, 64) || fallback;
+    const cleanExt = rawExt
+      .normalize('NFKD')
+      .replace(/[^A-Za-z0-9]+/g, '')
+      .slice(0, 12);
+    return cleanExt ? `${cleanBase}.${cleanExt}` : cleanBase;
+  }
+
+  function makeStoragePath({ guideId, folder, index = 0, originalName = '', role = 'file', blob = null }) {
+    const ext = originalName && originalName.includes('.')
+      ? originalName.split('.').pop()
+      : guessExtension(blob?.type || '', role.includes('video') ? 'webm' : role.includes('photo') ? 'png' : role.includes('audio') ? 'webm' : 'dat');
+    const baseName = `${role}_${String(index + 1).padStart(2, '0')}_${Date.now()}.${ext}`;
+    const safeFileName = safeStorageSegment(baseName, `${role}_${String(index + 1).padStart(2, '0')}.${ext}`);
+    return `guides/${guideId}/${safeStorageSegment(folder, 'media')}/${safeFileName}`;
+  }
+
   function guessExtension(mimeType = '', fallback = 'dat') {
     const mime = String(mimeType || '').toLowerCase();
     if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
@@ -528,9 +556,14 @@ const TravelogSupabase = (() => {
       if (!blob) return null;
       const index = Number(file.stopIndex || 0);
       const pinRow = insertedPinsByLocalId.get(String(file.pinId || '')) || insertedPinsByIndex.get(index) || null;
-      const ext = file.fileName && file.fileName.includes('.') ? file.fileName.split('.').pop() : guessExtension(blob.type, role.includes('video') ? 'webm' : role.includes('photo') ? 'png' : 'webm');
-      const cleanFileName = safeName(file.fileName || `${role}_${index + 1}.${ext}`);
-      const storagePath = `guides/${guideId}/${folder}/${String(index + 1).padStart(2, '0')}_${cleanFileName}`;
+      const storagePath = makeStoragePath({
+        guideId,
+        folder,
+        index,
+        originalName: file.fileName || '',
+        role,
+        blob
+      });
       await uploadBlob(bucket, storagePath, blob);
       totalBytes += blob.size || 0;
       return createGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null });
