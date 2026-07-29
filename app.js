@@ -2068,6 +2068,9 @@ const PROFILE_SAMPLE_AVATARS = [
 
 let verifiedNickname = '';
 let profileManagerDraft = null;
+let profileManagerNicknameEditEnabled = false;
+let profileManagerOriginalNickname = '';
+let profileManagerVerifiedNickname = '';
 let onboardingAuthInProgress = false;
 
 function initOnboarding() {
@@ -2683,6 +2686,106 @@ function hideProfileManagerFeedback() {
   feedback.classList.remove('success', 'error');
 }
 
+function setProfileNicknameEditMode(enabled, options = {}) {
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+  const editBtn = document.getElementById('profile-nickname-edit-btn');
+  const checkBtn = document.getElementById('profile-nickname-check-btn');
+
+  profileManagerNicknameEditEnabled = !!enabled;
+
+  if (nicknameInput) {
+    nicknameInput.readOnly = !profileManagerNicknameEditEnabled;
+    nicknameInput.setAttribute('aria-readonly', profileManagerNicknameEditEnabled ? 'false' : 'true');
+    nicknameInput.classList.toggle('is-editing', profileManagerNicknameEditEnabled);
+    if (!profileManagerNicknameEditEnabled && options.restoreOriginal !== false) {
+      nicknameInput.value = profileManagerOriginalNickname || TravelogState.userProfile.nickname || '';
+    }
+  }
+
+  if (checkBtn) {
+    checkBtn.style.display = profileManagerNicknameEditEnabled ? 'inline-flex' : 'none';
+  }
+
+  if (editBtn) {
+    const icon = editBtn.querySelector('i');
+    const label = editBtn.querySelector('span') || editBtn;
+    if (profileManagerNicknameEditEnabled) {
+      if (icon) icon.className = 'fa-solid fa-rotate-left';
+      label.textContent = localizedText('변경취소', 'Cancel change', '変更取消');
+      editBtn.setAttribute('aria-label', localizedText('닉네임 변경 취소', 'Cancel nickname change', 'ニックネーム変更を取り消す'));
+    } else {
+      if (icon) icon.className = 'fa-solid fa-pen';
+      label.textContent = localizedText('닉네임변경', 'Change nickname', 'ニックネーム変更');
+      editBtn.setAttribute('aria-label', localizedText('닉네임변경', 'Change nickname', 'ニックネーム変更'));
+    }
+  }
+}
+
+function handleProfileNicknameEditButton() {
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+
+  if (!profileManagerNicknameEditEnabled) {
+    profileManagerOriginalNickname = TravelogState.userProfile.nickname || '';
+    profileManagerVerifiedNickname = '';
+    setProfileNicknameEditMode(true, { restoreOriginal: false });
+    showProfileManagerFeedback(localizedText('닉네임을 수정한 뒤 중복확인을 눌러주세요.', 'Edit the nickname, then check availability.', 'ニックネームを編集してから重複確認を押してください。'), true);
+    window.setTimeout(() => {
+      if (nicknameInput) {
+        nicknameInput.focus();
+        nicknameInput.select?.();
+      }
+    }, 80);
+    return;
+  }
+
+  profileManagerVerifiedNickname = profileManagerOriginalNickname || '';
+  setProfileNicknameEditMode(false);
+  showProfileManagerFeedback(localizedText('닉네임 변경을 취소했습니다.', 'Nickname change cancelled.', 'ニックネーム変更を取り消しました。'), true);
+}
+
+async function verifyProfileManagerNicknameChange() {
+  const nicknameInput = document.getElementById('profile-manager-nickname-input');
+  if (!nicknameInput) return false;
+
+  if (!profileManagerNicknameEditEnabled) {
+    showProfileManagerFeedback(localizedText('닉네임변경 버튼을 먼저 눌러주세요.', 'Press Change nickname first.', '先にニックネーム変更を押してください。'), false);
+    return false;
+  }
+
+  const nickname = nicknameInput.value.trim();
+  const validation = validateNicknameValue(nickname);
+  if (!validation.ok) {
+    profileManagerVerifiedNickname = '';
+    showProfileManagerFeedback(validation.message, false);
+    return false;
+  }
+
+  if (nickname === profileManagerOriginalNickname) {
+    profileManagerVerifiedNickname = nickname;
+    showProfileManagerFeedback(localizedText('현재 사용 중인 닉네임입니다.', 'This is your current nickname.', '現在使用中のニックネームです。'), true);
+    return true;
+  }
+
+  if (window.TravelogSupabase && typeof window.TravelogSupabase.checkNicknameAvailability === 'function') {
+    try {
+      const result = await window.TravelogSupabase.checkNicknameAvailability(nickname, { requireSession: false });
+      if (result && result.available === false) {
+        profileManagerVerifiedNickname = '';
+        showProfileManagerFeedback(localizedText('이미 다른 유저가 사용 중인 닉네임입니다.', 'Another user is already using this nickname.', '他のユーザーがすでに使用しているニックネームです。'), false);
+        return false;
+      }
+    } catch (error) {
+      console.warn('[Travelog Supabase] Nickname availability check failed:', error);
+      showProfileManagerFeedback(localizedText('서버 중복확인에 실패했습니다. 잠시 후 다시 시도해 주세요.', 'Server nickname check failed. Please try again shortly.', 'サーバー重複確認に失敗しました。少し後でもう一度お試しください。'), false);
+      return false;
+    }
+  }
+
+  profileManagerVerifiedNickname = nickname;
+  showProfileManagerFeedback(localizedText('사용 가능한 닉네임입니다. 저장하기를 누르면 변경됩니다.', 'Nickname is available. Press Save to apply it.', '使用できるニックネームです。保存すると変更されます。'), true);
+  return true;
+}
+
 function bindProfileManagerEvents() {
   const widget = document.getElementById('user-profile-widget');
   if (widget) {
@@ -2704,6 +2807,8 @@ function bindProfileManagerEvents() {
   const resetBtn = document.getElementById('profile-manager-reset-btn');
   const logoutBtn = document.getElementById('profile-manager-logout-btn');
   const nicknameInput = document.getElementById('profile-manager-nickname-input');
+  const nicknameEditBtn = document.getElementById('profile-nickname-edit-btn');
+  const nicknameCheckBtn = document.getElementById('profile-nickname-check-btn');
 
   if (closeBtn) closeBtn.addEventListener('click', closeProfileManagerModal);
   if (cancelBtn) cancelBtn.addEventListener('click', closeProfileManagerModal);
@@ -2712,13 +2817,18 @@ function bindProfileManagerEvents() {
   if (saveBtn) saveBtn.addEventListener('click', saveProfileManagerChanges);
   if (resetBtn) resetBtn.addEventListener('click', resetProfileSetup);
   if (logoutBtn) logoutBtn.addEventListener('click', logoutCurrentProfile);
+  if (nicknameEditBtn) nicknameEditBtn.addEventListener('click', handleProfileNicknameEditButton);
+  if (nicknameCheckBtn) nicknameCheckBtn.addEventListener('click', verifyProfileManagerNicknameChange);
 
   if (nicknameInput) {
-    nicknameInput.addEventListener('input', hideProfileManagerFeedback);
+    nicknameInput.addEventListener('input', () => {
+      profileManagerVerifiedNickname = '';
+      hideProfileManagerFeedback();
+    });
     nicknameInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        saveProfileManagerChanges();
+        verifyProfileManagerNicknameChange();
       }
     });
   }
@@ -2774,19 +2884,19 @@ function openProfileManagerModal() {
     profileManagerDraft.avatarPresetId = presetMatch ? presetMatch[0] : 'sun';
   }
 
+  profileManagerOriginalNickname = profileManagerDraft.nickname || '';
+  profileManagerVerifiedNickname = profileManagerOriginalNickname;
+
   if (nicknameInput) {
-    nicknameInput.value = profileManagerDraft.nickname || '';
+    nicknameInput.value = profileManagerOriginalNickname;
   }
 
   hideProfileManagerFeedback();
   renderProfileSampleAvatars();
   updateProfileManagerPreview();
+  setProfileNicknameEditMode(false, { restoreOriginal: false });
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
-
-  window.setTimeout(() => {
-    if (nicknameInput) nicknameInput.focus();
-  }, 100);
 }
 
 function closeProfileManagerModal() {
@@ -2795,6 +2905,9 @@ function closeProfileManagerModal() {
   modal.classList.remove('active');
   modal.setAttribute('aria-hidden', 'true');
   profileManagerDraft = null;
+  profileManagerNicknameEditEnabled = false;
+  profileManagerOriginalNickname = '';
+  profileManagerVerifiedNickname = '';
 }
 
 function handleProfileManagerUpload(event) {
@@ -2821,24 +2934,33 @@ function handleProfileManagerUpload(event) {
     });
 }
 
-function saveProfileManagerChanges() {
+async function saveProfileManagerChanges() {
   if (!profileManagerDraft) return;
   const nicknameInput = document.getElementById('profile-manager-nickname-input');
-  const nickname = nicknameInput ? nicknameInput.value.trim() : '';
-  const validation = validateNicknameValue(nickname);
+  const nickname = nicknameInput ? nicknameInput.value.trim() : TravelogState.userProfile.nickname || '';
+  const originalNickname = profileManagerOriginalNickname || TravelogState.userProfile.nickname || '';
+  const nicknameChanged = nickname !== originalNickname;
 
-  if (!validation.ok) {
-    showProfileManagerFeedback(validation.message, false);
-    return;
+  if (profileManagerNicknameEditEnabled || nicknameChanged) {
+    const validation = validateNicknameValue(nickname);
+    if (!validation.ok) {
+      showProfileManagerFeedback(validation.message, false);
+      return;
+    }
+
+    if (profileManagerVerifiedNickname !== nickname) {
+      showProfileManagerFeedback(localizedText('닉네임 변경은 중복확인을 먼저 완료해야 저장됩니다.', 'Check nickname availability before saving a nickname change.', 'ニックネーム変更は重複確認後に保存できます。'), false);
+      return;
+    }
   }
 
   TravelogState.userProfile = {
     ...TravelogState.userProfile,
     ...profileManagerDraft,
-    nickname,
+    nickname: nicknameChanged ? nickname : originalNickname,
     isOnboarded: true
   };
-  verifiedNickname = nickname;
+  verifiedNickname = TravelogState.userProfile.nickname;
   saveProfile();
   renderUserProfileWidget();
   

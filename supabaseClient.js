@@ -338,6 +338,38 @@ const TravelogSupabase = (() => {
     return normalizeProfileRow(data);
   }
 
+  async function checkNicknameAvailability(nickname, options = {}) {
+    const supabase = getClient();
+    const cleanNickname = String(nickname || '').trim();
+    if (!cleanNickname) return { available: false, reason: 'EMPTY_NICKNAME' };
+    if (!supabase) return { available: true, reason: 'SUPABASE_UNAVAILABLE' };
+
+    let session = await getSession();
+    if (!session?.user && options.requireSession === true) {
+      session = await ensureSession(options);
+    }
+    const currentUserId = session?.user?.id || '';
+    const safeNickname = cleanNickname.replace(/[\%_]/g, '\\$&');
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .ilike('display_name', safeNickname)
+      .limit(10);
+    if (error) throw error;
+
+    const conflicts = (data || []).filter(row => {
+      const sameUser = currentUserId && row.id === currentUserId;
+      const sameName = String(row.display_name || '').trim().toLocaleLowerCase() === cleanNickname.toLocaleLowerCase();
+      return !sameUser && sameName;
+    });
+
+    return {
+      available: conflicts.length === 0,
+      conflicts: conflicts.map(normalizeProfileRow)
+    };
+  }
+
   function readOfflineStatusMap() {
     try {
       const raw = localStorage.getItem(OFFLINE_STATUS_KEY);
@@ -1211,6 +1243,7 @@ const TravelogSupabase = (() => {
     ensureSession,
     connectLoginProvider,
     syncProfile,
+    checkNicknameAvailability,
     fetchCurrentProfile,
     signOut,
     searchProfiles,

@@ -968,9 +968,18 @@
         </div>
 
         <div class="profile-manager-editor-panel">
-          <div class="profile-field-block">
-            <label data-localize="profile_nickname_label">닉네임</label>
-            <input type="text" id="profile-manager-nickname-input" data-localize-placeholder="nickname_placeholder" placeholder="예: 여행고래">
+          <div class="profile-field-block profile-nickname-field-block">
+            <div class="profile-field-label-row">
+              <label data-localize="profile_nickname_label">닉네임</label>
+              <button type="button" id="profile-nickname-edit-btn" class="btn-chip profile-nickname-edit-btn">
+                <i class="fa-solid fa-pen"></i>
+                <span>닉네임변경</span>
+              </button>
+            </div>
+            <div class="profile-nickname-edit-row">
+              <input type="text" id="profile-manager-nickname-input" data-localize-placeholder="nickname_placeholder" placeholder="예: 여행고래" readonly aria-readonly="true">
+              <button type="button" id="profile-nickname-check-btn" class="btn-rect secondary profile-nickname-check-btn" style="display:none;">중복확인</button>
+            </div>
             <div id="profile-manager-feedback" class="feedback-badge" style="display:none;"></div>
           </div>
 
@@ -1441,7 +1450,7 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1007" defer></script>
+  <script src="supabaseClient.js?v=1008" defer></script>
   <script src="map.js?v=1008" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
@@ -1449,6 +1458,6 @@
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1011" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1013" defer></script>
+  <script src="app.js?v=1014" defer></script>
 </body>
 </html>

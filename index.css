@@ -4684,3 +4684,53 @@ nav.bottom-nav {
     padding: 24px 18px !important;
   }
 }
+
+/* Profile nickname edit guard */
+.profile-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.profile-nickname-edit-btn {
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.profile-nickname-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-nickname-edit-row #profile-manager-nickname-input {
+  flex: 1;
+  min-width: 0;
+}
+#profile-manager-nickname-input[readonly] {
+  cursor: default;
+  background: rgba(245, 249, 250, 0.78);
+  color: var(--text-secondary);
+  border-style: dashed;
+}
+#profile-manager-nickname-input[readonly]:focus {
+  border-color: var(--glass-border);
+  box-shadow: none;
+}
+.profile-nickname-check-btn {
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .profile-nickname-edit-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .profile-nickname-check-btn {
+    width: 100%;
+  }
+}
