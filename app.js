@@ -1316,6 +1316,27 @@ function getVisibleMessages() {
     .filter(msg => msg && !hidden.has(String(msg.id)) && !hidden.has(String(msg.supabaseMessageId || '')));
 }
 
+function isMessageSenderRegisteredFriend(msg) {
+  if (!msg || !msg.senderId) return true;
+  const senderId = String(msg.senderId);
+  return (Array.isArray(TravelogState.friends) ? TravelogState.friends : []).some(friend => {
+    const friendProfileId = String(friend?.supabaseProfileId || friend?.id || '');
+    return friendProfileId === senderId;
+  });
+}
+
+function shouldShowMessageAddFriendButton(msg) {
+  return !!(
+    msg &&
+    msg.isRemote &&
+    !msg.isMine &&
+    msg.senderId &&
+    !isMessageSenderRegisteredFriend(msg) &&
+    window.TravelogSupabase &&
+    typeof window.TravelogSupabase.addFriend === 'function'
+  );
+}
+
 function renderMessageBoxMessages(container) {
   if (!container) return;
   const messages = getVisibleMessages();
@@ -1324,17 +1345,24 @@ function renderMessageBoxMessages(container) {
     return;
   }
 
-  container.innerHTML = messages.map(msg => `
-      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage('${escapeHtml(String(msg.id))}')">
+  container.innerHTML = messages.map(msg => {
+    const messageId = escapeHtml(String(msg.id));
+    const showAddFriend = shouldShowMessageAddFriendButton(msg);
+    return `
+      <div class="msg-item ${msg.unread ? 'unread' : ''}" onclick="window.readMessage('${messageId}')">
         <div class="msg-item-header">
           <div class="msg-item-meta">
             <span class="msg-item-sender">${escapeHtml(msg.sender)}</span>
             <span class="msg-item-date">${escapeHtml(msg.date || '')}</span>
           </div>
-          <button class="msg-delete-btn" type="button" onclick="event.stopPropagation(); window.deleteMessageFromInbox('${escapeHtml(String(msg.id))}')" aria-label="쪽지 삭제">삭제</button>
+          <div class="msg-action-group">
+            ${showAddFriend ? `<button class="msg-add-friend-btn" type="button" onclick="event.stopPropagation(); window.registerMessageSenderAsFriend('${messageId}')" aria-label="보낸 사람을 친구로 등록">친구로등록</button>` : ''}
+            <button class="msg-delete-btn" type="button" onclick="event.stopPropagation(); window.deleteMessageFromInbox('${messageId}')" aria-label="쪽지 삭제">삭제</button>
+          </div>
         </div>
         <p class="msg-item-body">${escapeHtml(msg.body)}</p>
-      </div>`).join('');
+      </div>`;
+  }).join('');
 }
 
 async function openMessageBox() {
@@ -1373,6 +1401,32 @@ window.readMessage = async function(id) {
     saveHomePersistentState();
     renderHomeTab();
     renderMessageBoxMessages(document.getElementById('msg-list-container'));
+  }
+};
+
+window.registerMessageSenderAsFriend = async function(id) {
+  const msg = TravelogState.messages.find(m => String(m.id) === String(id));
+  if (!msg || !msg.senderId || msg.isMine) return;
+
+  if (isMessageSenderRegisteredFriend(msg)) {
+    showToast(localizedText('이미 친구로 등록되어 있습니다.', 'Already registered as a friend.', 'すでに友だち登録されています。'));
+    renderMessageBoxMessages(document.getElementById('msg-list-container'));
+    return;
+  }
+
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.addFriend !== 'function') {
+    showToast(localizedText('Supabase 친구 등록 기능을 사용할 수 없습니다.', 'Supabase friend registration is not available.', 'Supabase友だち登録機能を使用できません。'));
+    return;
+  }
+
+  try {
+    await window.TravelogSupabase.addFriend(msg.senderId, { interactiveLogin: true });
+    await syncSupabaseFriends({ requireSession: true, interactiveLogin: true });
+    renderMessageBoxMessages(document.getElementById('msg-list-container'));
+    showToast(localizedText(`${msg.sender}님을 친구로 등록했습니다.`, `Added ${msg.sender} as a friend.`, `${msg.sender}さんを友だち登録しました。`));
+  } catch (error) {
+    console.error('[Travelog Supabase] Message sender friend add failed:', error);
+    showToast(localizedText(`친구 등록에 실패했습니다: ${error.message || error}`, `Failed to add friend: ${error.message || error}`, `友だち登録に失敗しました: ${error.message || error}`));
   }
 };
 

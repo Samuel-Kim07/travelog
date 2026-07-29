@@ -4118,6 +4118,8 @@ nav.bottom-nav {
 .msg-item-header {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-secondary, #94a3b8);
   margin-bottom: 4px;
@@ -4144,7 +4146,16 @@ nav.bottom-nav {
   min-width: 0;
 }
 
-.msg-delete-btn {
+.msg-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.msg-delete-btn,
+.msg-add-friend-btn {
   border: 1px solid rgba(53, 23, 87, 0.2);
   background: rgba(255, 255, 255, 0.72);
   color: #351757;
@@ -4156,8 +4167,31 @@ nav.bottom-nav {
   flex-shrink: 0;
 }
 
-.msg-delete-btn:hover {
+.msg-add-friend-btn {
   background: rgba(53, 23, 87, 0.1);
+  border-color: rgba(53, 23, 87, 0.28);
+}
+
+.msg-delete-btn:hover,
+.msg-add-friend-btn:hover {
+  background: rgba(53, 23, 87, 0.16);
+}
+
+@media (max-width: 480px) {
+  .msg-item-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .msg-action-group {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .msg-delete-btn,
+  .msg-add-friend-btn {
+    min-height: 30px;
+  }
 }
 
 .ad-progress-bar-container {
