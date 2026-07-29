@@ -942,7 +942,7 @@
         <div>
           <span class="step-pill" data-localize="profile_manage_badge">프로필 관리</span>
           <h2 id="profile-manager-title" class="gradient-text" data-localize="profile_manage_title">내 프로필 관리</h2>
-          <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요.</p>
+          <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요. Supabase 계정 전환이 필요하면 로그아웃하세요.</p>
         </div>
         <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
           <i class="fa-solid fa-xmark"></i>
@@ -994,10 +994,16 @@
       </div>
 
       <div class="profile-manager-actions">
-        <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
-          <i class="fa-solid fa-rotate-left"></i>
-          <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
-        </button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
+          </button>
+          <button id="profile-manager-logout-btn" class="btn-rect secondary profile-logout-btn" type="button" style="color:var(--accent-pink);">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <span>로그아웃</span>
+          </button>
+        </div>
         <div class="profile-action-right">
           <button id="profile-manager-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
           <button id="profile-manager-save-btn" class="btn-rect" type="button">
@@ -1017,7 +1023,7 @@
         <div>
           <span class="step-pill" data-localize="msg_badge">쪽지함</span>
           <h2 class="gradient-text" data-localize="msg_title">받은 쪽지함</h2>
-          <p data-localize="msg_desc">로컬 가이드와 시스템에서 보낸 소식입니다.</p>
+          <p data-localize="msg_desc">Supabase 친구와 시스템에서 보낸 쪽지를 확인합니다.</p>
         </div>
         <button id="msg-box-close-btn" class="btn-circle profile-close-btn" aria-label="Close message box">
           <i class="fa-solid fa-xmark"></i>
@@ -1316,14 +1322,15 @@
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;">
         <div>
           <h2 class="gradient-text" style="font-size:20px; margin:0 0 4px 0;">친구 편집</h2>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">친구를 추가하거나 삭제하고 쪽지를 보낼 수 있습니다.</p>
+          <p style="font-size:12px; color:var(--text-secondary); margin:0;">Supabase 프로필 닉네임으로 친구를 찾고 등록한 뒤 쪽지를 보낼 수 있습니다.</p>
         </div>
         <button class="btn-circle" id="friend-edit-close-btn" type="button" style="width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
-        <input type="text" id="friend-name-input" placeholder="친구 닉네임 입력" style="flex:1; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:10px 12px; border-radius:12px; font-size:13px;">
-        <button class="btn-rect" id="friend-add-btn" type="button" style="padding:10px 14px; font-size:13px;"><i class="fa-solid fa-plus"></i> 추가</button>
+        <input type="text" id="friend-name-input" placeholder="친구 닉네임 검색" style="flex:1; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:10px 12px; border-radius:12px; font-size:13px;">
+        <button class="btn-rect" id="friend-add-btn" type="button" style="padding:10px 14px; font-size:13px;"><i class="fa-solid fa-magnifying-glass"></i> 찾기</button>
       </div>
+      <div id="friend-search-results" style="display:none; flex-direction:column; gap:8px; margin-bottom:12px; border:1px solid rgba(112,162,183,.25); border-radius:14px; padding:10px; background:rgba(112,162,183,.08);"></div>
       <div id="friend-edit-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; border-top:1px solid var(--glass-border); padding-top:12px;"></div>
     </div>
   </div>
@@ -1434,7 +1441,7 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1005" defer></script>
+  <script src="supabaseClient.js?v=1006" defer></script>
   <script src="map.js?v=1008" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1003" defer></script>
@@ -1442,6 +1449,6 @@
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1011" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1010" defer></script>
+  <script src="app.js?v=1012" defer></script>
 </body>
 </html>

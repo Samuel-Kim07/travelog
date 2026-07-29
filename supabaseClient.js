@@ -936,6 +936,214 @@ const TravelogSupabase = (() => {
     return buildOfflineCardFromPackage(packageRecord);
   }
 
+
+  async function getCurrentUserId(options = {}) {
+    const session = options.requireSession
+      ? await ensureSession({ displayName: options.displayName || window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User', interactiveLogin: options.interactiveLogin === true })
+      : await getSession();
+    return session?.user?.id || '';
+  }
+
+  function normalizeFriendProfile(profile, friendship = null) {
+    if (!profile?.id) return null;
+    return {
+      id: profile.id,
+      supabaseProfileId: profile.id,
+      friendshipId: friendship?.id || '',
+      name: profile.display_name || 'Travelog User',
+      memo: 'Supabase 친구',
+      avatarUrl: profile.avatar_url || '',
+      isSupabaseFriend: true,
+      createdAt: friendship?.created_at || profile.created_at || new Date().toISOString()
+    };
+  }
+
+  async function fetchFriends(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+
+    const { data: rows, error } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .eq('user_id', userId)
+      .neq('status', 'blocked')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const friendIds = [...new Set((rows || []).map(row => row.friend_id).filter(Boolean))];
+    if (friendIds.length === 0) return [];
+
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, created_at')
+      .in('id', friendIds);
+    if (profileError) throw profileError;
+
+    const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
+    return (rows || [])
+      .map(row => normalizeFriendProfile(profileMap.get(row.friend_id), row))
+      .filter(Boolean);
+  }
+
+  async function searchProfiles(query, options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+    const cleanQuery = String(query || '').trim();
+    if (cleanQuery.length < 2) return [];
+    const safeQuery = cleanQuery.replace(/[\\%_]/g, '\\$&');
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, created_at')
+      .ilike('display_name', `%${safeQuery}%`)
+      .neq('id', userId)
+      .limit(10);
+    if (error) throw error;
+
+    const friends = await fetchFriends({ requireSession: false });
+    const friendIdSet = new Set(friends.map(friend => friend.supabaseProfileId || friend.id));
+    return (data || [])
+      .filter(profile => !friendIdSet.has(profile.id))
+      .map(profile => ({
+        id: profile.id,
+        supabaseProfileId: profile.id,
+        name: profile.display_name || 'Travelog User',
+        avatarUrl: profile.avatar_url || '',
+        memo: 'Supabase 유저',
+        createdAt: profile.created_at || ''
+      }));
+  }
+
+  async function addFriend(profileId, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    if (!profileId || profileId === userId) throw new Error('INVALID_FRIEND_ID');
+
+    const { data, error } = await supabase
+      .from('friendships')
+      .upsert({
+        user_id: userId,
+        friend_id: profileId,
+        status: 'accepted'
+      }, { onConflict: 'user_id,friend_id' })
+      .select('id, user_id, friend_id, status, created_at')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function deleteFriend(profileId, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .eq('user_id', userId)
+      .eq('friend_id', profileId);
+    if (error) throw error;
+    return true;
+  }
+
+  async function sendMessage(receiverId, body, guideId = null, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const cleanBody = String(body || '').trim();
+    if (!receiverId || !cleanBody) throw new Error('MESSAGE_TARGET_AND_BODY_REQUIRED');
+
+    const payload = {
+      sender_id: userId,
+      receiver_id: receiverId,
+      body: cleanBody
+    };
+    if (guideId) payload.guide_id = guideId;
+
+    const { data, error } = await supabase
+      .from('messages')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function fetchMessages(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+
+    const { data: rows, error } = await supabase
+      .from('messages')
+      .select('id, sender_id, receiver_id, guide_id, body, is_read, created_at')
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .limit(80);
+    if (error) throw error;
+
+    const profileIds = [...new Set((rows || []).flatMap(row => [row.sender_id, row.receiver_id]).filter(Boolean))];
+    let profileMap = new Map();
+    if (profileIds.length > 0) {
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, display_name, avatar_url')
+        .in('id', profileIds);
+      if (profileError) throw profileError;
+      profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
+    }
+
+    return (rows || []).map(row => {
+      const isMine = row.sender_id === userId;
+      const senderProfile = profileMap.get(row.sender_id);
+      const receiverProfile = profileMap.get(row.receiver_id);
+      const senderName = senderProfile?.display_name || 'Travelog User';
+      const receiverName = receiverProfile?.display_name || 'Travelog User';
+      return {
+        id: row.id,
+        supabaseMessageId: row.id,
+        senderId: row.sender_id,
+        receiverId: row.receiver_id,
+        sender: isMine ? `나 → ${receiverName}` : senderName,
+        date: String(row.created_at || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
+        body: row.body || '',
+        unread: !isMine && row.is_read !== true,
+        isRemote: true,
+        guideId: row.guide_id || null
+      };
+    });
+  }
+
+  async function markMessageRead(messageId) {
+    const supabase = getClient();
+    if (!supabase || !messageId) return false;
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('id', messageId);
+    if (error) {
+      console.warn('[Travelog Supabase] markMessageRead failed:', error);
+      return false;
+    }
+    return true;
+  }
+
+  async function signOut() {
+    const supabase = getClient();
+    if (!supabase) return true;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return true;
+  }
+
   return {
     init,
     getClient,
@@ -943,6 +1151,14 @@ const TravelogSupabase = (() => {
     ensureSession,
     connectLoginProvider,
     syncProfile,
+    signOut,
+    searchProfiles,
+    fetchFriends,
+    addFriend,
+    deleteFriend,
+    sendMessage,
+    fetchMessages,
+    markMessageRead,
     publishGuidePackage,
     fetchPublishedGuideCards,
     purchaseGuide,
