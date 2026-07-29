@@ -156,7 +156,10 @@ const TravelogSupabase = (() => {
       throw err;
     }
 
-    await syncProfile({ nickname: displayName });
+    const remoteProfile = await fetchCurrentProfile({ requireSession: false });
+    if (!hasSavedRemoteProfile(remoteProfile)) {
+      await syncProfile({ nickname: displayName });
+    }
     toast(t('Supabase 테스트 계정으로 로그인했습니다. 다시 출간을 진행합니다.', 'Signed in with the Supabase test account. Continuing publishing.', 'Supabaseテストアカウントでログインしました。公開を続行します。'));
     return session;
   }
@@ -234,18 +237,75 @@ const TravelogSupabase = (() => {
       const password = window.prompt(t('Supabase 테스트 계정 비밀번호를 입력해 주세요.', 'Enter the Supabase test account password.', 'Supabaseテストアカウントのパスワードを入力してください。'));
       if (!password) return { mode: 'local-only', user: null };
       const session = await ensureEmailSession(email, password, displayName, { allowSignUp: false });
-      await syncProfile({ ...profile, nickname: displayName });
-      return { mode: 'email', user: session?.user || null };
+      const remoteProfile = await fetchCurrentProfile({ requireSession: false });
+      if (hasSavedRemoteProfile(remoteProfile)) {
+        return { mode: 'email', user: session?.user || null, profile: remoteProfile, hasRemoteProfile: true };
+      }
+      const syncedProfile = await syncProfile({ ...profile, nickname: displayName });
+      return { mode: 'email', user: session?.user || null, profile: syncedProfile, hasRemoteProfile: false };
     }
 
     try {
       const session = await ensureSession({ displayName, interactiveLogin: false });
-      await syncProfile({ ...profile, nickname: displayName });
-      return { mode: 'anonymous', user: session?.user || null };
+      const remoteProfile = await fetchCurrentProfile({ requireSession: false });
+      if (hasSavedRemoteProfile(remoteProfile)) {
+        return { mode: 'anonymous', user: session?.user || null, profile: remoteProfile, hasRemoteProfile: true };
+      }
+      const syncedProfile = await syncProfile({ ...profile, nickname: displayName });
+      return { mode: 'anonymous', user: session?.user || null, profile: syncedProfile, hasRemoteProfile: false };
     } catch (error) {
       console.warn('[Travelog Supabase] Provider login fallback to local-only:', error);
       return { mode: 'local-only', user: null, error };
     }
+  }
+
+  function normalizeProfileRow(row) {
+    if (!row) return null;
+    const displayName = row.display_name || row.displayName || row.name || 'Travelog User';
+    return {
+      id: row.id,
+      supabaseProfileId: row.id,
+      display_name: displayName,
+      displayName,
+      name: displayName,
+      avatar_url: row.avatar_url || row.avatarUrl || '',
+      avatarUrl: row.avatar_url || row.avatarUrl || '',
+      coin_balance: typeof row.coin_balance === 'number' ? row.coin_balance : row.coinBalance,
+      coinBalance: typeof row.coin_balance === 'number' ? row.coin_balance : row.coinBalance,
+      created_at: row.created_at || row.createdAt || '',
+      updated_at: row.updated_at || row.updatedAt || ''
+    };
+  }
+
+  function hasSavedRemoteProfile(row) {
+    const profile = normalizeProfileRow(row);
+    const name = String(profile?.displayName || '').trim();
+    return !!name;
+  }
+
+  async function fetchCurrentProfile(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return null;
+
+    let session = await getSession();
+    if (!session?.user && options.requireSession === true) {
+      session = await ensureSession(options);
+    }
+    const user = session?.user;
+    if (!user?.id) return null;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, coin_balance, created_at, updated_at')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (error) throw error;
+
+    return normalizeProfileRow(data || {
+      id: user.id,
+      display_name: user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Travelog User',
+      avatar_url: user.user_metadata?.avatar_url || ''
+    });
   }
 
   async function syncProfile(profile = {}) {
@@ -275,7 +335,7 @@ const TravelogSupabase = (() => {
       console.warn('[Travelog Supabase] Profile sync failed:', error);
       return null;
     }
-    return data;
+    return normalizeProfileRow(data);
   }
 
   function readOfflineStatusMap() {
@@ -1151,6 +1211,7 @@ const TravelogSupabase = (() => {
     ensureSession,
     connectLoginProvider,
     syncProfile,
+    fetchCurrentProfile,
     signOut,
     searchProfiles,
     fetchFriends,

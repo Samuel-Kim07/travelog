@@ -395,6 +395,10 @@ async function initSupabaseRuntime() {
   if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchPublishedGuideCards !== 'function') return;
   try {
     window.TravelogSupabase.init?.();
+    if (!TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.fetchCurrentProfile === 'function') {
+      await restoreSupabaseProfileFromExistingSession();
+    }
+
     if (TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.syncProfile === 'function') {
       window.TravelogSupabase.syncProfile(TravelogState.userProfile).catch(error => {
         console.warn('[Travelog Supabase] Profile sync skipped:', error);
@@ -2076,6 +2080,9 @@ function initOnboarding() {
     hideOnboardingOverlay(true);
   } else {
     showOnboardingScreen('login');
+    restoreSupabaseProfileFromExistingSession().catch(error => {
+      console.warn('[Travelog Supabase] Existing profile restore skipped:', error);
+    });
   }
 }
 
@@ -2100,6 +2107,21 @@ async function safelyGoToProfileStep(provider) {
       const authResult = await window.TravelogSupabase.connectLoginProvider(authProvider, TravelogState.userProfile);
       TravelogState.userProfile.supabaseAuthMode = authResult?.mode || 'local-only';
       TravelogState.userProfile.supabaseUserId = authResult?.user?.id || TravelogState.userProfile.supabaseUserId || '';
+
+      if (authResult?.hasRemoteProfile && authResult?.profile) {
+        await applySupabaseProfileToLocal(authResult.profile, {
+          authProvider,
+          authMode: authResult.mode || 'email',
+          userId: authResult.user?.id || authResult.profile.id || ''
+        });
+        hideOnboardingOverlay(false);
+        showToast(localizedText(
+          `${TravelogState.userProfile.nickname}님의 기존 프로필을 불러왔습니다.`,
+          `Loaded ${TravelogState.userProfile.nickname}'s saved profile.`,
+          `${TravelogState.userProfile.nickname}さんの保存済みプロフィールを読み込みました。`
+        ));
+        return;
+      }
     } catch (error) {
       console.warn('[Travelog Supabase] Onboarding auth failed; continuing locally.', error);
       TravelogState.userProfile.supabaseAuthMode = 'local-only';
@@ -2842,6 +2864,84 @@ function buildDefaultUserProfile() {
     supabaseAuthMode: 'signed-out',
     supabaseUserId: ''
   };
+}
+
+function getSupabaseProfileName(remoteProfile) {
+  return String(
+    remoteProfile?.display_name ||
+    remoteProfile?.displayName ||
+    remoteProfile?.name ||
+    ''
+  ).trim();
+}
+
+async function applySupabaseProfileToLocal(remoteProfile, options = {}) {
+  const nickname = getSupabaseProfileName(remoteProfile);
+  if (!nickname) return false;
+
+  const storageStatus = getDeviceStorageStatusSnapshot();
+  const avatarUrl = remoteProfile?.avatar_url || remoteProfile?.avatarUrl || '';
+
+  TravelogState.userProfile = {
+    ...buildDefaultUserProfile(),
+    ...TravelogState.userProfile,
+    isOnboarded: true,
+    authProvider: options.authProvider || TravelogState.userProfile.authProvider || 'Email',
+    nickname,
+    avatarType: avatarUrl ? 'image' : (TravelogState.userProfile.avatarType || 'emoji'),
+    avatarValue: avatarUrl || TravelogState.userProfile.avatarValue || '☀️',
+    avatarPresetId: avatarUrl ? null : (TravelogState.userProfile.avatarPresetId || 'sun'),
+    storagePermissionGranted: storageStatus?.configured ? true : !!TravelogState.userProfile.storagePermissionGranted,
+    storageMode: storageStatus?.mode || TravelogState.userProfile.storageMode || 'browser',
+    storageFolderName: storageStatus?.selectedFolderName || storageStatus?.dataFolderName || TravelogState.userProfile.storageFolderName || '',
+    supabaseAuthMode: options.authMode || TravelogState.userProfile.supabaseAuthMode || 'email',
+    supabaseUserId: options.userId || remoteProfile?.id || remoteProfile?.supabaseProfileId || TravelogState.userProfile.supabaseUserId || ''
+  };
+
+  if (typeof remoteProfile?.coinBalance === 'number') {
+    TravelogState.coins = remoteProfile.coinBalance;
+  } else if (typeof remoteProfile?.coin_balance === 'number') {
+    TravelogState.coins = remoteProfile.coin_balance;
+  }
+
+  verifiedNickname = nickname;
+  saveProfile();
+  saveHomePersistentState();
+  renderUserProfileWidget();
+  renderHomeTab();
+  updatePointsDisplay();
+
+  if (typeof refreshSupabaseSocialData === 'function') {
+    refreshSupabaseSocialData({ requireSession: false }).catch(error => {
+      console.warn('[Travelog Supabase] Social data refresh after profile restore skipped:', error);
+    });
+  }
+
+  return true;
+}
+
+async function restoreSupabaseProfileFromExistingSession() {
+  if (TravelogState.userProfile?.isOnboarded) return false;
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchCurrentProfile !== 'function') return false;
+
+  window.TravelogSupabase.init?.();
+  const remoteProfile = await window.TravelogSupabase.fetchCurrentProfile({ requireSession: false });
+  if (!getSupabaseProfileName(remoteProfile)) return false;
+
+  const restored = await applySupabaseProfileToLocal(remoteProfile, {
+    authProvider: TravelogState.userProfile.authProvider || 'Email',
+    authMode: TravelogState.userProfile.supabaseAuthMode || 'email',
+    userId: remoteProfile.id || remoteProfile.supabaseProfileId || ''
+  });
+  if (restored) {
+    hideOnboardingOverlay(false);
+    showToast(localizedText(
+      `${TravelogState.userProfile.nickname}님의 기존 프로필로 자동 로그인했습니다.`,
+      `Signed in with ${TravelogState.userProfile.nickname}'s saved profile.`,
+      `${TravelogState.userProfile.nickname}さんの保存済みプロフィールでログインしました。`
+    ));
+  }
+  return restored;
 }
 
 async function logoutCurrentProfile() {
