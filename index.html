@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1012">
+  <link rel="stylesheet" href="index.css?v=1013">
 </head>
 <body>
 
@@ -688,21 +688,12 @@
               <p id="publish-ready-hint" style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0 0; line-height: 1.45;">핀을 1개 이상 추가한 뒤 저장하기를 눌러야 출간할 수 있습니다.</p>
             </div>
 
-            <!-- Saved My Guides Panel -->
+            <!-- My Guides Panel -->
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-box-archive" style="color: var(--color-ocean);"></i> 저장된 나의 가이드</h3>
-              <p style="font-size: 13px; margin-bottom: 14px;">디바이스에 저장한 제작 가이드를 확인하고 다시 불러와 수정할 수 있습니다.</p>
-              <div id="saved-guide-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
-                <div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 저장된 가이드가 없습니다.</div>
-              </div>
-            </div>
-
-            <!-- Published My Guides Panel -->
-            <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-bookmark" style="color: var(--accent-green);"></i> 출간된 나의 가이드</h3>
-              <p style="font-size: 13px; margin-bottom: 14px;">출간 완료된 가이드를 확인하고 수정하거나 삭제할 수 있습니다.</p>
-              <div id="published-guide-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
-                <div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 출간된 가이드가 없습니다.</div>
+              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-box-archive" style="color: var(--color-ocean);"></i> 나의 가이드</h3>
+              <p style="font-size: 13px; margin-bottom: 14px;">제작한 가이드를 출간/미출간 상태로 확인하고 다시 불러와 수정할 수 있습니다.</p>
+              <div id="saved-guide-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto;">
+                <div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 등록된 가이드가 없습니다.</div>
               </div>
             </div>
 
@@ -1456,7 +1447,7 @@
   <script src="rewards.js?v=1003" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1006" defer></script>
-  <script src="creator.js?v=1011" defer></script>
+  <script src="creator.js?v=1012" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="app.js?v=1015" defer></script>
 </body>

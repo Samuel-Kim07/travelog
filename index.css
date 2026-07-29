@@ -4760,3 +4760,139 @@ nav.bottom-nav {
     width: 100%;
   }
 }
+
+/* Travelog update: voice memo popup enlarged to match the video memo popup touch size */
+#voice-memo-modal.profile-manager-modal {
+  padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+}
+
+.voice-memo-recorder-card {
+  width: min(400px, calc(100vw - 28px));
+  max-height: 92vh;
+  overflow-y: auto;
+  border-radius: 18px;
+}
+
+.voice-memo-close-x {
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #373737;
+  font-size: 22px;
+  line-height: 30px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.voice-memo-recorder-title {
+  margin: 28px 52px 14px;
+  font-size: 18px;
+  gap: 8px;
+}
+
+.voice-memo-recorder-title i {
+  font-size: 20px;
+}
+
+.voice-memo-title-field {
+  width: calc(100% - 60px);
+  max-width: 320px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 40px;
+  margin-bottom: 16px;
+}
+
+.voice-memo-cassette-frame {
+  width: calc(100% - 60px);
+  max-width: 320px;
+  height: 160px;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.voice-memo-cassette-screen {
+  width: 100%;
+  height: 128px;
+  border-radius: 14px;
+}
+
+.voice-memo-tape-wheels {
+  gap: 58px;
+  transform: translateY(-8px);
+}
+
+.voice-memo-tape-wheel {
+  width: 54px;
+  height: 54px;
+  border-width: 5px;
+}
+
+.voice-memo-timer {
+  bottom: 18px;
+  font-size: 20px;
+}
+
+.voice-memo-status-text {
+  min-height: 20px;
+  margin: 0 24px 14px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.voice-memo-control-strip {
+  height: 84px;
+  gap: 14px;
+}
+
+.voice-memo-control-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+}
+
+.voice-memo-record-btn,
+.voice-memo-record-btn:disabled {
+  width: 66px;
+  height: 66px;
+  border-radius: 18px;
+}
+
+.voice-memo-record-btn i {
+  font-size: 23px;
+}
+
+.voice-memo-stop-btn i,
+.voice-memo-play-btn i {
+  font-size: 20px;
+}
+
+.voice-memo-action-row {
+  padding: 16px 30px 22px;
+  gap: 12px;
+}
+
+.voice-memo-action-btn {
+  height: 44px;
+  font-size: 14px;
+}
+
+@media (max-width: 380px) {
+  .voice-memo-recorder-card {
+    width: calc(100vw - 20px);
+  }
+
+  .voice-memo-title-field,
+  .voice-memo-cassette-frame {
+    width: calc(100% - 38px);
+  }
+
+  .voice-memo-tape-wheels {
+    gap: 38px;
+  }
+}

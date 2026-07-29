@@ -1597,7 +1597,7 @@ const TravelogCreatorModule = (() => {
     storeSavedGuideRecord(packageData, localSaveInfo, 'unpublished');
     showPublishReadyModal(packageData, localSaveInfo);
     updateFinalPublishButtonState();
-    window.TravelogApp.showToast(t('디바이스 저장이 완료되었습니다. 저장된 나의 가이드에 등록되었고 이제 최종 출간하기를 누를 수 있습니다.', 'Saved to device and added to Saved Guides. You can now publish.', '端末保存が完了し、保存済みガイドに登録されました。公開できます。'));
+    window.TravelogApp.showToast(t('디바이스 저장이 완료되었습니다. 나의 가이드에 등록되었고 이제 최종 출간하기를 누를 수 있습니다.', 'Saved to device and added to My Guides. You can now publish.', '端末保存が完了し、マイガイドに登録されました。公開できます。'));
   }
 
   function ensureDeviceStorageRetryModal() {
@@ -2197,7 +2197,7 @@ const TravelogCreatorModule = (() => {
     const records = getSavedGuideRecords();
 
     if (records.length === 0) {
-      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 저장된 가이드가 없습니다.</div>';
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 등록된 가이드가 없습니다.</div>';
       return;
     }
 
@@ -2213,12 +2213,15 @@ const TravelogCreatorModule = (() => {
       const storageText = record.localSaveInfo?.mode === 'internal'
         ? '내부 저장소'
         : (record.localSaveInfo?.selectedFolderName || '디바이스 저장');
+      const shareButton = record.status === 'published'
+        ? `<button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.openPublishedGuideShare('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px; color: var(--color-ocean);"><i class="fa-solid fa-share-nodes"></i> 공유</button>`
+        : '';
       return `
         <div class="saved-guide-row" style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.58); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px;">
           <div style="width: 54px; height: 42px; flex-shrink: 0; border-radius: 10px; background: linear-gradient(135deg, rgba(112,162,183,0.22), rgba(175,212,153,0.22)); background-size: cover; background-position: center; ${imageStyle}"></div>
           <div style="flex: 1; min-width: 0;">
             <div style="display:flex; align-items:center; gap:6px; min-width:0;">
-              <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(record.tourName || '저장된 가이드')}</span>
+              <span style="font-size: 13px; font-weight: 800; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(record.tourName || '나의 가이드')}</span>
               <span style="flex-shrink:0; font-size:10px; font-weight:800; color:#fff; background:${statusColor}; border-radius:999px; padding:2px 7px;">${statusKo}</span>
             </div>
             <div style="font-size: 11px; color: var(--text-secondary);">핀 ${record.pinCount || 0} · 메모 ${record.memoCount || 0} · 쿠폰 ${record.couponCount || 0} · ${priceText}</div>
@@ -2226,6 +2229,7 @@ const TravelogCreatorModule = (() => {
           </div>
           <div style="display: flex; flex-direction: column; gap: 5px;">
             <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.openSavedGuideEditor('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px;">수정</button>
+            ${shareButton}
             <button type="button" class="btn-rect secondary" onclick="TravelogCreatorModule.deleteSavedGuide('${record.id}')" style="padding: 5px 10px; font-size: 11px; border-radius: 10px; color: var(--accent-pink);">삭제</button>
           </div>
         </div>
@@ -2331,10 +2335,23 @@ const TravelogCreatorModule = (() => {
   }
 
   function deleteSavedGuide(id) {
+    const targetRecord = getSavedGuideById(id);
     const records = getSavedGuideRecords().filter(record => String(record.id) !== String(id));
     saveSavedGuideRecords(records);
+
+    if (targetRecord?.status === 'published') {
+      const publishedRecords = getPublishedGuideRecords().filter(record => String(record.id) !== String(id));
+      savePublishedGuideRecords(publishedRecords);
+      if (window.TravelogApp && typeof window.TravelogApp.removePublishedGuide === 'function') {
+        window.TravelogApp.removePublishedGuide(id);
+      }
+      renderPublishedGuidesList();
+    }
+
     renderSavedGuidesList();
-    window.TravelogApp?.showToast?.(t('저장된 가이드를 삭제했습니다.', 'Saved guide deleted.', '保存済みガイドを削除しました。'));
+    window.TravelogApp?.showToast?.(targetRecord?.status === 'published'
+      ? t('출간된 가이드를 나의 가이드에서 삭제했습니다.', 'Published guide deleted from My Guides.', '公開済みガイドをマイガイドから削除しました。')
+      : t('나의 가이드를 삭제했습니다.', 'My guide deleted.', 'マイガイドを削除しました。'));
   }
 
   function getPublishedGuideRecords() {
