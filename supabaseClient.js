@@ -94,19 +94,71 @@ const TravelogSupabase = (() => {
     return credentials;
   }
 
-  async function ensureEmailSession(email, password, displayName = 'Travelog User') {
-    const signedIn = await signInOrSignUpWithEmail(email, password, displayName);
+  async function ensureEmailSession(email, password, displayName = 'Travelog User', options = {}) {
+    const signedIn = await signInOrSignUpWithEmail(email, password, displayName, options);
     const session = await getSession();
     if (session?.user) return session;
     if (signedIn?.session?.user) return signedIn.session;
 
     const err = new Error('SUPABASE_EMAIL_SESSION_REQUIRED');
     err.detail = t(
-      '이메일 인증 확인이 켜져 있으면 자동 테스트 계정은 세션을 만들 수 없습니다. Supabase Email 설정에서 이메일 확인을 끄거나 앱의 이메일 로그인으로 실제 계정을 먼저 로그인해 주세요.',
-      'If email confirmation is enabled, the auto test account cannot create a session. Disable email confirmation or sign in with a real email account first.',
-      'メール認証が有効な場合、自動テストアカウントはセッションを作成できません。メール確認を無効にするか、実メールで先にログインしてください。'
+      '이메일 인증 확인이 켜져 있으면 세션을 만들 수 없습니다. Supabase Auth > Users에서 테스트 유저를 Auto Confirm으로 만들고 다시 로그인해 주세요.',
+      'If email confirmation is enabled, a session cannot be created. Create an Auto Confirmed test user in Supabase Auth > Users and sign in again.',
+      'メール認証が有効な場合、セッションを作成できません。Supabase Auth > UsersでAuto Confirm済みのテストユーザーを作成して再ログインしてください。'
     );
     throw err;
+  }
+
+  async function promptExistingEmailSession(displayName = 'Travelog User') {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+
+    const email = window.prompt(t(
+      'Supabase 출간에는 서버 로그인 세션이 필요합니다.\n\n이메일 rate limit 방지를 위해 자동 이메일 가입은 중단했습니다.\nSupabase Dashboard > Authentication > Users > Add user에서 만든 테스트 계정 이메일을 입력해 주세요.',
+      'Publishing to Supabase requires a server login session.\n\nAutomatic email signup has been disabled to avoid email rate limits.\nEnter the test account email you created in Supabase Dashboard > Authentication > Users > Add user.',
+      'Supabase公開にはサーバーログインセッションが必要です。\n\nメールrate limit回避のため自動メール登録は停止しました。\nSupabase Dashboard > Authentication > Users > Add userで作成したテストアカウントのメールを入力してください。'
+    ));
+    if (!email) {
+      const err = new Error('SUPABASE_LOGIN_CANCELLED');
+      err.detail = t('Supabase 로그인 입력이 취소되어 출간을 중단했습니다.', 'Supabase login was cancelled, so publishing was stopped.', 'Supabaseログインがキャンセルされたため公開を停止しました。');
+      throw err;
+    }
+
+    const password = window.prompt(t(
+      'Supabase 테스트 계정 비밀번호를 입력해 주세요.',
+      'Enter the Supabase test account password.',
+      'Supabaseテストアカウントのパスワードを入力してください。'
+    ));
+    if (!password) {
+      const err = new Error('SUPABASE_LOGIN_CANCELLED');
+      err.detail = t('Supabase 비밀번호 입력이 취소되어 출간을 중단했습니다.', 'Supabase password entry was cancelled, so publishing was stopped.', 'Supabaseパスワード入力がキャンセルされたため公開を停止しました。');
+      throw err;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: String(email).trim(),
+      password: String(password).trim()
+    });
+    if (error) {
+      const err = new Error('SUPABASE_EMAIL_LOGIN_FAILED');
+      err.detail = t(
+        `Supabase 테스트 계정 로그인에 실패했습니다: ${error.message}\n\n자동 가입은 email rate limit 때문에 실행하지 않습니다. Auth > Users에서 테스트 계정을 Auto Confirm으로 만든 뒤 다시 시도해 주세요.`,
+        `Supabase test account sign-in failed: ${error.message}\n\nAutomatic signup is not run because of email rate limits. Create an Auto Confirmed test account in Auth > Users and try again.`,
+        `Supabaseテストアカウントのログインに失敗しました: ${error.message}\n\nemail rate limit回避のため自動登録は実行しません。Auth > UsersでAuto Confirm済みテストアカウントを作成して再試行してください。`
+      );
+      throw err;
+    }
+
+    const session = data?.session || await getSession();
+    if (!session?.user) {
+      const err = new Error('SUPABASE_EMAIL_SESSION_REQUIRED');
+      err.detail = t('로그인은 처리됐지만 세션이 만들어지지 않았습니다. 테스트 유저가 이메일 확인 완료 상태인지 확인해 주세요.', 'Sign-in was accepted but no session was created. Check that the test user is email-confirmed.', 'ログインは処理されましたがセッションが作成されませんでした。テストユーザーがメール確認済みか確認してください。');
+      throw err;
+    }
+
+    await syncProfile({ nickname: displayName });
+    toast(t('Supabase 테스트 계정으로 로그인했습니다. 다시 출간을 진행합니다.', 'Signed in with the Supabase test account. Continuing publishing.', 'Supabaseテストアカウントでログインしました。公開を続行します。'));
+    return session;
   }
 
   async function ensureSession(options = {}) {
@@ -117,10 +169,10 @@ const TravelogSupabase = (() => {
     if (existing?.user) return existing;
 
     if (options.email && options.password) {
-      return ensureEmailSession(options.email, options.password, options.displayName || 'Travelog User');
+      return ensureEmailSession(options.email, options.password, options.displayName || 'Travelog User', options);
     }
 
-    // 1순위: Supabase Anonymous Auth. 켜져 있으면 가장 자연스럽게 게스트를 서버 유저로 만듭니다.
+    // 1순위: Supabase Anonymous Auth. 켜져 있으면 게스트를 서버 유저로 만듭니다.
     const { data, error } = await supabase.auth.signInAnonymously();
     if (!error && data?.session?.user) {
       return data.session;
@@ -130,36 +182,24 @@ const TravelogSupabase = (() => {
       if (session?.user) return session;
     }
 
-    // 2순위: 대시보드에서 Anonymous 항목이 보이지 않는 프로젝트용 fallback.
-    // Email provider가 ON이면 로컬에 저장한 테스트용 이메일/비밀번호로 자동 가입/로그인합니다.
-    const fallbackCredentials = getOrCreateAutoGuestCredentials(options.displayName || 'Travelog User');
-    try {
-      const session = await ensureEmailSession(fallbackCredentials.email, fallbackCredentials.password, fallbackCredentials.displayName);
-      if (!authWarningShown) {
-        authWarningShown = true;
-        console.info('[Travelog Supabase] Anonymous Auth unavailable. Using auto email guest session instead.');
-        toast(t(
-          'Supabase 게스트 세션을 자동 생성했습니다. 이제 출간/구매/다운로드를 테스트할 수 있습니다.',
-          'Created a Supabase guest session automatically. Publishing/purchase/download are ready for testing.',
-          'Supabaseゲストセッションを自動作成しました。公開・購入・ダウンロードをテストできます。'
-        ));
-      }
-      return session;
-    } catch (fallbackError) {
-      if (!authWarningShown) {
-        authWarningShown = true;
-        console.warn('[Travelog Supabase] Auth fallback failed. Anonymous may be disabled and Email session may require confirmation.', { anonymousError: error, fallbackError });
-        toast(t(
-          'Supabase 로그인 세션을 만들지 못했습니다. Email provider ON, 이메일 확인 OFF 또는 실제 이메일 로그인을 확인해 주세요.',
-          'Could not create a Supabase session. Check Email provider ON, email confirmation OFF, or sign in with a real email.',
-          'Supabaseログインセッションを作成できませんでした。Email provider ON、メール確認OFF、または実メールログインを確認してください。'
-        ));
-      }
-      throw fallbackError || error || new Error('SUPABASE_AUTH_REQUIRED');
+    // 중요: 이전 버전의 자동 이메일 가입 fallback은 모바일에서 email rate limit exceeded를 만들 수 있어 제거했습니다.
+    // 출간/구매/다운로드처럼 서버 쓰기 작업은 사용자가 만든 기존 테스트 계정으로 로그인하게 합니다.
+    try { localStorage.removeItem(AUTO_GUEST_CREDENTIAL_KEY); } catch (_) {}
+
+    if (options.interactiveLogin === true) {
+      return promptExistingEmailSession(options.displayName || 'Travelog User');
     }
+
+    const err = error || new Error('SUPABASE_AUTH_REQUIRED');
+    err.detail = t(
+      'Supabase 로그인 세션이 없습니다. Anonymous Auth가 꺼져 있거나 사용할 수 없습니다. email rate limit 방지를 위해 자동 이메일 가입은 하지 않습니다. 출간할 때 Supabase Auth > Users에서 만든 테스트 계정으로 로그인해 주세요.',
+      'No Supabase login session is available. Anonymous Auth is disabled or unavailable. Automatic email signup is not used to avoid email rate limits. Sign in with a test account created in Supabase Auth > Users when publishing.',
+      'Supabaseログインセッションがありません。Anonymous Authが無効または利用できません。email rate limit回避のため自動メール登録は行いません。公開時にSupabase Auth > Usersで作成したテストアカウントでログインしてください。'
+    );
+    throw err;
   }
 
-  async function signInOrSignUpWithEmail(email, password, displayName = 'Travelog User') {
+  async function signInOrSignUpWithEmail(email, password, displayName = 'Travelog User', options = {}) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     const cleanEmail = String(email || '').trim();
@@ -168,6 +208,10 @@ const TravelogSupabase = (() => {
 
     let result = await supabase.auth.signInWithPassword({ email: cleanEmail, password: cleanPassword });
     if (!result.error && result.data?.user) return result.data;
+
+    if (options.allowSignUp === false) {
+      throw result.error || new Error('SUPABASE_EMAIL_LOGIN_FAILED');
+    }
 
     result = await supabase.auth.signUp({
       email: cleanEmail,
@@ -185,17 +229,17 @@ const TravelogSupabase = (() => {
   async function connectLoginProvider(provider = 'Guest', profile = {}) {
     const displayName = profile?.nickname || profile?.displayName || 'Travelog User';
     if (provider === 'Email') {
-      const email = window.prompt(t('Supabase 테스트 로그인 이메일을 입력해 주세요.', 'Enter a Supabase test login email.', 'Supabaseテストログインのメールを入力してください。'));
+      const email = window.prompt(t('Supabase 테스트 계정 이메일을 입력해 주세요. 새 계정 자동 가입은 email rate limit 방지를 위해 하지 않습니다.', 'Enter your Supabase test account email. Automatic signup is disabled to avoid email rate limits.', 'Supabaseテストアカウントのメールを入力してください。email rate limit回避のため自動登録は行いません。'));
       if (!email) return { mode: 'local-only', user: null };
-      const password = window.prompt(t('비밀번호를 입력해 주세요. 새 이메일이면 자동 가입을 시도합니다.', 'Enter a password. New emails will be signed up automatically.', 'パスワードを入力してください。新しいメールなら自動登録を試します。'));
+      const password = window.prompt(t('Supabase 테스트 계정 비밀번호를 입력해 주세요.', 'Enter the Supabase test account password.', 'Supabaseテストアカウントのパスワードを入力してください。'));
       if (!password) return { mode: 'local-only', user: null };
-      const session = await ensureEmailSession(email, password, displayName);
+      const session = await ensureEmailSession(email, password, displayName, { allowSignUp: false });
       await syncProfile({ ...profile, nickname: displayName });
       return { mode: 'email', user: session?.user || null };
     }
 
     try {
-      const session = await ensureSession({ displayName });
+      const session = await ensureSession({ displayName, interactiveLogin: false });
       await syncProfile({ ...profile, nickname: displayName });
       return { mode: 'anonymous', user: session?.user || null };
     } catch (error) {
@@ -402,7 +446,7 @@ const TravelogSupabase = (() => {
     if (!packageData) throw new Error('PACKAGE_REQUIRED');
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
-    const session = await ensureSession({ displayName: packageData.creator || 'Travelog Creator' });
+    const session = await ensureSession({ displayName: packageData.creator || 'Travelog Creator', interactiveLogin: true });
     const userId = session?.user?.id;
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
 
@@ -668,7 +712,7 @@ const TravelogSupabase = (() => {
   async function purchaseGuide(guideCard) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
-    const session = await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User' });
+    const session = await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User', interactiveLogin: true });
     const userId = session?.user?.id;
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
     const guideId = guideCard?.supabaseGuideId || guideCard?.id;
@@ -810,7 +854,7 @@ const TravelogSupabase = (() => {
   async function downloadGuideOffline(guideId) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
-    await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User' });
+    await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User', interactiveLogin: true });
     writeOfflineStatus(guideId, { status: 'downloading', offlineReady: false });
 
     const fullGuide = await fetchCompleteGuide(guideId);
