@@ -3698,8 +3698,11 @@ nav.bottom-nav {
 }
 
 .coin-icon {
-  color: #ffb703;
-  font-size: 20px;
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex: 0 0 26px;
 }
 
 #home-coin-value {
