@@ -4610,6 +4610,20 @@ textarea::placeholder {
   align-items: center !important;
   border-radius: 12px !important;
 }
+
+.home-friend-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-friend-list-icon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex: 0 0 28px;
+}
 .friend-edit-icon-btn img {
   width: 22px;
   height: 22px;
