@@ -3644,6 +3644,15 @@ nav.bottom-nav {
   transform: translateY(-2px);
 }
 
+.message-box-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: invert(1);
+  pointer-events: none;
+}
+
 .msg-badge {
   position: absolute;
   top: -2px;
