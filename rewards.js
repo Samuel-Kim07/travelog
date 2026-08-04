@@ -483,7 +483,7 @@ const TravelogRewardsModule = (() => {
     
     qrContainer.innerHTML = `
       <div class="glass-panel" style="padding:32px; text-align:center; max-width:320px; width:90%; position:relative; background-color: var(--bg-secondary);">
-        <button class="btn-circle" style="position:absolute; top:12px; right:12px; width:28px; height:28px; font-size:12px;" onclick="this.parentElement.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" aria-label="쿠폰 상세 닫기" style="position:absolute; top:12px; right:12px; width:28px; height:28px; font-size:12px;" onclick="this.parentElement.parentElement.remove()"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
         <h4 style="margin-bottom:12px; font-size:16px;">${t('쿠폰 바코드 스캔', 'Scan Coupon QR Code', 'クーポンQRコードをスキャン')}</h4>
         <div style="background:white; padding:16px; border-radius:var(--radius-md); display:inline-block; margin-bottom:16px;">
           <!-- Simple dynamic simulated QR representation -->

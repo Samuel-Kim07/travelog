@@ -741,7 +741,7 @@ const TravelogMapModule = (() => {
         <div style="flex:1; min-width:0;">
           <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
             <h3 id="creator-preview-title" style="font-size:15px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">가이드 미리보기</h3>
-            <button id="creator-preview-close" class="btn-circle" type="button" style="width:28px; height:28px; font-size:12px; flex-shrink:0;"><i class="fa-solid fa-xmark"></i></button>
+            <button id="creator-preview-close" class="btn-circle" type="button" aria-label="가이드 미리보기 닫기" style="width:28px; height:28px; font-size:12px; flex-shrink:0;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; font-size:11px; color:var(--text-secondary);">
             <span>코스 <strong id="creator-preview-course-count">0</strong></span>
@@ -1658,7 +1658,7 @@ const TravelogMapModule = (() => {
       modal.style.zIndex = '3350';
       modal.innerHTML = `
         <div class="profile-manager-card glass-panel" style="max-width:480px;width:92%;padding:24px;position:relative;">
-          <button class="btn-circle" id="published-guide-memo-list-close-btn" type="button" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-circle" id="published-guide-memo-list-close-btn" type="button" aria-label="가이드 메모 목록 닫기" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
           <div style="padding-right:42px;">
             <span style="display:inline-block;font-size:11px;font-weight:900;color:white;background:var(--color-ocean);border-radius:999px;padding:4px 9px;margin-bottom:8px;">MEMO LIST</span>
             <h2 class="gradient-text" style="font-size:20px;margin:0 0 8px 0;">${t('이 위치의 메모 목록', 'Memos at this location', 'この位置のメモ一覧')}</h2>
@@ -1726,7 +1726,7 @@ const TravelogMapModule = (() => {
       modal.style.zIndex = '3400';
       modal.innerHTML = `
         <div class="profile-manager-card glass-panel" style="max-width:520px;width:92%;padding:24px;position:relative;">
-          <button class="btn-circle" id="published-guide-memo-close-btn" type="button" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-circle" id="published-guide-memo-close-btn" type="button" aria-label="가이드 메모 닫기" style="position:absolute;top:12px;right:12px;width:34px;height:34px;font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
           <div style="padding-right:42px;">
             <span id="published-guide-memo-type" style="display:inline-block;font-size:11px;font-weight:900;color:white;background:var(--color-ocean);border-radius:999px;padding:4px 9px;margin-bottom:8px;">GUIDE MEMO</span>
             <h2 id="published-guide-memo-title" class="gradient-text" style="font-size:20px;margin:0 0 8px 0;">메모핀</h2>

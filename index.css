@@ -2297,6 +2297,20 @@ nav.bottom-nav {
   height: 38px;
   font-size: 14px;
 }
+
+/* Shared close artwork for every popup and overlay close control. */
+.popup-close-icon {
+  display: block;
+  width: 46%;
+  height: 46%;
+  min-width: 12px;
+  min-height: 12px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
 .profile-manager-body {
   display: grid;
   grid-template-columns: 260px 1fr;
@@ -4398,6 +4412,9 @@ textarea::placeholder {
   cursor: pointer;
   z-index: 3;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .voice-memo-close-x:hover,

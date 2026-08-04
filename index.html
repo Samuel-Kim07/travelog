@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1016">
+  <link rel="stylesheet" href="index.css?v=1017">
 </head>
 <body>
 
@@ -318,7 +318,7 @@
         <div id="location-memo-modal" class="location-memo-modal" aria-hidden="true">
           <div class="location-memo-card glass-panel">
             <button class="btn-circle memo-close-btn" id="close-location-memo-modal-btn" aria-label="Close memo editor">
-              <i class="fa-solid fa-xmark"></i>
+              <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
             </button>
             <div class="memo-modal-header">
               <div class="memo-modal-icon"><i class="fa-solid fa-note-sticky"></i></div>
@@ -340,7 +340,7 @@
         <div id="audio-overlay" class="floating-overlay-player glass-panel">
           <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; margin-bottom: 8px;">
             <span style="font-size: 12px; text-transform: uppercase; color: var(--accent-blue); font-weight: 700;" data-localize="audio_guide">Audio Guide Triggered</span>
-            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-circle" id="close-audio-btn" style="width: 28px; height: 28px; font-size: 12px;" aria-label="오디오 가이드 닫기"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
           </div>
           <h4 id="audio-title" style="font-size: 18px; margin-bottom: 4px;">Gyeongheeru Pavilion Story</h4>
           <p id="audio-speaker" style="font-size: 12px; color: var(--accent-purple); font-weight: 600; margin-bottom: 12px;">By Minho</p>
@@ -370,7 +370,7 @@
 
         <!-- Video Overlay Modal (Triggered by GPS or manual click) -->
         <div id="video-overlay" class="video-overlay-modal">
-          <button class="btn-circle close-overlay-video" id="close-video-modal-btn"><i class="fa-solid fa-xmark"></i></button>
+          <button class="btn-circle close-overlay-video" id="close-video-modal-btn" aria-label="영상 가이드 닫기"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
           <div class="video-wrapper guide-video-wrapper">
             <video id="guide-video-element" class="guide-video-element" controls playsinline preload="metadata" poster="assets/images/video/poster-minho-video.svg">
               <source src="assets/icons/Video/t_log_video.mp4" type="video/mp4">
@@ -939,7 +939,7 @@
           <p data-localize="profile_manage_desc">닉네임과 프로필 사진을 언제든지 바꿀 수 있어요. Supabase 계정 전환이 필요하면 로그아웃하세요.</p>
         </div>
         <button id="profile-manager-close-btn" class="btn-circle profile-close-btn" aria-label="Close profile manager">
-          <i class="fa-solid fa-xmark"></i>
+          <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
         </button>
       </div>
 
@@ -1028,7 +1028,7 @@
           <p data-localize="msg_desc">받은 쪽지와 보낸 쪽지를 나눠서 확인합니다.</p>
         </div>
         <button id="msg-box-close-btn" class="btn-circle profile-close-btn" aria-label="Close message box">
-          <i class="fa-solid fa-xmark"></i>
+          <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
         </button>
       </div>
       <div class="msg-box-tabs" role="tablist" aria-label="쪽지함 분류">
@@ -1077,7 +1077,7 @@
           <p data-localize="pay_desc">프리미엄 로컬 오디오 가이드 구입에 사용하세요.</p>
         </div>
         <button id="pay-charge-close-btn" class="btn-circle profile-close-btn" aria-label="Close pay shop">
-          <i class="fa-solid fa-xmark"></i>
+          <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
         </button>
       </div>
       <div class="profile-manager-body" style="display: block; padding: 10px 0;">
@@ -1125,7 +1125,7 @@
           <p data-localize="widget_config_desc">홈 화면의 빠른 보관함에 노출할 가이드를 체크하세요.</p>
         </div>
         <button id="widget-config-close-btn" class="btn-circle profile-close-btn" aria-label="Close widget config">
-          <i class="fa-solid fa-xmark"></i>
+          <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
         </button>
       </div>
       <div class="profile-manager-body" style="display: block; max-height: 300px; overflow-y: auto; padding: 10px 0;">
@@ -1146,7 +1146,7 @@
   <!-- 1) 핀 미디어 타입 선택 모달 -->
   <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
-      <button class="btn-circle" id="btn-close-pin-type-select-x" type="button" aria-label="핀 생성 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
+      <button class="btn-circle" id="btn-close-pin-type-select-x" type="button" aria-label="핀 생성 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <div style="font-size: 40px; color: var(--accent-pink); margin-bottom: 12px;"><i class="fa-solid fa-map-pin"></i></div>
       <h3 style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
       <p style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
@@ -1174,7 +1174,7 @@
   <!-- 2) 음성 메모 팝업 (카세트 녹음기 디자인) -->
   <div id="voice-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="voice-memo-recorder-card" role="dialog" aria-modal="true" aria-labelledby="voice-memo-recorder-title">
-      <button class="voice-memo-close-x" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기">×</button>
+      <button class="voice-memo-close-x" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <h3 id="voice-memo-recorder-title" class="voice-memo-recorder-title">
         <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
         음성 가이드 녹음기
@@ -1208,7 +1208,7 @@
   <!-- 3) 영상 메모 팝업 -->
   <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
-      <button class="btn-circle" id="video-memo-close-btn" type="button" aria-label="영상 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
+      <button class="btn-circle" id="video-memo-close-btn" type="button" aria-label="영상 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
       <p id="video-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
       <label for="video-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">비디오 메모 제목</label>
@@ -1239,7 +1239,7 @@
   <!-- 4) 사진 메모 팝업 -->
   <div id="photo-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 640px; width: 94%; max-height: 92vh; overflow-y: auto; text-align: left; padding: 24px; position: relative;">
-      <button class="btn-circle" id="photo-memo-close-btn" type="button" aria-label="사진 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
+      <button class="btn-circle" id="photo-memo-close-btn" type="button" aria-label="사진 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <div style="padding-right: 42px; margin-bottom: 14px;">
         <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-camera-retro" style="color:#34a853;"></i> 사진 가이드 메모</h3>
         <p id="photo-memo-status" style="font-size: 12px; color: #555555 !important; margin: 0;">카메라 촬영 또는 사진추가로 이미지를 넣고 간단히 편집하세요.</p>
@@ -1286,7 +1286,7 @@
   <!-- 5) 텍스트 메모 팝업 -->
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px; position: relative;">
-      <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><i class="fa-solid fa-xmark"></i></button>
+      <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
       <p style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
       
@@ -1330,7 +1330,7 @@
           <h2 class="gradient-text" style="font-size:20px; margin:0 0 4px 0;">친구 편집</h2>
           <p style="font-size:12px; color:var(--text-secondary); margin:0;">Supabase 프로필 닉네임으로 친구를 찾고 등록한 뒤 쪽지를 보낼 수 있습니다.</p>
         </div>
-        <button class="btn-circle" id="friend-edit-close-btn" type="button" style="width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" id="friend-edit-close-btn" type="button" aria-label="친구 편집 닫기" style="width:34px; height:34px; font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <input type="text" id="friend-name-input" placeholder="친구 닉네임 검색" style="flex:1; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:10px 12px; border-radius:12px; font-size:13px;">
@@ -1349,7 +1349,7 @@
           <h2 class="gradient-text" style="font-size:20px; margin:0 0 4px 0;">친구에게 쪽지 보내기</h2>
           <p id="friend-message-target" style="font-size:12px; color:var(--text-secondary); margin:0;">받는 친구</p>
         </div>
-        <button class="btn-circle" id="friend-message-close-btn" type="button" style="width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" id="friend-message-close-btn" type="button" aria-label="쪽지 보내기 닫기" style="width:34px; height:34px; font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       </div>
       <textarea id="friend-message-text" rows="5" placeholder="쪽지 내용을 입력하세요" style="width:100%; resize:vertical; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:12px; border-radius:14px; font-size:13px; margin-bottom:12px;"></textarea>
       <button class="btn-rect" id="friend-message-send-btn" type="button" style="width:100%; justify-content:center; background:var(--grad-pink-purple);"><i class="fa-solid fa-paper-plane"></i> 쪽지 보내기</button>
@@ -1362,7 +1362,7 @@
       <div style="position: relative; min-height: 210px; background: linear-gradient(135deg, rgba(112,162,183,.28), rgba(175,212,153,.28));">
         <div id="home-guide-intro-cover" style="position:absolute; inset:0; background-size:cover; background-position:center; opacity:.94;"></div>
         <div style="position:absolute; inset:0; background: linear-gradient(to top, rgba(43,58,66,.68), rgba(43,58,66,.08));"></div>
-        <button class="btn-circle" id="home-guide-intro-close-btn" type="button" style="position:absolute; top:14px; right:14px; z-index:3; width:36px; height:36px; font-size:15px; background:rgba(255,255,255,.92);"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" id="home-guide-intro-close-btn" type="button" aria-label="가이드 소개 닫기" style="position:absolute; top:14px; right:14px; z-index:3; width:36px; height:36px; font-size:15px; background:rgba(255,255,255,.92);"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
         <div style="position:absolute; left:22px; right:22px; bottom:18px; z-index:2; color:white;">
           <span id="home-guide-intro-badge" style="display:inline-block; font-size:11px; font-weight:800; letter-spacing:.5px; background:rgba(255,255,255,.86); color:var(--text-primary); border-radius:999px; padding:5px 10px; margin-bottom:8px;">오늘의 가이드</span>
           <h2 id="home-guide-intro-title" style="font-size:24px; color:white; margin:0 0 5px 0; text-shadow:0 2px 10px rgba(0,0,0,.26);">가이드 제목</h2>
@@ -1401,7 +1401,7 @@
           <h2 id="home-guide-preview-title" class="gradient-text" style="font-size:18px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">가이드 미리보기</h2>
           <p id="home-guide-preview-meta" style="font-size:12px; color:var(--text-secondary); margin:3px 0 0 0;">연결된 핀 경로를 확인하세요.</p>
         </div>
-        <button class="btn-circle" id="home-guide-preview-close-btn" type="button" style="width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" id="home-guide-preview-close-btn" type="button" aria-label="가이드 미리보기 닫기" style="width:34px; height:34px; font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       </div>
       <div id="home-guide-preview-map" style="height:min(62vh, 520px); width:100%; background:#EAF2F4;"></div>
       <div id="home-guide-preview-pin-summary" style="display:flex; gap:8px; overflow-x:auto; padding:12px 14px; background:rgba(255,255,255,.92); border-top:1px solid var(--glass-border);"></div>
@@ -1416,7 +1416,7 @@
           <h2 class="gradient-text" style="font-size: 22px; margin: 0 0 4px 0;">가이드 수정 페이지</h2>
           <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">출간된 가이드 정보를 확인하고 수정합니다.</p>
         </div>
-        <button class="btn-circle" id="guide-edit-close-btn" type="button" style="width: 34px; height: 34px; font-size: 14px;"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-circle" id="guide-edit-close-btn" type="button" aria-label="가이드 수정 닫기" style="width: 34px; height: 34px; font-size: 14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       </div>
 
       <div style="display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: start; margin-bottom: 16px;">
@@ -1448,12 +1448,12 @@
 
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1009" defer></script>
-  <script src="map.js?v=1008" defer></script>
+  <script src="map.js?v=1009" defer></script>
   <script src="explore.js?v=1003" defer></script>
-  <script src="rewards.js?v=1003" defer></script>
+  <script src="rewards.js?v=1004" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1006" defer></script>
-  <script src="creator.js?v=1012" defer></script>
+  <script src="creator.js?v=1013" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="app.js?v=1017" defer></script>
 </body>

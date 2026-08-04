@@ -1617,7 +1617,7 @@ const TravelogCreatorModule = (() => {
               저장 권한이 끊겼거나 기기 저장소가 준비되지 않았습니다. 확인을 누르면 저장 위치를 다시 지정한 뒤 현재 가이드를 바로 저장합니다.
             </p>
           </div>
-          <button id="device-storage-retry-close-btn" type="button" style="border:0; background:transparent; font-size:22px; cursor:pointer; color:var(--text-muted);">&times;</button>
+          <button id="device-storage-retry-close-btn" type="button" aria-label="저장 위치 안내 닫기" style="border:0; background:transparent; width:32px; height:32px; padding:7px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
         </div>
         <div id="device-storage-retry-feedback" style="display:none; margin:10px 0; padding:10px 12px; border-radius:12px; background:rgba(35,143,107,0.08); color:var(--text-secondary); font-size:12px; line-height:1.45;"></div>
         <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
@@ -2467,7 +2467,7 @@ const TravelogCreatorModule = (() => {
     modal.style.cssText = 'display:none; z-index: 220000; padding: 18px;';
     modal.innerHTML = `
       <div class="glass-panel arch-card" style="width:min(94vw, 460px); max-height:86vh; overflow-y:auto; background:rgba(255,255,255,0.96); padding:22px; position:relative;">
-        <button type="button" class="btn-circle" id="published-guide-share-close-btn" style="position:absolute; top:12px; right:12px; width:34px; height:34px; font-size:14px;"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" class="btn-circle" id="published-guide-share-close-btn" aria-label="가이드 공유 닫기" style="position:absolute; top:12px; right:12px; width:34px; height:34px; font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
         <div style="display:flex; gap:12px; align-items:center; padding-right:36px; margin-bottom:14px;">
           <div id="published-guide-share-image" style="width:68px; height:54px; flex-shrink:0; border-radius:14px; background:linear-gradient(135deg, rgba(112,162,183,0.22), rgba(175,212,153,0.22)); background-size:cover; background-position:center;"></div>
           <div style="min-width:0;">
