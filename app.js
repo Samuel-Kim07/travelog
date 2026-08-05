@@ -1116,7 +1116,9 @@ function renderFriendList() {
           <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(friend.memo || (friend.isSupabaseFriend ? 'Supabase 친구' : '친구'))}</div>
         </div>
       </div>
-      <button class="btn-rect secondary" type="button" onclick="window.openFriendMessageModal('${friend.id}')" style="padding:5px 10px; font-size:11px; border-radius:999px;"><i class="fa-solid fa-paper-plane"></i> 쪽지</button>
+      <button class="btn-rect secondary home-friend-message-btn" type="button" onclick="window.openFriendMessageModal('${friend.id}')" aria-label="${escapeHtml(friend.name)}에게 쪽지 보내기" title="${escapeHtml(friend.name)}에게 쪽지 보내기">
+        <img src="assets/icons/ui/send_post.svg" alt="" aria-hidden="true">
+      </button>
     </div>`).join('');
 }
 
