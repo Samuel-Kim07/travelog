@@ -207,10 +207,12 @@ header {
   font-weight: 700;
   color: var(--text-primary);
 }
-.logo i {
-  font-size: 28px;
-  color: var(--color-ocean);
-  text-shadow: 0 4px 10px rgba(112, 162, 183, 0.3);
+.logo .header-ci-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: block;
+  object-fit: contain;
 }
 
 .header-actions {
