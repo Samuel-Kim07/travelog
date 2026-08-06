@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1021">
+  <link rel="stylesheet" href="index.css?v=1022">
 </head>
 <body>
 
@@ -1334,7 +1334,9 @@
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <input type="text" id="friend-name-input" placeholder="친구 닉네임 검색" style="flex:1; background:var(--bg-tertiary); border:1px solid var(--glass-border); color:#373737 !important; padding:10px 12px; border-radius:12px; font-size:13px;">
-        <button class="btn-rect" id="friend-add-btn" type="button" style="padding:10px 14px; font-size:13px;"><i class="fa-solid fa-magnifying-glass"></i> 찾기</button>
+        <button class="btn-rect friend-find-icon-btn" id="friend-add-btn" type="button" title="친구 찾기" aria-label="친구 찾기">
+          <img src="assets/icons/ui/find.svg" alt="" aria-hidden="true">
+        </button>
       </div>
       <div id="friend-search-results" style="display:none; flex-direction:column; gap:8px; margin-bottom:12px; border:1px solid rgba(112,162,183,.25); border-radius:14px; padding:10px; background:rgba(112,162,183,.08);"></div>
       <div id="friend-edit-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; border-top:1px solid var(--glass-border); padding-top:12px;"></div>

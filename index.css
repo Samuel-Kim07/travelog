@@ -804,6 +804,24 @@ nav.bottom-nav {
   background: #E3ECE8;
 }
 
+/* Friend search popup: icon-only search button */
+.friend-find-icon-btn {
+  width: 44px;
+  min-width: 44px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.friend-find-icon-btn img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
 /* Dynamic Leaflet Marker Styles */
 .custom-pin {
   display: flex;
