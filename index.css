@@ -5088,3 +5088,140 @@ nav.bottom-nav {
     gap: 38px;
   }
 }
+
+/* ==========================================
+   Mobile Header: keep all controls on one row
+   ========================================== */
+@media (max-width: 600px) {
+  header {
+    height: 64px;
+    min-height: 64px;
+    padding: 0 clamp(7px, 2vw, 10px);
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .logo {
+    flex: 0 0 auto;
+    min-width: 0;
+    gap: 5px;
+    font-size: 19px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .logo span {
+    display: inline;
+  }
+
+  .logo .header-ci-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .header-actions {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: clamp(4px, 1.2vw, 7px);
+  }
+
+  .profile-widget,
+  .stat-pill,
+  .lang-btn {
+    min-height: 34px;
+    box-sizing: border-box;
+    border-radius: 999px;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .profile-widget {
+    flex: 1 1 88px;
+    min-width: 0;
+    max-width: 100px;
+    gap: 4px;
+    padding: 3px 7px 3px 4px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+
+  .profile-widget-avatar {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+  }
+
+  #header-nickname {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-widget-gear {
+    flex: 0 0 auto;
+    margin-left: 0;
+    font-size: 9px;
+  }
+
+  .stat-pill,
+  .lang-btn {
+    flex: 0 0 auto;
+    gap: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  header {
+    padding: 0 5px;
+    gap: 3px;
+  }
+
+  .logo {
+    gap: 3px;
+    font-size: 17px;
+  }
+
+  .logo .header-ci-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+
+  .header-actions {
+    gap: 3px;
+  }
+
+  .profile-widget,
+  .stat-pill,
+  .lang-btn {
+    min-height: 32px;
+    font-size: 11px;
+  }
+
+  .profile-widget {
+    max-width: 74px;
+    padding: 3px 5px 3px 3px;
+    gap: 3px;
+  }
+
+  .profile-widget-avatar {
+    width: 23px;
+    height: 23px;
+    flex-basis: 23px;
+  }
+
+  .profile-widget-gear {
+    display: none;
+  }
+
+  .stat-pill,
+  .lang-btn {
+    gap: 3px;
+    padding: 6px;
+  }
+}
