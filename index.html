@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1023">
+  <link rel="stylesheet" href="index.css?v=1024">
 </head>
 <body>
 
@@ -83,19 +83,11 @@
               <div class="coin-balance-title">
                 <span data-localize="home_coin_balance">보유 트레블 코인</span>
                 <div class="coin-amount">
-                  <img class="coin-icon" src="assets/icons/ui/tc.png" alt="트레블 코인">
+                  <button id="coin-charge-open-btn" class="coin-icon-button" type="button" aria-label="코인 충전 열기" title="코인 충전">
+                    <img class="coin-icon" src="assets/icons/ui/tc.png" alt="" aria-hidden="true">
+                  </button>
                   <span id="home-coin-value">1,250</span> <small>COIN</small>
                 </div>
-              </div>
-              <div class="coin-charge-actions">
-                <button class="btn-rect charge-btn ad-charge" id="charge-ad-btn">
-                  <i class="fa-solid fa-film"></i>
-                  <span data-localize="home_charge_ad">광고 충전 (+50)</span>
-                </button>
-                <button class="btn-rect charge-btn pay-charge" id="charge-pay-btn">
-                  <i class="fa-solid fa-wallet"></i>
-                  <span data-localize="home_charge_pay">유료 충전</span>
-                </button>
               </div>
             </div>
           </div>
@@ -1046,6 +1038,34 @@
     </div>
   </div>
 
+  <!-- Coin Charge Method Modal -->
+  <div id="coin-charge-modal" class="profile-manager-modal" aria-hidden="true">
+    <div class="profile-manager-card glass-panel arch-card coin-charge-card">
+      <div class="profile-manager-topbar">
+        <div>
+          <span class="step-pill" data-localize="coin_charge_badge">트레블 코인</span>
+          <h2 class="gradient-text" data-localize="coin_charge_title">코인 충전</h2>
+          <p data-localize="coin_charge_desc">원하는 충전 방법을 선택하세요.</p>
+        </div>
+        <button id="coin-charge-close-btn" class="btn-circle profile-close-btn" type="button" aria-label="코인 충전 팝업 닫기">
+          <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
+        </button>
+      </div>
+      <div class="coin-charge-options">
+        <button class="btn-rect charge-btn ad-charge" id="charge-ad-btn" type="button">
+          <i class="fa-solid fa-film" aria-hidden="true"></i>
+          <span data-localize="home_charge_ad">광고 충전 (+50)</span>
+          <small data-localize="coin_charge_ad_hint">광고 시청 후 코인을 받아요</small>
+        </button>
+        <button class="btn-rect charge-btn pay-charge" id="charge-pay-btn" type="button">
+          <i class="fa-solid fa-wallet" aria-hidden="true"></i>
+          <span data-localize="home_charge_pay">유료 충전</span>
+          <small data-localize="coin_charge_pay_hint">필요한 만큼 코인을 구매해요</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Ad Reward Video Simulation Modal -->
   <div id="ad-charge-modal" class="profile-manager-modal" aria-hidden="true">
     <div class="profile-manager-card glass-panel arch-card" style="max-width: 400px; text-align: center; padding: 30px;">
@@ -1457,6 +1477,6 @@
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1013" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1018" defer></script>
+  <script src="app.js?v=1019" defer></script>
 </body>
 </html>

@@ -61,6 +61,11 @@ const LocalizationDictionary = {
   home_coin_balance: { en: 'Travel Coin Balance', ko: '보유 트레블 코인', ja: '保有トラベルコイン' },
   home_charge_ad: { en: 'Ad Charge (+50)', ko: '광고 충전 (+50)', ja: '広告チャージ (+50)' },
   home_charge_pay: { en: 'Store', ko: '유료 충전', ja: '有料チャージ' },
+  coin_charge_badge: { en: 'Travel Coin', ko: '트레블 코인', ja: 'トラベルコイン' },
+  coin_charge_title: { en: 'Charge Coins', ko: '코인 충전', ja: 'コインチャージ' },
+  coin_charge_desc: { en: 'Choose how you want to charge coins.', ko: '원하는 충전 방법을 선택하세요.', ja: 'チャージ方法を選択してください。' },
+  coin_charge_ad_hint: { en: 'Watch an ad and earn coins', ko: '광고 시청 후 코인을 받아요', ja: '広告を見てコインを受け取ります' },
+  coin_charge_pay_hint: { en: 'Buy the amount of coins you need', ko: '필요한 만큼 코인을 구매해요', ja: '必要な分だけコインを購入します' },
   home_widget_title: { en: 'My Guide Chest', ko: '내 가이드 보관함 (위젯)', ja: 'マイガイド保管箱 (ウィジェット)' },
   home_widget_edit: { en: 'Edit Widgets', ko: '위젯 편집', ja: 'ウィジェット編集' },
   home_widget_desc: { en: 'Only purchased guides are shown here. Add or remove purchased guide widgets.', ko: '내가 구매한 여행 가이드만 보관함에 표시됩니다. 구매한 가이드 위젯을 더하고 뺄 수 있습니다.', ja: '購入済みガイドだけを保管箱に表示します。購入済みガイドのウィジェットを設定できます。' },
@@ -847,11 +852,22 @@ function initHomeTab() {
   });
 
   // Bind Coins Actions
+  const coinChargeOpenBtn = document.getElementById('coin-charge-open-btn');
+  const coinChargeCloseBtn = document.getElementById('coin-charge-close-btn');
+  if (coinChargeOpenBtn) coinChargeOpenBtn.addEventListener('click', openCoinChargeModal);
+  if (coinChargeCloseBtn) coinChargeCloseBtn.addEventListener('click', closeCoinChargeModal);
+
   const adBtn = document.getElementById('charge-ad-btn');
-  if (adBtn) adBtn.addEventListener('click', startAdChargeSimulation);
+  if (adBtn) adBtn.addEventListener('click', () => {
+    closeCoinChargeModal();
+    startAdChargeSimulation();
+  });
 
   const payBtn = document.getElementById('charge-pay-btn');
-  if (payBtn) payBtn.addEventListener('click', openCoinShop);
+  if (payBtn) payBtn.addEventListener('click', () => {
+    closeCoinChargeModal();
+    openCoinShop();
+  });
 
   const shopCloseBtn = document.getElementById('pay-charge-close-btn');
   const shopCancelBtn = document.getElementById('pay-charge-cancel-btn');
@@ -1507,6 +1523,20 @@ window.deleteMessageFromInbox = async function(id) {
     ? localizedText('쪽지를 삭제했습니다.', 'Message deleted.', 'メッセージを削除しました。')
     : localizedText('이 기기의 쪽지함에서 삭제했습니다.', 'Removed from this device inbox.', 'この端末のメッセージ一覧から削除しました。'));
 };
+
+function openCoinChargeModal() {
+  const modal = document.getElementById('coin-charge-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeCoinChargeModal() {
+  const modal = document.getElementById('coin-charge-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+}
 
 // Ad Reward Coin Simulation
 function startAdChargeSimulation() {
