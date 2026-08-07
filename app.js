@@ -1009,16 +1009,23 @@ function renderGuidesScrollList(containerId, listData) {
   if (!container) return;
 
   container.innerHTML = listData.map(item => {
+    const ratingText = String(item.rating ?? '').trim();
+    const isNewGuide = ratingText.toUpperCase() === 'NEW';
+    const badgeText = String(item.badge ?? '').trim();
+    const paidGuide = isGuidePaid(item);
+    const coinPrice = getGuideCoinPrice(item);
+    const showBadge = badgeText && !(paidGuide && /coin/i.test(badgeText));
+
     return `
       <div class="guide-card" onclick="window.openGuideIntroFromHome('${item.id}')">
         <div class="guide-card-bg" style="background-image: url('${item.bg}')"></div>
         <div class="guide-card-content">
           <h5 class="guide-card-title">${escapeHtml(item.name)}</h5>
-          <span class="guide-card-author"><i class="fa-solid fa-user-astronaut"></i> ${escapeHtml(item.author)}</span>
+          <span class="guide-card-author"><img class="guide-card-author-icon" src="assets/icons/ui/guid.svg" alt="" aria-hidden="true"> ${escapeHtml(item.author)}</span>
           <div class="guide-card-footer">
-            <span class="guide-card-rating"><i class="fa-solid fa-star"></i> ${item.rating}</span>
-            <span class="guide-card-badge">${item.badge}</span>
-            <span style="background:${isGuidePaid(item) ? '#ff2e63' : '#34A853'}; color:white; border-radius:999px; padding:3px 7px; font-size:10px; font-weight:900;">${getGuidePriceLabel(item)}</span>
+            <span class="guide-card-rating">${isNewGuide ? '' : '<i class="fa-solid fa-star" aria-hidden="true"></i>'}${escapeHtml(ratingText)}</span>
+            ${showBadge ? `<span class="guide-card-badge">${escapeHtml(badgeText)}</span>` : ''}
+            <span class="guide-card-price ${paidGuide ? 'is-paid' : 'is-free'}">${paidGuide ? `<img class="guide-card-coin-icon" src="assets/icons/ui/tc_small.svg" alt="" aria-hidden="true"><span>${coinPrice.toLocaleString()}</span>` : '<span>무료</span>'}</span>
           </div>
         </div>
       </div>`;
