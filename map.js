@@ -884,7 +884,14 @@ const TravelogMapModule = (() => {
       }
     } else {
       // 2. Normal Tour Mode: Draw baseline Gyeongbokgung Tour nodes
-      const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
+      const appState = window.TravelogApp ? window.TravelogApp.getState() : null;
+      const activeGuide = appState?.activeGuide || null;
+      if (mapMode === 'location' && (!activeGuide || appState?.guideRunActive !== true)) {
+        const listEl = document.getElementById('tour-stops-list');
+        if (listEl) listEl.innerHTML = '';
+        updateMapOverview();
+        return;
+      }
       const nodes = getTourNodes();
       if (activeGuide) {
         updateActiveGuideHud(activeGuide, nodes);

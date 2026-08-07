@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1026">
+  <link rel="stylesheet" href="index.css?v=1027">
 </head>
 <body>
 
@@ -223,6 +223,28 @@
             </div>
           </div>
         </div>
+        
+        <!-- My Location: running guide list and controls -->
+        <aside id="location-active-guide-panel" class="location-active-guide-panel glass-panel" aria-live="polite" hidden>
+          <div class="location-guide-heading">
+            <div>
+              <span class="location-guide-kicker" data-localize="location_running_guide">진행 중인 가이드</span>
+              <h3 id="location-guide-title">가이드</h3>
+            </div>
+            <span id="location-guide-status" class="location-guide-status" data-localize="location_guide_ready">대기</span>
+          </div>
+          <ol id="location-guide-stop-list" class="location-guide-stop-list"></ol>
+          <div class="location-guide-actions">
+            <button type="button" id="location-guide-start-btn" class="location-guide-action start">
+              <i class="fa-solid fa-play" aria-hidden="true"></i>
+              <span data-localize="location_guide_start">시작</span>
+            </button>
+            <button type="button" id="location-guide-stop-btn" class="location-guide-action stop">
+              <i class="fa-solid fa-stop" aria-hidden="true"></i>
+              <span data-localize="location_guide_stop">멈춤</span>
+            </button>
+          </div>
+        </aside>
         
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
@@ -471,6 +493,13 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        <div id="integrated-quest-mount" class="integrated-quest-section">
+          <div class="integrated-section-heading">
+            <span>QUEST &amp; MISSION</span>
+            <h2 data-localize="coupon_event_quest_title">쿠폰&이벤트 퀘스트</h2>
+            <p data-localize="coupon_event_quest_desc">쿠폰 이벤트와 위치 기반 미션을 한 화면에서 확인하세요.</p>
           </div>
         </div>
       </section>
@@ -782,25 +811,26 @@
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
       <div class="nav-item active" data-tab="home-tab">
-        <i class="fa-solid fa-house"></i>
+        <img class="nav-icon" src="assets/icons/ui/home.svg" alt="" aria-hidden="true">
         <span data-localize="nav_home">홈</span>
       </div>
       <div class="nav-item" data-tab="explore-tab">
-        <i class="fa-solid fa-compass"></i>
+        <img class="nav-icon" src="assets/icons/ui/story.svg" alt="" aria-hidden="true">
         <span data-localize="nav_explore">피드</span>
       </div>
       
-      <!-- Middle Highlighted button -->
-      <div class="nav-item highlight-nav" data-tab="adventure-tab" title="Adventure Mode">
-        <i class="fa-solid fa-gamepad"></i>
+      <!-- Middle Highlighted My Location button -->
+      <div class="nav-item highlight-nav" data-tab="map-tab" data-location-nav="true" title="내 위치" aria-label="내 위치 지도 열기">
+        <img class="nav-icon" src="assets/icons/ui/im_here.svg" alt="" aria-hidden="true">
+        <span class="highlight-nav-label" data-localize="nav_location">내위치</span>
       </div>
       
       <div class="nav-item" data-tab="rewards-tab">
-        <i class="fa-solid fa-gift"></i>
+        <img class="nav-icon" src="assets/icons/ui/coupon.svg" alt="" aria-hidden="true">
         <span data-localize="nav_rewards">쿠폰&이벤트</span>
       </div>
       <div class="nav-item" data-tab="creator-tab">
-        <i class="fa-solid fa-sliders"></i>
+        <img class="nav-icon" src="assets/icons/ui/create.svg" alt="" aria-hidden="true">
         <span data-localize="nav_creator">스튜디오</span>
       </div>
     </nav>
@@ -1470,13 +1500,13 @@
 
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1009" defer></script>
-  <script src="map.js?v=1009" defer></script>
+  <script src="map.js?v=1010" defer></script>
   <script src="explore.js?v=1003" defer></script>
-  <script src="rewards.js?v=1004" defer></script>
+  <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1013" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1019" defer></script>
+  <script src="app.js?v=1020" defer></script>
 </body>
 </html>

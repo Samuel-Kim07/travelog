@@ -49,6 +49,7 @@ const TravelogState = {
       { nameEn: "Gyeonghoeru Pavilion", nameKo: "경회루", nameJa: "慶会楼", lat: 37.5798, lng: 126.9760, triggerRadius: 30 }
     ]
   },
+  guideRunActive: false,
   customCreatedPins: [],
   mapMode: 'explore'
 };
@@ -224,9 +225,17 @@ const LocalizationDictionary = {
   memo_cancel: { en: 'Cancel', ko: '취소', ja: 'キャンセル' },
   memo_save: { en: 'Save Memo', ko: '메모 저장', ja: 'メモを保存' },
   nav_map: { en: 'Map', ko: '지도', ja: '地図' },
+  nav_location: { en: 'My Location', ko: '내위치', ja: '現在地' },
   nav_explore: { en: 'Explore', ko: '피드', ja: 'フィード' },
   nav_rewards: { en: 'Rewards', ko: '쿠폰&이벤트', ja: '特典＆イベント' },
   nav_creator: { en: 'Creator', ko: '스튜디오', ja: 'スタジオ' },
+  location_running_guide: { en: 'Active Guide', ko: '진행 중인 가이드', ja: '進行中のガイド' },
+  location_guide_ready: { en: 'Ready', ko: '대기', ja: '待機' },
+  location_guide_running: { en: 'Running', ko: '진행 중', ja: '進行中' },
+  location_guide_start: { en: 'Start', ko: '시작', ja: '開始' },
+  location_guide_stop: { en: 'Stop', ko: '멈춤', ja: '停止' },
+  coupon_event_quest_title: { en: 'Coupon & Event Quests', ko: '쿠폰&이벤트 퀘스트', ja: 'クーポン＆イベントクエスト' },
+  coupon_event_quest_desc: { en: 'Find coupon events and location missions together.', ko: '쿠폰 이벤트와 위치 기반 미션을 한 화면에서 확인하세요.', ja: 'クーポンイベントと位置ミッションを一画面で確認できます。' },
   share: { en: 'Share', ko: '공유', ja: '共有' },
   search_placeholder: { en: 'Search logs...', ko: '여행기 검색...', ja: '旅ログを検索...' },
   puzzle_placeholder: { en: 'Enter password/answer...', ko: '암호 또는 정답 입력...', ja: '暗号または答えを入力...' }
@@ -301,6 +310,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Tab Navigation logic
 function initNavigation() {
+  const questMount = document.getElementById('integrated-quest-mount');
+  const adventureLayout = document.querySelector('#adventure-tab .adventure-layout');
+  if (questMount && adventureLayout && adventureLayout.parentElement !== questMount) {
+    questMount.appendChild(adventureLayout);
+  }
+
   const navItems = document.querySelectorAll('.nav-item');
   const tabContents = document.querySelectorAll('.tab-content');
 
@@ -326,6 +341,11 @@ function initNavigation() {
       }
 
       if (targetTab === 'map-tab' && window.TravelogMapModule) {
+        if (item.dataset.locationNav === 'true') {
+          window.updateMapLayoutForMode?.('location');
+          window.renderLocationGuidePanel?.();
+          window.TravelogMapModule.requestCurrentLocation?.(null, true);
+        }
         window.TravelogMapModule.invalidateSize(); // Force Leaflet redraw
       }
       
@@ -340,9 +360,9 @@ function initNavigation() {
       }
 
       if (targetTab === 'map-tab') {
-        // If transitioning directly via bottom nav, reset map mode to explore
-        const activeNav = item.classList.contains('highlight-nav') || item.querySelector('.fa-sliders');
-        if (!activeNav && window.updateMapLayoutForMode) {
+        // Creator entry keeps create mode; the center button always opens My Location mode.
+        const isLocationNav = item.dataset.locationNav === 'true';
+        if (!isLocationNav && window.updateMapLayoutForMode) {
           window.updateMapLayoutForMode('explore');
         }
       }
@@ -2083,6 +2103,7 @@ window.startGuideFromHome = async function(guideId) {
   }
 
   TravelogState.activeGuide = buildActiveGuideFromHomeGuide(guideId);
+  TravelogState.guideRunActive = true;
 
   // Perform programmatic tab switch to Map
   const navItems = document.querySelectorAll('.nav-item');
@@ -2098,10 +2119,6 @@ window.startGuideFromHome = async function(guideId) {
     }
   });
 
-  if (window.updateMapLayoutForMode) {
-    window.updateMapLayoutForMode('run');
-  }
-
   window.closeHomeGuideIntroModal();
   window.closeHomeGuidePreviewModal();
 
@@ -2116,6 +2133,11 @@ window.startGuideFromHome = async function(guideId) {
       window.TravelogMapModule.startRealtimeLocationTracking();
     }
   }
+
+  if (window.updateMapLayoutForMode) {
+    window.updateMapLayoutForMode('location');
+  }
+  window.renderLocationGuidePanel?.();
 
   const guideStopCount = Array.isArray(TravelogState.activeGuide?.stops) ? TravelogState.activeGuide.stops.length : 0;
   showToast(localizedText(
@@ -2212,6 +2234,7 @@ function setLanguage(lang) {
 
   renderProfileSampleAvatars();
   renderUserProfileWidget();
+  window.renderLocationGuidePanel?.();
 
   // Notify modules of language change
   triggerModuleLanguageUpdate();
@@ -3552,6 +3575,28 @@ window.updateMapLayoutForMode = function(mode) {
         window.TravelogMapModule.centerToUser();
       }, 100);
     }
+  } else if (mode === 'location') {
+    if (activeGuideCard) activeGuideCard.style.display = 'none';
+    if (tourLocationsCard) tourLocationsCard.style.display = 'none';
+    if (legendPanel) legendPanel.style.display = 'none';
+
+    if (routeTitleEl) {
+      routeTitleEl.removeAttribute('data-localize');
+      routeTitleEl.textContent = localizedText('내 위치', 'My Location', '現在地');
+    }
+    if (routeDescEl) {
+      routeDescEl.removeAttribute('data-localize');
+      routeDescEl.textContent = TravelogState.guideRunActive && TravelogState.activeGuide
+        ? localizedText('현재 위치와 진행 중인 가이드 경로를 함께 표시합니다.', 'Showing your location and active guide route.', '現在地と進行中のガイドルートを表示します。')
+        : localizedText('현재 위치를 중심으로 지도를 표시합니다.', 'Map centered on your current location.', '現在地を中心に地図を表示します。');
+    }
+
+    window.renderLocationGuidePanel?.();
+    window.TravelogMapModule?.renderTour?.();
+    window.setTimeout(() => {
+      window.TravelogMapModule?.requestCurrentLocation?.(null, true);
+      window.TravelogMapModule?.invalidateSize?.();
+    }, 100);
   } else {
     if (activeGuideCard) activeGuideCard.style.display = 'block';
     if (tourLocationsCard) tourLocationsCard.style.display = 'block';
@@ -3592,6 +3637,62 @@ window.updateMapLayoutForMode = function(mode) {
     }
   }
 };
+
+window.renderLocationGuidePanel = function() {
+  const panel = document.getElementById('location-active-guide-panel');
+  if (!panel) return;
+
+  const guide = TravelogState.guideRunActive ? TravelogState.activeGuide : null;
+  if (!guide) {
+    panel.hidden = true;
+    panel.classList.remove('is-running');
+    return;
+  }
+
+  panel.hidden = false;
+  panel.classList.toggle('is-running', TravelogState.guideRunActive === true);
+
+  const title = document.getElementById('location-guide-title');
+  if (title) title.textContent = localizedField(guide, 'name') || guide.name || localizedText('진행 중인 가이드', 'Active Guide', '進行中のガイド');
+
+  const status = document.getElementById('location-guide-status');
+  if (status) {
+    status.removeAttribute('data-localize');
+    status.textContent = localizedText('진행 중', 'Running', '進行中');
+  }
+
+  const list = document.getElementById('location-guide-stop-list');
+  if (list) {
+    const stops = Array.isArray(guide.stops) ? guide.stops : [];
+    list.innerHTML = stops.map((stop, index) => {
+      const name = localizedField(stop, 'name') || stop.name || `${localizedText('코스', 'Stop', '地点')} ${index + 1}`;
+      return `<li><span>${index + 1}</span><strong>${escapeHtml(name)}</strong></li>`;
+    }).join('');
+  }
+};
+
+window.startCurrentGuideTracking = function() {
+  if (!TravelogState.activeGuide) return;
+  TravelogState.guideRunActive = true;
+  window.TravelogMapModule?.startRealtimeLocationTracking?.();
+  window.renderLocationGuidePanel?.();
+  showToast(localizedText('현재 위치 기반 가이드를 시작합니다.', 'Starting the guide from your current location.', '現在地からガイドを開始します。'));
+};
+
+window.stopCurrentGuide = function() {
+  TravelogState.guideRunActive = false;
+  TravelogState.activeGuide = null;
+  window.TravelogMapModule?.stopRealtimeLocationTracking?.(false);
+  window.TravelogMapModule?.renderTour?.();
+  window.renderLocationGuidePanel?.();
+  showToast(localizedText('진행 중인 가이드를 멈췄습니다.', 'The active guide has stopped.', '進行中のガイドを停止しました。'));
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('location-guide-start-btn')?.addEventListener('click', window.startCurrentGuideTracking);
+  document.getElementById('location-guide-stop-btn')?.addEventListener('click', window.stopCurrentGuide);
+  window.renderLocationGuidePanel?.();
+});
 
 // Share functions globally on window object
 window.TravelogApp = {

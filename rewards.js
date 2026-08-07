@@ -414,11 +414,12 @@ const TravelogRewardsModule = (() => {
   }
 
   function startEventQuest(id) {
-    // Navigate user directly to Adventure Mode tab
-    const adventureNavBtn = document.querySelector('.nav-item[data-tab="adventure-tab"]');
-    if (adventureNavBtn) {
-      adventureNavBtn.click();
-    }
+    // Quests and missions now live inside the Coupon & Event tab.
+    const rewardsNavBtn = document.querySelector('.nav-item[data-tab="rewards-tab"]');
+    rewardsNavBtn?.click();
+    window.setTimeout(() => {
+      document.getElementById('integrated-quest-mount')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
   }
 
   function renderCouponWallet() {
