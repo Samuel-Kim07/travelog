@@ -3,7 +3,7 @@
 // ==========================================
 
 const TravelogState = {
-  language: 'ko', // 'ko', 'en', or 'ja'
+  language: 'ko', // ko, en, ja, zh, th, vi, fr, es
   points: 550,
   coins: 1250, // 트레블 코인 기본값
   ownedCoupons: [],
@@ -241,6 +241,19 @@ const LocalizationDictionary = {
   puzzle_placeholder: { en: 'Enter password/answer...', ko: '암호 또는 정답 입력...', ja: '暗号または答えを入力...' }
 };
 
+// Add the extended language pack loaded from languages.js.
+if (window.TravelogLanguagePack) {
+  Object.entries(window.TravelogLanguagePack).forEach(([key, translations]) => {
+    if (!LocalizationDictionary[key]) return;
+    const iconPrefix = String(LocalizationDictionary[key].en || '').match(/^<i[^>]*><\/i>\s*/)?.[0] || '';
+    const prepared = Object.fromEntries(Object.entries(translations).map(([lang, value]) => [
+      lang,
+      iconPrefix && !String(value).startsWith('<i') ? `${iconPrefix}${value}` : value
+    ]));
+    Object.assign(LocalizationDictionary[key], prepared);
+  });
+}
+
 
 function syncMobileVisualViewport() {
   const root = document.documentElement;
@@ -299,8 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.TravelogAdventureModule.init();
   }
 
-  // Set default language
-  setLanguage('ko');
+  // Restore the user's last selected language.
+  setLanguage(loadSavedLanguage());
 
   // Initialize Home Tab UI & Events
   loadPublishedGuides();
@@ -2172,11 +2185,31 @@ function startAdRolling() {
 }
 
 // Language logic
-const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja'];
-const NEXT_LANGUAGE_LABELS = { ko: 'English', en: '日本語', ja: '한국어' };
+const SUPPORTED_LANGUAGES = ['ko', 'en', 'ja', 'zh', 'th', 'vi', 'fr', 'es'];
+const LANGUAGE_STORAGE_KEY = 'travelog_language_v2';
+const LANGUAGE_LABELS = {
+  ko: '한국어',
+  en: 'English',
+  ja: '日本語',
+  zh: '简体中文',
+  th: 'ไทย',
+  vi: 'Tiếng Việt',
+  fr: 'Français',
+  es: 'Español'
+};
 
 function normalizeLanguage(lang) {
-  return SUPPORTED_LANGUAGES.includes(lang) ? lang : 'ko';
+  const normalized = String(lang || '').toLowerCase();
+  if (normalized.startsWith('zh')) return 'zh';
+  return SUPPORTED_LANGUAGES.includes(normalized) ? normalized : 'ko';
+}
+
+function loadSavedLanguage() {
+  try {
+    return normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY) || 'ko');
+  } catch (error) {
+    return 'ko';
+  }
 }
 
 function getNextLanguage(lang) {
@@ -2188,20 +2221,56 @@ function localizedText(ko, en, ja) {
   const lang = normalizeLanguage(TravelogState.language);
   if (lang === 'ja') return ja || en || ko;
   if (lang === 'en') return en || ko || ja;
+  if (['zh', 'th', 'vi', 'fr', 'es'].includes(lang)) return en || ko || ja;
   return ko || en || ja;
 }
 
 function localizedField(source, baseKey) {
-  const suffix = normalizeLanguage(TravelogState.language) === 'ja' ? 'Ja' : normalizeLanguage(TravelogState.language) === 'en' ? 'En' : 'Ko';
+  const suffixMap = { ko: 'Ko', en: 'En', ja: 'Ja', zh: 'Zh', th: 'Th', vi: 'Vi', fr: 'Fr', es: 'Es' };
+  const suffix = suffixMap[normalizeLanguage(TravelogState.language)] || 'Ko';
   return source?.[`${baseKey}${suffix}`] || source?.[`${baseKey}En`] || source?.[`${baseKey}Ko`] || source?.[`${baseKey}Ja`] || '';
 }
 
 function initLanguageToggle() {
   const langBtn = document.getElementById('lang-toggle-btn');
-  if (!langBtn) return;
+  const menu = document.getElementById('language-menu');
+  if (!langBtn || !menu) return;
 
-  langBtn.addEventListener('click', () => {
-    setLanguage(getNextLanguage(TravelogState.language));
+  const closeMenu = () => {
+    menu.hidden = true;
+    langBtn.setAttribute('aria-expanded', 'false');
+  };
+
+  const openMenu = () => {
+    menu.hidden = false;
+    langBtn.setAttribute('aria-expanded', 'true');
+    const selected = menu.querySelector('.language-option.is-selected') || menu.querySelector('.language-option');
+    selected?.focus();
+  };
+
+  langBtn.addEventListener('click', event => {
+    event.stopPropagation();
+    if (menu.hidden) openMenu();
+    else closeMenu();
+  });
+
+  menu.querySelectorAll('.language-option').forEach(option => {
+    option.addEventListener('click', () => {
+      setLanguage(option.dataset.lang);
+      closeMenu();
+      langBtn.focus();
+    });
+  });
+
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.language-selector')) closeMenu();
+  });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !menu.hidden) {
+      closeMenu();
+      langBtn.focus();
+    }
   });
 }
 
@@ -2209,12 +2278,22 @@ function setLanguage(lang) {
   const nextLanguage = normalizeLanguage(lang);
   TravelogState.language = nextLanguage;
   document.documentElement.lang = nextLanguage;
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
+  } catch (error) {
+    // Language switching still works when browser storage is unavailable.
+  }
   
-  // Update header text: button shows the next language users can switch to
+  // Update header text and selected menu item.
   const currentLangText = document.getElementById('current-lang');
   if (currentLangText) {
-    currentLangText.textContent = NEXT_LANGUAGE_LABELS[nextLanguage];
+    currentLangText.textContent = LANGUAGE_LABELS[nextLanguage];
   }
+  document.querySelectorAll('.language-option').forEach(option => {
+    const selected = option.dataset.lang === nextLanguage;
+    option.classList.toggle('is-selected', selected);
+    option.setAttribute('aria-selected', String(selected));
+  });
   
   // Update HTML elements with data-localize
   document.querySelectorAll('[data-localize]').forEach(el => {

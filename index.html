@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1027">
+  <link rel="stylesheet" href="index.css?v=1028">
 </head>
 <body>
 
@@ -44,11 +44,24 @@
           <span data-localize="pts">pts</span>
         </div>
         
-        <!-- Language Switcher Button -->
-        <button id="lang-toggle-btn" class="lang-btn">
-          <i class="fa-solid fa-globe"></i>
-          <span id="current-lang">English</span>
-        </button>
+        <!-- Language Switcher -->
+        <div class="language-selector">
+          <button id="lang-toggle-btn" class="lang-btn" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="language-menu">
+            <img class="language-btn-icon" src="assets/icons/ui/language.svg" alt="" aria-hidden="true">
+            <span id="current-lang">한국어</span>
+            <i class="fa-solid fa-chevron-down language-chevron" aria-hidden="true"></i>
+          </button>
+          <div id="language-menu" class="language-menu" role="listbox" aria-label="언어 선택" hidden>
+            <button type="button" class="language-option" role="option" data-lang="ko"><span>한국어</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="en"><span>English</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="ja"><span>日本語</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="zh"><span>简体中文</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="th"><span>ไทย</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="vi"><span>Tiếng Việt</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="fr"><span>Français</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+            <button type="button" class="language-option" role="option" data-lang="es"><span>Español</span><i class="fa-solid fa-check" aria-hidden="true"></i></button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -1507,6 +1520,7 @@
   <script src="deviceStorage.js?v=1006" defer></script>
   <script src="creator.js?v=1013" defer></script>
   <script src="adventure.js?v=1003" defer></script>
-  <script src="app.js?v=1020" defer></script>
+  <script src="languages.js?v=1001" defer></script>
+  <script src="app.js?v=1021" defer></script>
 </body>
 </html>
