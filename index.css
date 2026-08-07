@@ -3795,10 +3795,21 @@ nav.bottom-nav {
   text-align: left;
 }
 
-.coin-charge-options .charge-btn i {
+.coin-charge-options .charge-btn i,
+.coin-charge-options .charge-option-icon {
   grid-row: 1 / 3;
   justify-self: center;
+}
+
+.coin-charge-options .charge-btn i {
   font-size: 24px;
+}
+
+.coin-charge-options .charge-option-icon {
+  width: 30px;
+  height: 30px;
+  display: block;
+  object-fit: contain;
 }
 
 .coin-charge-options .charge-btn span {
@@ -3828,7 +3839,12 @@ nav.bottom-nav {
 .charge-btn.ad-charge {
   background: rgba(112, 162, 183, 0.15);
   border: 1px solid rgba(112, 162, 183, 0.3);
-  color: #a8dfec;
+  color: #494949;
+}
+
+.charge-btn.ad-charge span,
+.charge-btn.ad-charge small {
+  color: #494949;
 }
 
 .charge-btn.ad-charge:hover {
@@ -5294,4 +5310,12 @@ nav.bottom-nav {
     gap: 3px;
     padding: 6px;
   }
+}
+/* Paid coin shop package artwork */
+.coin-package-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: block;
+  object-fit: contain;
 }
