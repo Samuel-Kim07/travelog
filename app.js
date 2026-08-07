@@ -1009,12 +1009,12 @@ function renderGuidesScrollList(containerId, listData) {
   if (!container) return;
 
   container.innerHTML = listData.map(item => {
-    const ratingText = String(item.rating ?? '').trim();
-    const isNewGuide = ratingText.toUpperCase() === 'NEW';
-    const badgeText = String(item.badge ?? '').trim();
-    const paidGuide = isGuidePaid(item);
-    const coinPrice = getGuideCoinPrice(item);
-    const showBadge = badgeText && !(paidGuide && /coin/i.test(badgeText));
+    const ratingMarkup = String(item.rating).toUpperCase() === 'NEW'
+      ? '<span class="guide-card-rating-text">NEW</span>'
+      : `<img class="guide-card-rating-icon" src="assets/icons/ui/like_icon.svg" alt="" aria-hidden="true"> <span>${escapeHtml(String(item.rating))}</span>`;
+    const priceMarkup = isGuidePaid(item)
+      ? `<span class="guide-card-price guide-card-price-paid"><img class="guide-card-price-icon" src="assets/icons/ui/tc_small.svg" alt="트레블 코인"> <span>${getGuideCoinPrice(item).toLocaleString()}</span></span>`
+      : '<span class="guide-card-price guide-card-price-free">무료</span>';
 
     return `
       <div class="guide-card" onclick="window.openGuideIntroFromHome('${item.id}')">
@@ -1023,9 +1023,9 @@ function renderGuidesScrollList(containerId, listData) {
           <h5 class="guide-card-title">${escapeHtml(item.name)}</h5>
           <span class="guide-card-author"><img class="guide-card-author-icon" src="assets/icons/ui/guid.svg" alt="" aria-hidden="true"> ${escapeHtml(item.author)}</span>
           <div class="guide-card-footer">
-            <span class="guide-card-rating">${isNewGuide ? '' : '<i class="fa-solid fa-star" aria-hidden="true"></i>'}${escapeHtml(ratingText)}</span>
-            ${showBadge ? `<span class="guide-card-badge">${escapeHtml(badgeText)}</span>` : ''}
-            <span class="guide-card-price ${paidGuide ? 'is-paid' : 'is-free'}">${paidGuide ? `<img class="guide-card-coin-icon" src="assets/icons/ui/tc_small.svg" alt="" aria-hidden="true"><span>${coinPrice.toLocaleString()}</span>` : '<span>무료</span>'}</span>
+            <span class="guide-card-rating">${ratingMarkup}</span>
+            <span class="guide-card-badge">${item.badge}</span>
+            ${priceMarkup}
           </div>
         </div>
       </div>`;
