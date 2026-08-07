@@ -233,9 +233,12 @@ header {
   font-weight: 600;
   box-shadow: 0 2px 10px rgba(112, 162, 183, 0.08);
 }
-.stat-pill i.fa-coins {
-  color: #E8C148; /* Goldish sun yellow */
-  text-shadow: 0 2px 5px rgba(232, 193, 72, 0.3);
+.point-stat-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: block;
+  object-fit: contain;
 }
 
 .lang-btn {
@@ -2536,11 +2539,6 @@ nav.bottom-nav {
   box-shadow: 0 6px 18px rgba(112, 162, 183, 0.14);
   transform: translateY(-1px);
   outline: none;
-}
-.profile-widget-gear {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: 2px;
 }
 .profile-manager-modal {
   position: fixed;
@@ -5550,12 +5548,6 @@ nav.bottom-nav {
     white-space: nowrap;
   }
 
-  .profile-widget-gear {
-    flex: 0 0 auto;
-    margin-left: 0;
-    font-size: 9px;
-  }
-
   .stat-pill,
   .lang-btn {
     flex: 0 0 auto;
@@ -5603,10 +5595,6 @@ nav.bottom-nav {
     width: 23px;
     height: 23px;
     flex-basis: 23px;
-  }
-
-  .profile-widget-gear {
-    display: none;
   }
 
   .stat-pill,
