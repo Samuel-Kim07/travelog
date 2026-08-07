@@ -261,7 +261,8 @@ header {
   box-shadow: var(--shadow-neon);
 }
 
-.lang-btn:hover .language-btn-icon {
+.lang-btn:hover .language-btn-icon,
+.lang-btn:hover .language-list-icon {
   filter: brightness(0) invert(1);
 }
 
@@ -278,14 +279,13 @@ header {
   flex: 0 0 18px;
 }
 
-.language-chevron {
-  font-size: 10px;
-  color: var(--text-muted);
-  transition: transform 0.18s ease;
-}
-
-.lang-btn[aria-expanded="true"] .language-chevron {
-  transform: rotate(180deg);
+.language-list-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  object-fit: contain;
+  flex: 0 0 14px;
+  transition: filter 0.18s ease;
 }
 
 .language-menu {
@@ -332,9 +332,13 @@ header {
   background: rgba(112, 162, 183, 0.14);
 }
 
-.language-option i {
+.language-choice-icon {
+  width: 13px;
+  height: 13px;
+  display: block;
+  object-fit: contain;
+  flex: 0 0 13px;
   visibility: hidden;
-  color: var(--color-ocean);
 }
 
 .language-option.is-selected {
@@ -342,7 +346,7 @@ header {
   color: #274957;
 }
 
-.language-option.is-selected i {
+.language-option.is-selected .language-choice-icon {
   visibility: visible;
 }
 
