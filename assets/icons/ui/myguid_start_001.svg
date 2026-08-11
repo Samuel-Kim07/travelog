@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- 핀 내부 영역 마스킹 (겹치는 선 가림 처리) -->
+  <mask id="pin-mask">
+    <rect width="24" height="24" fill="white" />
+    <path d="M 12 2 C 8.5 2 5.8 4.7 5.8 8.2 C 5.8 12.8 12 18 12 18 C 12 18 18.2 12.8 18.2 8.2 C 18.2 4.7 15.5 2 12 2 Z" fill="black" />
+  </mask>
+
+  <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 하단 지도 (마스킹 적용으로 핀 뒤선 자동 가림) -->
+    <path d="M 3 19.5 L 21 19.5 L 17.5 13.5 L 6.5 13.5 Z" mask="url(#pin-mask)" />
+
+    <!-- 위치 핀 외곽선 -->
+    <path d="M 12 2 C 8.5 2 5.8 4.7 5.8 8.2 C 5.8 12.8 12 18 12 18 C 12 18 18.2 12.8 18.2 8.2 C 18.2 4.7 15.5 2 12 2 Z" />
+
+    <!-- 중앙 원 -->
+    <circle cx="12" cy="8.2" r="2" />
+  </g>
+</svg>
