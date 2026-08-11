@@ -5181,6 +5181,77 @@ textarea::placeholder {
   display: none !important;
 }
 
+/* My Location cleanup: remove the top summary gap and keep zoom above the bottom nav. */
+#map-tab .map-hud,
+#map-tab .gps-controls.glass-panel {
+  top: 20px;
+}
+
+#map-tab .map-zoom-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+}
+
+#map-tab .map-zoom-slot .leaflet-control-zoom {
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#map-tab .map-zoom-slot .leaflet-control-zoom a {
+  width: 50px !important;
+  height: 50px !important;
+  line-height: 50px !important;
+  border: 1px solid rgba(112, 162, 183, 0.26) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  box-shadow: 0 6px 18px rgba(43, 58, 66, 0.13) !important;
+  color: var(--text-primary) !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#map-tab .map-zoom-slot .leaflet-control-zoom a:hover,
+#map-tab .map-zoom-slot .leaflet-control-zoom a:active {
+  background: rgba(112, 162, 183, 0.9) !important;
+  color: #fff !important;
+}
+
+#map-tab .map-zoom-slot .leaflet-control-zoom-in {
+  border-bottom: 1px solid rgba(112, 162, 183, 0.26) !important;
+}
+
+@media (max-width: 600px) {
+  #map-tab .gps-controls.glass-panel {
+    top: 18px !important;
+  }
+
+  #map-tab .location-active-guide-panel {
+    top: 18px;
+  }
+}
+
+@media (max-width: 430px) {
+  #map-tab .gps-controls.glass-panel {
+    top: 14px !important;
+  }
+
+  #map-tab .map-zoom-slot .leaflet-control-zoom a {
+    width: 46px !important;
+    height: 46px !important;
+    line-height: 46px !important;
+  }
+}
+
 /* ==========================================
    Mobile visual viewport / browser toolbar safety
    Keeps app content above Android/Samsung browser bottom bars.

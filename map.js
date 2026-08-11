@@ -549,7 +549,12 @@ const TravelogMapModule = (() => {
         zoomControl: false,
         preferCanvas: true
       }).setView(defaultLatLng, 16);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
+      const zoomControl = L.control.zoom({ position: 'bottomright' }).addTo(map);
+      const zoomSlot = document.getElementById('map-zoom-slot');
+      const zoomElement = zoomControl.getContainer();
+      if (zoomSlot && zoomElement) {
+        zoomSlot.appendChild(zoomElement);
+      }
 
       // Request initial GPS position immediately
       if (navigator.geolocation) {

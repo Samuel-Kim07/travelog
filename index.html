@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1032">
+  <link rel="stylesheet" href="index.css?v=1033">
 </head>
 <body>
 
@@ -207,34 +207,6 @@
         <!-- Leaflet Map Canvas -->
         <div id="map-container"></div>
 
-        <!-- Map Top Summary UI -->
-        <div class="map-topbar glass-panel">
-          <div class="map-topbar-main">
-            <div class="map-brand-icon" aria-hidden="true">
-              <img src="assets/images/brand/travelog-ci-symbol.svg" alt="">
-            </div>
-            <div class="map-topbar-copy">
-              <span class="map-kicker" data-localize="map_top_badge">Live Travel Map</span>
-              <h2 id="map-route-title" data-localize="map_route_title">경복궁 로컬 투어</h2>
-              <p id="map-route-description" data-localize="map_route_desc">GPS 위치, 가이드 포인트, 메모를 한 화면에서 확인하세요.</p>
-            </div>
-          </div>
-          <div class="map-stat-row" aria-label="Map quick status">
-            <div class="map-stat-chip">
-              <strong id="map-stop-count">4</strong>
-              <span data-localize="map_stat_stops">Stops</span>
-            </div>
-            <div class="map-stat-chip">
-              <strong id="map-memo-count">0</strong>
-              <span data-localize="map_stat_memos">Memos</span>
-            </div>
-            <div class="map-stat-chip">
-              <strong id="map-gps-mode">OFF</strong>
-              <span data-localize="map_stat_gps">GPS</span>
-            </div>
-          </div>
-        </div>
-        
         <!-- My Location: running guide list and controls -->
         <aside id="location-active-guide-panel" class="location-active-guide-panel glass-panel" aria-live="polite" hidden>
           <div class="location-guide-heading">
@@ -314,6 +286,7 @@
             <span class="map-control-icon" aria-hidden="true">◎</span>
             <span data-localize="map_control_recenter">Center</span>
           </button>
+          <div id="map-zoom-slot" class="map-zoom-slot" aria-label="Map zoom controls"></div>
           <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
             <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
           </div>
@@ -1511,7 +1484,7 @@
 
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1009" defer></script>
-  <script src="map.js?v=1010" defer></script>
+  <script src="map.js?v=1011" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
