@@ -4154,8 +4154,12 @@ nav.bottom-nav {
   gap: 8px;
 }
 
-.section-title-bar h3 i {
-  color: var(--accent-blue, #70A2B7);
+.home-widget-title-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  display: block;
+  object-fit: contain;
 }
 
 .edit-widget-btn {
@@ -4167,6 +4171,13 @@ nav.bottom-nav {
   background: rgba(255,255,255,0.05);
   color: white;
   cursor: pointer;
+}
+
+.edit-widget-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex: 0 0 16px;
 }
 
 .edit-widget-btn:hover {
@@ -4251,10 +4262,26 @@ nav.bottom-nav {
 
 .widget-block-meta {
   font-size: 11px;
-  color: var(--text-secondary, #94a3b8);
+  color: #c9f1d5 !important;
   position: relative;
   z-index: 2;
   margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.widget-block-meta-icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  display: block;
+  color: #c9f1d5 !important;
+  fill: currentColor;
+}
+
+.widget-block-meta span {
+  color: #c9f1d5 !important;
 }
 
 .widget-block-btn {
@@ -4274,6 +4301,15 @@ nav.bottom-nav {
   position: relative;
   z-index: 2;
   transition: all 0.2s ease;
+}
+
+.widget-block-start-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  display: block;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
 }
 
 .widget-block-btn:hover {

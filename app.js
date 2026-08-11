@@ -994,10 +994,15 @@ function renderGuideWidgets() {
         <span style="position:absolute; top:10px; right:10px; z-index:2; font-size:10px; font-weight:900; color:#fff; background:${isGuidePaid(guide) ? 'rgba(255,46,99,.92)' : 'rgba(52,168,83,.92)'}; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.18);">${getGuidePriceLabel(guide)}</span>
         <div>
           <h4 class="widget-block-title">${escapeHtml(guide.name)}</h4>
-          <span class="widget-block-meta"><i class="fa-solid fa-user"></i> ${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
+          <span class="widget-block-meta" style="color:#c9f1d5 !important;">
+            <svg class="widget-block-meta-icon" aria-hidden="true" viewBox="0 0 50 50" focusable="false">
+              <path d="M 8.00 36.00 L 8.00 49.00 L 41.00 49.00 L 41.00 36.00 L 40.00 35.00 L 40.00 34.00 L 37.00 31.00 L 36.00 31.00 L 35.00 30.00 L 14.00 30.00 L 13.00 31.00 L 12.00 31.00 L 9.00 34.00 L 9.00 35.00 Z M 20.00 2.00 L 19.00 3.00 L 18.00 3.00 L 13.00 8.00 L 13.00 9.00 L 12.00 10.00 L 12.00 19.00 L 13.00 20.00 L 13.00 21.00 L 18.00 26.00 L 19.00 26.00 L 20.00 27.00 L 29.00 27.00 L 30.00 26.00 L 31.00 26.00 L 36.00 21.00 L 36.00 20.00 L 37.00 19.00 L 37.00 10.00 L 36.00 9.00 L 36.00 8.00 L 31.00 3.00 L 30.00 3.00 L 29.00 2.00 Z" fill="currentColor" fill-rule="evenodd"></path>
+            </svg>
+            <span>${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
+          </span>
         </div>
         <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
-          <i class="fa-solid ${needsOfflineDownload(guide) ? 'fa-cloud-arrow-down' : 'fa-circle-play'}"></i>
+          <img class="widget-block-start-icon" src="assets/icons/ui/myguid_start_001.svg?v=2" alt="" aria-hidden="true">
           <span>${needsOfflineDownload(guide) ? '다운로드 후 시작' : '가이드 시작'}</span>
         </button>
       </div>`;
