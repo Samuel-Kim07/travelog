@@ -4782,7 +4782,7 @@ nav.bottom-nav {
 .widget-checkbox-name {
   font-size: 13.5px;
   font-weight: 700;
-  color: white;
+  color: #374151 !important;
 }
 
 .widget-checkbox-author {
