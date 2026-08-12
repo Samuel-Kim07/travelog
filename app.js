@@ -50,6 +50,7 @@ const TravelogState = {
     ]
   },
   guideRunActive: false,
+  locationGuideStarted: false,
   customCreatedPins: [],
   mapMode: 'explore'
 };
@@ -233,7 +234,7 @@ const LocalizationDictionary = {
   location_guide_ready: { en: 'Ready', ko: '대기', ja: '待機' },
   location_guide_running: { en: 'Running', ko: '진행 중', ja: '進行中' },
   location_guide_start: { en: 'Start', ko: '시작', ja: '開始' },
-  location_guide_stop: { en: 'Stop', ko: '멈춤', ja: '停止' },
+  location_guide_stop: { en: 'Quit', ko: '그만두기', ja: '終了' },
   coupon_event_quest_title: { en: 'Coupon & Event Quests', ko: '쿠폰&이벤트 퀘스트', ja: 'クーポン＆イベントクエスト' },
   coupon_event_quest_desc: { en: 'Find coupon events and location missions together.', ko: '쿠폰 이벤트와 위치 기반 미션을 한 화면에서 확인하세요.', ja: 'クーポンイベントと位置ミッションを一画面で確認できます。' },
   share: { en: 'Share', ko: '공유', ja: '共有' },
@@ -2123,6 +2124,7 @@ window.startGuideFromHome = async function(guideId) {
 
   TravelogState.activeGuide = buildActiveGuideFromHomeGuide(guideId);
   TravelogState.guideRunActive = true;
+  TravelogState.locationGuideStarted = false;
 
   // Perform programmatic tab switch to Map
   const navItems = document.querySelectorAll('.nav-item');
@@ -3754,11 +3756,18 @@ window.renderLocationGuidePanel = function() {
       return `<li><span>${index + 1}</span><strong>${escapeHtml(name)}</strong></li>`;
     }).join('');
   }
+
+  const startButton = document.getElementById('location-guide-start-btn');
+  if (startButton) startButton.hidden = TravelogState.locationGuideStarted === true;
+
+  const stopButton = document.getElementById('location-guide-stop-btn');
+  if (stopButton) stopButton.hidden = false;
 };
 
 window.startCurrentGuideTracking = function() {
   if (!TravelogState.activeGuide) return;
   TravelogState.guideRunActive = true;
+  TravelogState.locationGuideStarted = true;
   window.TravelogMapModule?.startRealtimeLocationTracking?.();
   window.renderLocationGuidePanel?.();
   showToast(localizedText('현재 위치 기반 가이드를 시작합니다.', 'Starting the guide from your current location.', '現在地からガイドを開始します。'));
@@ -3766,6 +3775,7 @@ window.startCurrentGuideTracking = function() {
 
 window.stopCurrentGuide = function() {
   TravelogState.guideRunActive = false;
+  TravelogState.locationGuideStarted = false;
   TravelogState.activeGuide = null;
   window.TravelogMapModule?.stopRealtimeLocationTracking?.(false);
   window.TravelogMapModule?.renderTour?.();
@@ -3773,9 +3783,26 @@ window.stopCurrentGuide = function() {
   showToast(localizedText('진행 중인 가이드를 멈췄습니다.', 'The active guide has stopped.', '進行中のガイドを停止しました。'));
 };
 
+window.toggleLocationGuidePanel = function() {
+  const panel = document.getElementById('location-active-guide-panel');
+  const button = document.getElementById('location-guide-collapse-btn');
+  if (!panel || !button) return;
+
+  const collapsed = panel.classList.toggle('is-collapsed');
+  button.setAttribute('aria-expanded', String(!collapsed));
+  button.setAttribute('aria-label', localizedText(
+    collapsed ? '진행 중인 가이드 펼치기' : '진행 중인 가이드 접기',
+    collapsed ? 'Expand active guide' : 'Collapse active guide',
+    collapsed ? '進行中のガイドを開く' : '進行中のガイドを閉じる'
+  ));
+
+  button.classList.toggle('is-collapsed', collapsed);
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('location-guide-start-btn')?.addEventListener('click', window.startCurrentGuideTracking);
   document.getElementById('location-guide-stop-btn')?.addEventListener('click', window.stopCurrentGuide);
+  document.getElementById('location-guide-collapse-btn')?.addEventListener('click', window.toggleLocationGuidePanel);
   window.renderLocationGuidePanel?.();
 });
 

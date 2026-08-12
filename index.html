@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1035">
+  <link rel="stylesheet" href="index.css?v=1037">
 </head>
 <body>
 
@@ -210,22 +210,29 @@
         <!-- My Location: running guide list and controls -->
         <aside id="location-active-guide-panel" class="location-active-guide-panel glass-panel" aria-live="polite" hidden>
           <div class="location-guide-heading">
-            <div>
+            <div class="location-guide-heading-copy">
               <span class="location-guide-kicker" data-localize="location_running_guide">진행 중인 가이드</span>
               <h3 id="location-guide-title">가이드</h3>
             </div>
-            <span id="location-guide-status" class="location-guide-status" data-localize="location_guide_ready">대기</span>
+            <div class="location-guide-heading-actions">
+              <span id="location-guide-status" class="location-guide-status" data-localize="location_guide_ready">대기</span>
+              <button type="button" id="location-guide-collapse-btn" class="location-guide-collapse-btn" aria-expanded="true" aria-controls="location-guide-collapsible-content" aria-label="진행 중인 가이드 접기">
+                <img src="assets/icons/ui/folding.svg" alt="" aria-hidden="true">
+              </button>
+            </div>
           </div>
-          <ol id="location-guide-stop-list" class="location-guide-stop-list"></ol>
-          <div class="location-guide-actions">
-            <button type="button" id="location-guide-start-btn" class="location-guide-action start">
-              <i class="fa-solid fa-play" aria-hidden="true"></i>
-              <span data-localize="location_guide_start">시작</span>
-            </button>
-            <button type="button" id="location-guide-stop-btn" class="location-guide-action stop">
-              <i class="fa-solid fa-stop" aria-hidden="true"></i>
-              <span data-localize="location_guide_stop">멈춤</span>
-            </button>
+          <div id="location-guide-collapsible-content" class="location-guide-collapsible-content">
+            <ol id="location-guide-stop-list" class="location-guide-stop-list"></ol>
+            <div class="location-guide-actions">
+              <button type="button" id="location-guide-start-btn" class="location-guide-action start">
+                <i class="fa-solid fa-play" aria-hidden="true"></i>
+                <span data-localize="location_guide_start">시작</span>
+              </button>
+              <button type="button" id="location-guide-stop-btn" class="location-guide-action stop">
+                <i class="fa-solid fa-stop" aria-hidden="true"></i>
+                <span data-localize="location_guide_stop">그만두기</span>
+              </button>
+            </div>
           </div>
         </aside>
         
@@ -1496,6 +1503,6 @@
   <script src="creator.js?v=1013" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1001" defer></script>
-  <script src="app.js?v=1023" defer></script>
+  <script src="app.js?v=1025" defer></script>
 </body>
 </html>

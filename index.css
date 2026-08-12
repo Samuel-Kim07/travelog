@@ -552,6 +552,7 @@ nav.bottom-nav {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.93);
   box-shadow: 0 14px 36px rgba(52, 78, 89, 0.18);
+  transition: padding 0.22s ease, border-radius 0.22s ease, box-shadow 0.22s ease;
 }
 
 .location-active-guide-panel[hidden] {
@@ -560,9 +561,21 @@ nav.bottom-nav {
 
 .location-guide-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.location-guide-heading-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.location-guide-heading-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 7px;
 }
 
 .location-guide-kicker {
@@ -579,6 +592,9 @@ nav.bottom-nav {
   color: #373737;
   font-size: 15px;
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .location-guide-status {
@@ -589,6 +605,78 @@ nav.bottom-nav {
   color: #557E3F;
   font-size: 10px;
   font-weight: 900;
+}
+
+.location-guide-collapse-btn {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(112, 162, 183, 0.14);
+  color: #69767b;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.location-guide-collapse-btn img {
+  display: block;
+  width: 18px;
+  height: auto;
+  transition: transform 0.22s ease;
+}
+
+.location-guide-collapse-btn.is-collapsed img {
+  transform: rotate(180deg);
+}
+
+.location-guide-collapse-btn:hover,
+.location-guide-collapse-btn:focus-visible {
+  background: rgba(112, 162, 183, 0.24);
+  color: #3f5964;
+  outline: none;
+}
+
+.location-guide-collapse-btn:active {
+  transform: scale(0.94);
+}
+
+.location-guide-collapsible-content {
+  max-height: 260px;
+  overflow: hidden;
+  opacity: 1;
+  transition: max-height 0.28s ease, opacity 0.18s ease;
+}
+
+.location-active-guide-panel.is-collapsed {
+  padding: 9px 10px 9px 13px;
+  border-radius: 15px;
+  box-shadow: 0 8px 24px rgba(52, 78, 89, 0.16);
+}
+
+.location-active-guide-panel.is-collapsed .location-guide-kicker {
+  margin-bottom: 1px;
+  font-size: 8px;
+}
+
+.location-active-guide-panel.is-collapsed #location-guide-title {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.location-active-guide-panel.is-collapsed .location-guide-status {
+  display: none;
+}
+
+.location-active-guide-panel.is-collapsed .location-guide-collapsible-content {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .location-guide-stop-list {
@@ -622,20 +710,32 @@ nav.bottom-nav {
 }
 
 .location-guide-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
 .location-guide-action {
-  min-height: 38px;
+  width: 64px;
+  min-height: 19px;
+  padding: 2px 4px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 6px;
   color: #fff;
   font: inherit;
-  font-size: 12px;
+  font-size: 8px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.location-guide-action i {
+  margin-right: 2px;
+  font-size: 8px;
+}
+
+.location-guide-action[hidden] {
+  display: none !important;
 }
 
 .location-guide-action.start { background: #70A2B7; }
@@ -5400,6 +5500,11 @@ nav.bottom-nav {
     left: 12px;
     width: min(286px, calc(100% - 24px));
     padding: 12px;
+  }
+
+  .location-active-guide-panel.is-collapsed {
+    width: min(286px, calc(100% - 88px));
+    padding: 8px 9px 8px 12px;
   }
 
   .location-guide-stop-list {

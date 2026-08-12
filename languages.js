@@ -175,7 +175,7 @@
   add('location_guide_ready', '待机', 'พร้อม', 'Sẵn sàng', 'Prêt', 'Listo');
   add('location_guide_running', '进行中', 'กำลังทำงาน', 'Đang chạy', 'En cours', 'En curso');
   add('location_guide_start', '开始', 'เริ่ม', 'Bắt đầu', 'Démarrer', 'Iniciar');
-  add('location_guide_stop', '停止', 'หยุด', 'Dừng', 'Arrêter', 'Detener');
+  add('location_guide_stop', '结束', 'เลิก', 'Kết thúc', 'Quitter', 'Salir');
   add('coupon_event_quest_title', '优惠券与活动任务', 'คูปอง กิจกรรม และภารกิจ', 'Phiếu, sự kiện & nhiệm vụ', 'Coupons, événements et quêtes', 'Cupones, eventos y misiones');
   add('coupon_event_quest_desc', '在同一页面查看优惠活动和位置任务。', 'ดูคูปองและภารกิจตามตำแหน่งในหน้าเดียว', 'Xem sự kiện và nhiệm vụ vị trí trên một màn hình.', 'Retrouvez événements et missions géolocalisées au même endroit.', 'Consulta eventos y misiones de ubicación en una sola pantalla.');
   add('share', '分享', 'แชร์', 'Chia sẻ', 'Partager', 'Compartir');
