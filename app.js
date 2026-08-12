@@ -1872,23 +1872,17 @@ function renderIntroMedia(activeGuide) {
 function updateIntroPurchaseButton(activeGuide) {
   const purchaseBtn = document.getElementById('home-guide-intro-purchase-btn');
   if (!purchaseBtn || !activeGuide) return;
-  const price = getGuideCoinPrice(activeGuide);
   const purchased = isGuidePurchased(activeGuide.id);
   const statusGuide = { ...activeGuide, ...(getGuideByIdFromCollections(activeGuide.id) || {}) };
+  purchaseBtn.classList.toggle('is-purchased', purchased);
   if (purchased) {
     if (needsOfflineDownload(statusGuide)) {
-      purchaseBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> 구매완료 · 다운로드 후 시작';
-      purchaseBtn.style.background = 'var(--color-ocean)';
+      purchaseBtn.textContent = '다운로드 후 시작';
     } else {
-      purchaseBtn.innerHTML = '<i class="fa-solid fa-circle-play"></i> 구매완료 · 가이드 시작';
-      purchaseBtn.style.background = 'var(--grad-pink-purple)';
+      purchaseBtn.textContent = '가이드 시작';
     }
-  } else if (price > 0) {
-    purchaseBtn.innerHTML = `<i class="fa-solid fa-cart-shopping"></i> 구매 (${price.toLocaleString()} COIN)`;
-    purchaseBtn.style.background = 'var(--color-ocean)';
   } else {
-    purchaseBtn.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> 무료 구매 (0 COIN)';
-    purchaseBtn.style.background = 'var(--color-green, var(--color-leaf))';
+    purchaseBtn.textContent = '구매하기';
   }
 }
 
@@ -1987,15 +1981,15 @@ window.openGuideIntroFromHome = function(guideId) {
   const coverEl = document.getElementById('home-guide-intro-cover');
   if (coverEl) coverEl.style.backgroundImage = cover ? `url('${cover}')` : '';
   const badgeEl = document.getElementById('home-guide-intro-badge');
-  if (badgeEl) badgeEl.textContent = activeGuide.badge || '오늘의 가이드';
+  if (badgeEl) badgeEl.textContent = isGuidePaid(activeGuide) ? 'Paid' : 'Free';
   const titleEl = document.getElementById('home-guide-intro-title');
   if (titleEl) titleEl.textContent = title;
   const metaEl = document.getElementById('home-guide-intro-meta');
   if (metaEl) metaEl.textContent = `${activeGuide.author || 'Travelog Creator'} · 코스 ${stops.length}개 · 메모 ${activeGuide.memoCount || stops.length}개 · 쿠폰 ${coupons.length}개`;
   const descEl = document.getElementById('home-guide-intro-description');
   if (descEl) descEl.textContent = description;
-  const priceBadge = document.getElementById('home-guide-intro-badge');
-  if (priceBadge) priceBadge.textContent = `${activeGuide.badge || '오늘의 가이드'} · ${getGuidePriceLabel(activeGuide)}`;
+  const priceValue = document.getElementById('home-guide-intro-price-value');
+  if (priceValue) priceValue.textContent = getGuideCoinPrice(activeGuide).toLocaleString();
   updateIntroPurchaseButton(activeGuide);
 
   renderIntroMedia(activeGuide);
