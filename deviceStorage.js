@@ -99,6 +99,29 @@ const TravelogDeviceStorage = (() => {
     });
   }
 
+  async function findPersistedFile(fileName, kind = '') {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(FILE_STORE, 'readonly');
+      const request = tx.objectStore(FILE_STORE).openCursor();
+      let bestMatch = null;
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) {
+          resolve(bestMatch);
+          return;
+        }
+        const value = cursor.value;
+        if (value?.fileName === fileName && (!kind || value.kind === kind)) {
+          if (!bestMatch || String(value.createdAt || '') > String(bestMatch.createdAt || '')) bestMatch = value;
+        }
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error || new Error('IndexedDB cursor failed'));
+      tx.oncomplete = () => db.close();
+    });
+  }
+
   async function verifyPermission(handle, readWrite = true, ask = false) {
     if (!handle || typeof handle.queryPermission !== 'function') return true;
     const options = readWrite ? { mode: 'readwrite' } : { mode: 'read' };
@@ -291,14 +314,29 @@ const TravelogDeviceStorage = (() => {
     return setupOpfsFallback('AUTO_INTERNAL_STORAGE');
   }
 
+  function makeStableStorageId(kind, fileName, metadata = {}) {
+    const guideId = String(metadata.guideId || metadata.guide_id || 'unsorted');
+    const pinId = String(metadata.pinId || metadata.pin_id || metadata.stopIndex || 'root');
+    return `travelog-media:${guideId}:${kind}:${pinId}:${fileName}`;
+  }
+
+  function makeLightweightMetadata(metadata = {}) {
+    const next = {};
+    Object.keys(metadata || {}).forEach(key => {
+      if (key === 'blob' || key === 'dataUrl' || key === 'objectUrl') return;
+      next[key] = metadata[key];
+    });
+    return next;
+  }
+
   async function persistInIndexedDb(kind, fileName, blob, metadata = {}) {
-    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}-${fileName}`;
+    const id = metadata.storageId || makeStableStorageId(kind, fileName, metadata);
     await idbPut(FILE_STORE, {
       id,
       kind,
       fileName,
       blob,
-      metadata,
+      metadata: makeLightweightMetadata(metadata),
       createdAt: new Date().toISOString()
     });
     return { id, mode: 'indexeddb', fileName, kind };
@@ -306,7 +344,16 @@ const TravelogDeviceStorage = (() => {
 
   async function saveGeneratedFile(kind, fileName, blob, metadata = {}) {
     const folderKind = getKindFolder(kind);
-    const safeBlob = blob instanceof Blob ? blob : new Blob([String(blob || '')], { type: 'text/plain;charset=utf-8' });
+    if (!(blob instanceof Blob) || blob.size <= 0) {
+      const error = new Error('MEDIA_SOURCE_MISSING');
+      error.detail = t(
+        `${fileName || '미디어 파일'}의 실제 원본 데이터가 없어 저장을 중단했습니다. 파일을 다시 선택해 주세요.`,
+        `The original data for ${fileName || 'the media file'} is missing. Select the file again.`,
+        `${fileName || 'メディアファイル'}の元データがないため保存を中止しました。ファイルを再選択してください。`
+      );
+      throw error;
+    }
+    const safeBlob = blob;
     await ensureReady();
 
     try {
@@ -314,7 +361,14 @@ const TravelogDeviceStorage = (() => {
         const targetHandle = folderKind === 'Root' ? dataHandle : folderHandles[folderKind];
         if (!targetHandle) throw new Error('TARGET_FOLDER_NOT_READY');
         await writeBlobToHandle(targetHandle, fileName, safeBlob);
-        return { mode: currentStatus.mode, folder: folderKind, fileName };
+        return {
+          id: makeStableStorageId(folderKind, fileName, metadata),
+          mode: currentStatus.mode,
+          folder: folderKind,
+          fileName,
+          guideId: metadata.guideId || '',
+          pinId: metadata.pinId || ''
+        };
       }
     } catch (error) {
       console.warn('[Travelog Device Storage] Direct write failed. Falling back to IndexedDB.', error);
@@ -329,17 +383,50 @@ const TravelogDeviceStorage = (() => {
     return persistInIndexedDb(folderKind, fileName, safeBlob, metadata);
   }
 
+  async function readBlobFromDirectory(folderKind, fileName) {
+    await ensureReady();
+    if (!dataHandle) return null;
+    const targetHandle = folderKind === 'Root' ? dataHandle : folderHandles[folderKind];
+    if (!targetHandle) return null;
+    const fileHandle = await targetHandle.getFileHandle(fileName, { create: false });
+    return fileHandle.getFile();
+  }
+
+  async function loadGeneratedFile(reference = {}) {
+    if (!reference || !reference.fileName) return null;
+    const folderKind = getKindFolder(reference.folder || reference.kind || 'Root');
+
+    try {
+      if (reference.mode === 'directory' || reference.mode === 'opfs' || currentStatus.mode === 'directory' || currentStatus.mode === 'opfs') {
+        const file = await readBlobFromDirectory(folderKind, reference.fileName);
+        if (file instanceof Blob && file.size > 0) return file;
+      }
+    } catch (error) {
+      console.warn('[Travelog Device Storage] Saved media could not be read from the device folder.', error);
+    }
+
+    try {
+      const record = reference.id
+        ? await idbGet(FILE_STORE, reference.id)
+        : await findPersistedFile(reference.fileName, folderKind);
+      return record?.blob instanceof Blob && record.blob.size > 0 ? record.blob : null;
+    } catch (error) {
+      console.warn('[Travelog Device Storage] Saved media could not be read from IndexedDB.', error);
+      return null;
+    }
+  }
+
   async function savePublishPackage(packageData) {
     await ensureReady();
 
     for (const file of packageData.audioFiles || []) {
-      await saveGeneratedFile('Audio', file.fileName, file.blob, file);
+      file.deviceStorageRef = await saveGeneratedFile('Audio', file.fileName, file.blob, { ...file, guideId: packageData.guideId });
     }
     for (const file of packageData.videoFiles || []) {
-      await saveGeneratedFile('Video', file.fileName, file.blob, file);
+      file.deviceStorageRef = await saveGeneratedFile('Video', file.fileName, file.blob, { ...file, guideId: packageData.guideId });
     }
     for (const file of packageData.photoFiles || []) {
-      await saveGeneratedFile('Photo', file.fileName, file.blob, file);
+      file.deviceStorageRef = await saveGeneratedFile('Photo', file.fileName, file.blob, { ...file, guideId: packageData.guideId });
     }
     for (const file of packageData.textFiles || []) {
       await saveGeneratedFile('Text', file.fileName, file.blob, file);
@@ -347,6 +434,39 @@ const TravelogDeviceStorage = (() => {
     for (const file of packageData.rootFiles || []) {
       await saveGeneratedFile('Root', file.fileName, file.blob, { source: 'publish-package' });
     }
+
+    if (packageData.guideIntroAudio) {
+      packageData.guideIntroAudio.deviceStorageRef = await saveGeneratedFile(
+        'Audio',
+        packageData.guideIntroAudio.fileName || `intro_audio_${packageData.guideId}.webm`,
+        packageData.guideIntroAudio.blob,
+        { guideId: packageData.guideId, pinId: 'intro', mediaRole: 'intro_audio' }
+      );
+    }
+    if (packageData.guideIntroVideo) {
+      packageData.guideIntroVideo.deviceStorageRef = await saveGeneratedFile(
+        'Video',
+        packageData.guideIntroVideo.fileName || `intro_video_${packageData.guideId}.webm`,
+        packageData.guideIntroVideo.blob,
+        { guideId: packageData.guideId, pinId: 'intro', mediaRole: 'intro_video' }
+      );
+    }
+
+    const copyStorageRefs = (files, pinKey) => {
+      (files || []).forEach(file => {
+        const pinIndex = Number(file.stopIndex || 0);
+        const pin = packageData.pins?.[pinIndex];
+        const cardStop = packageData.guideCard?.stops?.[pinIndex];
+        [pin, cardStop].forEach(target => {
+          const entries = Array.isArray(target?.[pinKey]) ? target[pinKey] : [];
+          const match = entries.find(entry => (entry.fileName || entry.name) === file.fileName) || entries[0];
+          if (match) match.deviceStorageRef = { ...file.deviceStorageRef };
+        });
+      });
+    };
+    copyStorageRefs(packageData.audioFiles, 'linkedAudioFiles');
+    copyStorageRefs(packageData.videoFiles, 'linkedVideoFiles');
+    copyStorageRefs(packageData.photoFiles, 'linkedPhotoFiles');
 
     return {
       selectedFolderName: currentStatus.selectedFolderName || t('기기 저장소', 'Device storage', '端末保存先'),
@@ -405,6 +525,7 @@ const TravelogDeviceStorage = (() => {
     configureFromUserGesture,
     useInternalStorage,
     saveGeneratedFile,
+    loadGeneratedFile,
     savePublishPackage,
     ensureReady,
     getStatus,

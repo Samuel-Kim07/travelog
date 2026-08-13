@@ -563,8 +563,32 @@ const TravelogSupabase = (() => {
     return dataUrlToBlob(item.dataUrl || item.url || '');
   }
 
+  function assertValidMediaBlob(blob, kind, label) {
+    const expectedPrefix = kind === 'photo' ? 'image/' : `${kind}/`;
+    if (!(blob instanceof Blob) || blob.size <= 0 || !String(blob.type || '').startsWith(expectedPrefix)) {
+      const error = new Error('INVALID_MEDIA_FILE');
+      error.detail = t(
+        `${label}의 실제 원본 파일이 없거나 형식이 올바르지 않아 출간을 중단했습니다. 파일을 다시 등록해 주세요.`,
+        `${label} is missing or invalid. Publishing was stopped; add the original file again.`,
+        `${label}の元ファイルがないか形式が不正なため公開を中止しました。ファイルを再登録してください。`
+      );
+      throw error;
+    }
+    return blob;
+  }
+
+  function validatePublishMedia(packageData) {
+    if (packageData.guideIntroAudio) assertValidMediaBlob(getPackageIntroBlob(packageData, 'guideIntroAudio'), 'audio', t('투어소개 음성', 'Intro audio', '紹介音声'));
+    if (packageData.guideIntroVideo) assertValidMediaBlob(getPackageIntroBlob(packageData, 'guideIntroVideo'), 'video', t('투어소개 영상', 'Intro video', '紹介動画'));
+    (packageData.audioFiles || []).forEach((file, index) => assertValidMediaBlob(file?.blob instanceof Blob ? file.blob : dataUrlToBlob(file?.dataUrl || ''), 'audio', `${index + 1}번 음성 메모`));
+    (packageData.videoFiles || []).forEach((file, index) => assertValidMediaBlob(file?.blob instanceof Blob ? file.blob : dataUrlToBlob(file?.dataUrl || ''), 'video', `${index + 1}번 영상 메모`));
+    (packageData.photoFiles || []).forEach((file, index) => assertValidMediaBlob(file?.blob instanceof Blob ? file.blob : dataUrlToBlob(file?.dataUrl || ''), 'photo', `${index + 1}번 사진 메모`));
+  }
+
   async function publishGuidePackage(packageData) {
     if (!packageData) throw new Error('PACKAGE_REQUIRED');
+    // Validate every real media source before deleting an existing published package.
+    validatePublishMedia(packageData);
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     const session = await ensureSession({ displayName: packageData.creator || 'Travelog Creator', interactiveLogin: true });
@@ -576,16 +600,12 @@ const TravelogSupabase = (() => {
       throw new Error('GUIDE_ID_MUST_BE_UUID');
     }
 
-    await syncProfile({ nickname: packageData.creator || 'Travelog Creator' });
-
     const pinCount = (packageData.pins || []).length;
     const memoCount = (packageData.audioFiles || []).length + (packageData.videoFiles || []).length + (packageData.photoFiles || []).length + (packageData.textFiles || []).length;
     const couponCount = (packageData.eventCoupons || []).length;
     let totalBytes = 0;
 
-    const { data: guide, error: guideError } = await supabase
-      .from('guides')
-      .upsert({
+    const guideDraftRow = {
         id: guideId,
         author_id: userId,
         title: packageData.tourName || 'Travelog Guide',
@@ -599,14 +619,37 @@ const TravelogSupabase = (() => {
         memo_count: memoCount,
         coupon_count: couponCount,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' })
-      .select()
-      .single();
-    if (guideError) throw guideError;
+    };
 
-    // Re-publishing the same prepared package should not fail because of old draft rows.
-    await supabase.from('guide_media').delete().eq('guide_id', guideId);
-    await supabase.from('guide_pins').delete().eq('guide_id', guideId);
+    // Upload into temporary rows first. Existing published data stays intact until
+    // every media file has passed upload verification.
+    const { data: existingGuide } = await supabase
+      .from('guides')
+      .select('*')
+      .eq('id', guideId)
+      .maybeSingle();
+
+    let guide = existingGuide;
+    if (!existingGuide) {
+      const { data: insertedGuide, error: guideError } = await supabase
+        .from('guides')
+        .insert(guideDraftRow)
+        .select()
+        .single();
+      if (guideError) throw guideError;
+      guide = insertedGuide;
+    }
+
+    const { data: oldMediaRows, error: oldMediaError } = await supabase
+      .from('guide_media')
+      .select('*')
+      .eq('guide_id', guideId);
+    if (oldMediaError) throw oldMediaError;
+    const { data: oldPinRows, error: oldPinError } = await supabase
+      .from('guide_pins')
+      .select('*')
+      .eq('guide_id', guideId);
+    if (oldPinError) throw oldPinError;
 
     let coverPath = '';
     const coverBlob = dataUrlToBlob(packageData.representativeImage || '');
@@ -646,7 +689,8 @@ const TravelogSupabase = (() => {
     const uploadMediaFile = async (file, role, folder, bucket = MEDIA_BUCKET) => {
       if (!file) return null;
       const blob = file.blob instanceof Blob ? file.blob : dataUrlToBlob(file.dataUrl || '');
-      if (!blob) return null;
+      const kind = role === 'pin_video' ? 'video' : role === 'pin_photo' ? 'photo' : 'audio';
+      assertValidMediaBlob(blob, kind, file.fileName || role);
       const index = Number(file.stopIndex || 0);
       const pinRow = insertedPinsByLocalId.get(String(file.pinId || '')) || insertedPinsByIndex.get(index) || null;
       const storagePath = makeStoragePath({
@@ -666,23 +710,58 @@ const TravelogSupabase = (() => {
     if (introAudioBlob) {
       const ext = guessExtension(introAudioBlob.type, 'webm');
       const path = `guides/${guideId}/intro/intro-audio.${ext}`;
-      await uploadBlob(MEDIA_BUCKET, path, introAudioBlob);
+      await uploadBlob(PUBLIC_BUCKET, path, introAudioBlob);
       totalBytes += introAudioBlob.size || 0;
-      await createGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: MEDIA_BUCKET, storagePath: path, blob: introAudioBlob });
+      await createGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introAudioBlob });
     }
 
     const introVideoBlob = getPackageIntroBlob(packageData, 'guideIntroVideo');
     if (introVideoBlob) {
       const ext = guessExtension(introVideoBlob.type, 'webm');
       const path = `guides/${guideId}/intro/intro-video.${ext}`;
-      await uploadBlob(MEDIA_BUCKET, path, introVideoBlob);
+      await uploadBlob(PUBLIC_BUCKET, path, introVideoBlob);
       totalBytes += introVideoBlob.size || 0;
-      await createGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: MEDIA_BUCKET, storagePath: path, blob: introVideoBlob });
+      await createGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introVideoBlob });
     }
 
     for (const file of packageData.audioFiles || []) await uploadMediaFile(file, 'pin_audio', 'audio');
     for (const file of packageData.videoFiles || []) await uploadMediaFile(file, 'pin_video', 'video');
     for (const file of packageData.photoFiles || []) await uploadMediaFile(file, 'pin_photo', 'photo');
+
+    const expectedMediaCount = (coverBlob ? 1 : 0)
+      + (introAudioBlob ? 1 : 0)
+      + (introVideoBlob ? 1 : 0)
+      + (packageData.audioFiles || []).length
+      + (packageData.videoFiles || []).length
+      + (packageData.photoFiles || []).length;
+    const { data: allMediaAfterUpload, error: mediaCheckError } = await supabase
+      .from('guide_media')
+      .select('*')
+      .eq('guide_id', guideId);
+    if (mediaCheckError) throw mediaCheckError;
+    const oldMediaIds = new Set((oldMediaRows || []).map(row => row.id));
+    const uploadedMedia = (allMediaAfterUpload || []).filter(row => !oldMediaIds.has(row.id));
+    const invalidUploadedMedia = uploadedMedia.some(row => Number(row.file_size || 0) <= 0 || ['pin_audio', 'intro_audio'].includes(row.media_role) && !String(row.mime_type || '').startsWith('audio/') || ['pin_video', 'intro_video'].includes(row.media_role) && !String(row.mime_type || '').startsWith('video/') || row.media_role === 'pin_photo' && !String(row.mime_type || '').startsWith('image/'));
+    if (uploadedMedia.length !== expectedMediaCount || invalidUploadedMedia) {
+      const error = new Error('MEDIA_UPLOAD_VERIFICATION_FAILED');
+      error.detail = t('미디어 업로드 결과가 원본과 일치하지 않아 출간을 완료하지 않았습니다.', 'Media upload verification did not match the originals, so publishing was not completed.', 'メディアのアップロード結果が元データと一致しないため公開を完了しませんでした。');
+      throw error;
+    }
+
+    if ((oldMediaRows || []).length > 0) {
+      const { error: deleteOldMediaError } = await supabase
+        .from('guide_media')
+        .delete()
+        .in('id', oldMediaRows.map(row => row.id));
+      if (deleteOldMediaError) throw deleteOldMediaError;
+    }
+    if ((oldPinRows || []).length > 0) {
+      const { error: deleteOldPinsError } = await supabase
+        .from('guide_pins')
+        .delete()
+        .in('id', oldPinRows.map(row => row.id));
+      if (deleteOldPinsError) throw deleteOldPinsError;
+    }
 
     const { data: finalGuide, error: updateError } = await supabase
       .from('guides')
@@ -701,7 +780,7 @@ const TravelogSupabase = (() => {
       .single();
     if (updateError) throw updateError;
 
-    const guideCard = buildGuideCardFromSupabase(finalGuide || guide, orderedPins, [], {
+    const guideCard = buildGuideCardFromSupabase(finalGuide || guide, orderedPins, uploadedMedia || [], {
       creatorName: packageData.creator,
       representativeImage: coverPath ? getPublicUrl(PUBLIC_BUCKET, coverPath) : packageData.representativeImage,
       fallbackCard: packageData.guideCard,
@@ -816,6 +895,18 @@ const TravelogSupabase = (() => {
       stops,
       eventCoupons: options.fallbackCard?.eventCoupons || []
     };
+    const introAudio = (media || []).find(item => item.media_role === 'intro_audio');
+    const introVideo = (media || []).find(item => item.media_role === 'intro_video');
+    const makeIntroInfo = item => item ? {
+      fileName: String(item.storage_path || '').split('/').pop(),
+      mimeType: item.mime_type || '',
+      fileSize: Number(item.file_size || 0) || 0,
+      bucketName: item.bucket_name,
+      storagePath: item.storage_path,
+      dataUrl: item.bucket_name === PUBLIC_BUCKET ? getPublicUrl(item.bucket_name, item.storage_path) : ''
+    } : null;
+    card.guideIntroAudio = makeIntroInfo(introAudio) || options.fallbackCard?.guideIntroAudio || null;
+    card.guideIntroVideo = makeIntroInfo(introVideo) || options.fallbackCard?.guideIntroVideo || null;
     return card;
   }
 
@@ -824,7 +915,7 @@ const TravelogSupabase = (() => {
     if (!supabase) return [];
     const { data, error } = await supabase
       .from('guides')
-      .select('*, guide_pins(*)')
+      .select('*, guide_pins(*), guide_media(*)')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(50);

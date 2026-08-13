@@ -386,6 +386,7 @@ const TravelogCreatorModule = (() => {
         fileName: file.name,
         mimeType: file.type || (kind === 'video' ? 'video/webm' : 'audio/webm'),
         size: file.size || 0,
+        blob: file,
         dataUrl: String(reader.result || ''),
         createdAt: new Date().toISOString()
       });
@@ -664,7 +665,8 @@ const TravelogCreatorModule = (() => {
       mimeType,
       stopIndex: typeof file.stopIndex === 'number' ? file.stopIndex : Number(file.stopIndex || 0),
       pinId: file.pinId || '',
-      text: file.memoText || file.text || ''
+      text: file.memoText || file.text || '',
+      deviceStorageRef: file.deviceStorageRef ? { ...file.deviceStorageRef } : null
     };
 
     if (file.dataUrl) info.dataUrl = file.dataUrl;
@@ -1258,6 +1260,44 @@ const TravelogCreatorModule = (() => {
     }
   }
 
+  function dataUrlToMediaBlob(dataUrl) {
+    const value = String(dataUrl || '');
+    const match = value.match(/^data:([^;,]+)?(?:;charset=[^;,]+)?;base64,(.+)$/);
+    if (!match) return null;
+    try {
+      const binary = atob(match[2]);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+      return new Blob([bytes], { type: match[1] || 'application/octet-stream' });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function getRealMediaBlob(item) {
+    if (item?.blob instanceof Blob) return item.blob;
+    return dataUrlToMediaBlob(item?.dataUrl || item?.url || '');
+  }
+
+  function requireRealMediaBlob(item, kind, label) {
+    const blob = getRealMediaBlob(item);
+    const expectedPrefix = kind === 'photo' ? 'image/' : `${kind}/`;
+    if (!(blob instanceof Blob) || blob.size <= 0 || !String(blob.type || '').startsWith(expectedPrefix)) {
+      const error = new Error('MEDIA_SOURCE_MISSING');
+      error.detail = t(
+        `${label}의 실제 원본 파일이 없습니다. 해당 음성·영상·사진 파일을 다시 등록한 뒤 저장해 주세요.`,
+        `The original file for ${label} is missing. Add the audio, video, or photo again before saving.`,
+        `${label}の元ファイルがありません。音声・動画・写真を再登録してから保存してください。`
+      );
+      throw error;
+    }
+    return blob;
+  }
+
+  function isMediaSourceError(error) {
+    return error?.message === 'MEDIA_SOURCE_MISSING' || error?.message === 'INVALID_MEDIA_FILE';
+  }
+
   async function buildGuidePublishPackage() {
     await ensureRecordedMediaDataUrls();
     const orderedPins = getOrderedCustomPins();
@@ -1273,6 +1313,8 @@ const TravelogCreatorModule = (() => {
     const guideIntroText = getGuideIntroText();
     const guideIntroAudioInfo = guideIntroAudio ? { ...guideIntroAudio } : null;
     const guideIntroVideoInfo = guideIntroVideo ? { ...guideIntroVideo } : null;
+    if (guideIntroAudioInfo) guideIntroAudioInfo.blob = requireRealMediaBlob(guideIntroAudioInfo, 'audio', t('투어소개 음성', 'intro audio', '紹介音声'));
+    if (guideIntroVideoInfo) guideIntroVideoInfo.blob = requireRealMediaBlob(guideIntroVideoInfo, 'video', t('투어소개 영상', 'intro video', '紹介動画'));
     const eventCoupons = registeredCoupons.map(coupon => ({ ...coupon }));
     const monetization = getGuidePricing();
 
@@ -1327,7 +1369,7 @@ const TravelogCreatorModule = (() => {
 
     const audioFiles = recordedAudios.map((audio, index) => {
       const pin = pinByIndex.get(Number(audio.stopIndex));
-      const blob = audio.blob || new Blob(['Travelog simulated audio memo'], { type: 'text/plain' });
+      const blob = requireRealMediaBlob(audio, 'audio', `${Number(audio.stopIndex || 0) + 1}번 핀 음성`);
       const extension = audio.name && audio.name.includes('.') ? audio.name.split('.').pop() : getBlobExtension(blob, 'webm');
       const fileName = audio.name || `audio_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
       return {
@@ -1346,7 +1388,7 @@ const TravelogCreatorModule = (() => {
 
     const videoFiles = recordedVideos.map((video, index) => {
       const pin = pinByIndex.get(Number(video.stopIndex));
-      const blob = video.blob || new Blob(['Travelog simulated video memo'], { type: 'text/plain' });
+      const blob = requireRealMediaBlob(video, 'video', `${Number(video.stopIndex || 0) + 1}번 핀 영상`);
       const extension = video.name && video.name.includes('.') ? video.name.split('.').pop() : getBlobExtension(blob, 'webm');
       const fileName = video.name || `video_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
       return {
@@ -1365,7 +1407,7 @@ const TravelogCreatorModule = (() => {
 
     const photoFiles = recordedPhotos.map((photo, index) => {
       const pin = pinByIndex.get(Number(photo.stopIndex));
-      const blob = photo.blob || new Blob([''], { type: 'image/png' });
+      const blob = requireRealMediaBlob(photo, 'photo', `${Number(photo.stopIndex || 0) + 1}번 핀 사진`);
       const extension = photo.name && photo.name.includes('.') ? photo.name.split('.').pop() : getBlobExtension(blob, 'png');
       const fileName = photo.name || `photo_memo_${String(index + 1).padStart(2, '0')}_${tourSlug}.${extension}`;
       return {
@@ -1750,6 +1792,10 @@ const TravelogCreatorModule = (() => {
       pendingPublishPackage = null;
       lastSavedPublishSignature = '';
       updateFinalPublishButtonState();
+      if (isMediaSourceError(error)) {
+        alert(error.detail || t('실제 미디어 원본이 없어 저장을 중단했습니다. 파일을 다시 등록해 주세요.', 'Saving stopped because the original media is missing. Add the file again.', '元メディアがないため保存を中止しました。ファイルを再登録してください。'));
+        return;
+      }
       try {
         showDeviceStorageRepairDialog(packageData || await buildGuidePublishPackage());
       } catch (_) {
@@ -2257,13 +2303,36 @@ const TravelogCreatorModule = (() => {
         dataUrl: file.dataUrl || file.url || file.mediaUrl || '',
         objectUrl: file.objectUrl || '',
         mimeType: file.mimeType || fallbackMime,
+        deviceStorageRef: file.deviceStorageRef || null,
         stopIndex: pinIndex,
         pinId: pin.id || ''
       }));
     });
   }
 
-  function openSavedGuideEditor(id) {
+  async function restoreMediaItemFromDeviceStorage(item, kind) {
+    if (!item) return false;
+    let blob = getRealMediaBlob(item);
+    if (!blob && window.TravelogDeviceStorage?.loadGeneratedFile) {
+      const fallbackKind = kind === 'photo' ? 'Photo' : kind === 'video' ? 'Video' : 'Audio';
+      blob = await window.TravelogDeviceStorage.loadGeneratedFile(item.deviceStorageRef || {
+        fileName: item.fileName || item.name,
+        folder: fallbackKind,
+        kind: fallbackKind
+      });
+    }
+    if (!(blob instanceof Blob) || blob.size <= 0) return false;
+    const expectedPrefix = kind === 'photo' ? 'image/' : `${kind}/`;
+    if (!String(blob.type || '').startsWith(expectedPrefix)) return false;
+    item.blob = blob;
+    item.size = blob.size;
+    item.mimeType = blob.type;
+    if (!item.dataUrl) item.dataUrl = await blobToDataUrl(blob);
+    if (!item.objectUrl) item.objectUrl = URL.createObjectURL(blob);
+    return true;
+  }
+
+  async function openSavedGuideEditor(id) {
     const record = getSavedGuideById(id);
     if (!record) return;
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
@@ -2320,6 +2389,15 @@ const TravelogCreatorModule = (() => {
     recordedAudios = restoreMediaEntriesFromSavedPins(record, 'audio');
     recordedVideos = restoreMediaEntriesFromSavedPins(record, 'video');
     recordedPhotos = restoreMediaEntriesFromSavedPins(record, 'photo');
+
+    const restoredResults = await Promise.all([
+      ...recordedAudios.map(item => restoreMediaItemFromDeviceStorage(item, 'audio')),
+      ...recordedVideos.map(item => restoreMediaItemFromDeviceStorage(item, 'video')),
+      ...recordedPhotos.map(item => restoreMediaItemFromDeviceStorage(item, 'photo')),
+      guideIntroAudio ? restoreMediaItemFromDeviceStorage(guideIntroAudio, 'audio') : Promise.resolve(true),
+      guideIntroVideo ? restoreMediaItemFromDeviceStorage(guideIntroVideo, 'video') : Promise.resolve(true)
+    ]);
+    const missingMediaCount = restoredResults.filter(result => result === false).length;
     pendingPublishPackage = null;
     lastSavedPublishSignature = '';
 
@@ -2331,7 +2409,9 @@ const TravelogCreatorModule = (() => {
     updatePublishPanelCounts();
     updateFinalPublishButtonState();
 
-    window.TravelogApp?.showToast?.(t('저장된 가이드를 스튜디오로 불러왔습니다. 상단 상태가 가이드 수정중으로 바뀌었고, 수정 완료를 누르면 기존 저장 데이터를 덮어씁니다.', 'Saved guide loaded into Studio. Complete Edit overwrites the existing saved guide.', '保存済みガイドをスタジオに読み込みました。修正完了で既存保存データを上書きします。'));
+    window.TravelogApp?.showToast?.(missingMediaCount > 0
+      ? t(`가이드를 불러왔지만 원본 미디어 ${missingMediaCount}개를 찾지 못했습니다. 해당 파일을 다시 등록해야 저장·출간할 수 있습니다.`, `Guide loaded, but ${missingMediaCount} original media files are missing. Add them again before saving or publishing.`, `ガイドを読み込みましたが元メディア${missingMediaCount}件が見つかりません。再登録後に保存・公開してください。`)
+      : t('저장된 가이드와 미디어 원본을 스튜디오로 불러왔습니다.', 'The saved guide and original media were loaded into Studio.', '保存済みガイドと元メディアをスタジオに読み込みました。'));
   }
 
   function deleteSavedGuide(id) {
