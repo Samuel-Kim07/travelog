@@ -6303,3 +6303,104 @@ nav.bottom-nav {
     font-size: 12px;
   }
 }
+/* Publishing progress bar */
+.publish-progress {
+  display: none;
+  width: 100%;
+  max-width: 340px;
+  padding: 4px 0 2px;
+  color: var(--text-secondary);
+}
+
+.publish-progress-head,
+.publish-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.publish-progress-head {
+  margin-bottom: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+#publish-progress-label {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#publish-progress-percent {
+  flex-shrink: 0;
+  color: var(--accent-blue);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.publish-progress-track {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(112, 162, 183, 0.25);
+  border-radius: 999px;
+  background: rgba(112, 162, 183, 0.14);
+  box-shadow: inset 0 1px 3px rgba(45, 67, 76, 0.08);
+}
+
+.publish-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #70a2b7 0%, #8bc5c4 48%, #afd499 100%);
+  box-shadow: 0 0 12px rgba(112, 162, 183, 0.34);
+  transition: width 0.38s ease;
+}
+
+.publish-progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 15%, rgba(255,255,255,.48) 45%, transparent 72%);
+  transform: translateX(-100%);
+  animation: publish-progress-shimmer 1.35s linear infinite;
+}
+
+.publish-progress-meta {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+#publish-progress-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#publish-progress-eta {
+  flex-shrink: 0;
+  color: var(--color-ocean);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes publish-progress-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .publish-progress-fill { transition: none; }
+  .publish-progress-fill::after { animation: none; }
+}

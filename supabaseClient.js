@@ -585,15 +585,38 @@ const TravelogSupabase = (() => {
     (packageData.photoFiles || []).forEach((file, index) => assertValidMediaBlob(file?.blob instanceof Blob ? file.blob : dataUrlToBlob(file?.dataUrl || ''), 'photo', `${index + 1}번 사진 메모`));
   }
 
-  async function publishGuidePackage(packageData) {
+  async function publishGuidePackage(packageData, options = {}) {
     if (!packageData) throw new Error('PACKAGE_REQUIRED');
+    const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
+    const totalMediaItems = Math.max(1,
+      (packageData.representativeImage ? 1 : 0)
+      + (packageData.guideIntroAudio ? 1 : 0)
+      + (packageData.guideIntroVideo ? 1 : 0)
+      + (packageData.audioFiles || []).length
+      + (packageData.videoFiles || []).length
+      + (packageData.photoFiles || []).length
+    );
+    let completedMediaItems = 0;
+    const reportProgress = (percent, label, detail) => onProgress({ percent, label, detail });
+    const reportMediaUploaded = label => {
+      completedMediaItems += 1;
+      reportProgress(
+        30 + Math.round((completedMediaItems / totalMediaItems) * 50),
+        t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'),
+        `${label} · ${completedMediaItems}/${totalMediaItems}`
+      );
+    };
+
+    reportProgress(5, t('파일 검사 중', 'Checking files', 'ファイル確認中'), t('음성·영상·사진 원본을 검사하고 있습니다.', 'Checking original audio, video, and photo files.', '音声・動画・写真の元ファイルを確認しています。'));
     // Validate every real media source before deleting an existing published package.
     validatePublishMedia(packageData);
+    reportProgress(10, t('서버 연결 중', 'Connecting to server', 'サーバー接続中'), t('사용자 인증을 확인하고 있습니다.', 'Checking the user session.', 'ユーザー認証を確認しています。'));
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     const session = await ensureSession({ displayName: packageData.creator || 'Travelog Creator', interactiveLogin: true });
     const userId = session?.user?.id;
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    reportProgress(16, t('가이드 준비 중', 'Preparing guide', 'ガイド準備中'), t('기존 가이드 정보를 확인하고 있습니다.', 'Checking existing guide data.', '既存ガイド情報を確認しています。'));
 
     const guideId = packageData.guideId;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(guideId || ''))) {
@@ -650,6 +673,7 @@ const TravelogSupabase = (() => {
       .select('*')
       .eq('guide_id', guideId);
     if (oldPinError) throw oldPinError;
+    reportProgress(24, t('핀 정보 저장 중', 'Saving pins', 'ピン情報を保存中'), `${(packageData.pins || []).length}개 핀을 준비하고 있습니다.`);
 
     let coverPath = '';
     const coverBlob = dataUrlToBlob(packageData.representativeImage || '');
@@ -659,6 +683,7 @@ const TravelogSupabase = (() => {
       await uploadBlob(PUBLIC_BUCKET, coverPath, coverBlob);
       totalBytes += coverBlob.size || 0;
       await createGuideMediaRow({ guideId, mediaRole: 'cover', bucketName: PUBLIC_BUCKET, storagePath: coverPath, blob: coverBlob });
+      reportMediaUploaded(t('대표 이미지', 'Cover image', '代表画像'));
     }
 
     const insertedPinsByLocalId = new Map();
@@ -703,7 +728,9 @@ const TravelogSupabase = (() => {
       });
       await uploadBlob(bucket, storagePath, blob);
       totalBytes += blob.size || 0;
-      return createGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null });
+      const mediaRow = await createGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null });
+      reportMediaUploaded(file.fileName || role);
+      return mediaRow;
     };
 
     const introAudioBlob = getPackageIntroBlob(packageData, 'guideIntroAudio');
@@ -713,6 +740,7 @@ const TravelogSupabase = (() => {
       await uploadBlob(PUBLIC_BUCKET, path, introAudioBlob);
       totalBytes += introAudioBlob.size || 0;
       await createGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introAudioBlob });
+      reportMediaUploaded(t('투어소개 음성', 'Intro audio', '紹介音声'));
     }
 
     const introVideoBlob = getPackageIntroBlob(packageData, 'guideIntroVideo');
@@ -722,11 +750,14 @@ const TravelogSupabase = (() => {
       await uploadBlob(PUBLIC_BUCKET, path, introVideoBlob);
       totalBytes += introVideoBlob.size || 0;
       await createGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introVideoBlob });
+      reportMediaUploaded(t('투어소개 영상', 'Intro video', '紹介動画'));
     }
 
     for (const file of packageData.audioFiles || []) await uploadMediaFile(file, 'pin_audio', 'audio');
     for (const file of packageData.videoFiles || []) await uploadMediaFile(file, 'pin_video', 'video');
     for (const file of packageData.photoFiles || []) await uploadMediaFile(file, 'pin_photo', 'photo');
+
+    reportProgress(84, t('업로드 검사 중', 'Verifying uploads', 'アップロード確認中'), t('저장된 파일의 크기와 형식을 확인합니다.', 'Checking uploaded file sizes and formats.', '保存されたファイルのサイズと形式を確認しています。'));
 
     const expectedMediaCount = (coverBlob ? 1 : 0)
       + (introAudioBlob ? 1 : 0)
@@ -762,6 +793,7 @@ const TravelogSupabase = (() => {
         .in('id', oldPinRows.map(row => row.id));
       if (deleteOldPinsError) throw deleteOldPinsError;
     }
+    reportProgress(91, t('가이드 등록 중', 'Registering guide', 'ガイド登録中'), t('최종 가이드 정보로 교체하고 있습니다.', 'Finalizing the guide information.', '最終ガイド情報に更新しています。'));
 
     const { data: finalGuide, error: updateError } = await supabase
       .from('guides')
@@ -779,6 +811,7 @@ const TravelogSupabase = (() => {
       .select()
       .single();
     if (updateError) throw updateError;
+    reportProgress(97, t('마무리 중', 'Finishing', '仕上げ中'), t('홈 화면용 가이드 정보를 만들고 있습니다.', 'Preparing the guide card for Home.', 'ホーム画面用のガイド情報を準備しています。'));
 
     const guideCard = buildGuideCardFromSupabase(finalGuide || guide, orderedPins, uploadedMedia || [], {
       creatorName: packageData.creator,
@@ -792,6 +825,7 @@ const TravelogSupabase = (() => {
     guideCard.stops = (packageData.guideCard?.stops || guideCard.stops || []).map(stop => ({ ...stop }));
     guideCard.guideIntroAudio = packageData.guideIntroAudio ? stripBlobFields(packageData.guideIntroAudio) : null;
     guideCard.guideIntroVideo = packageData.guideIntroVideo ? stripBlobFields(packageData.guideIntroVideo) : null;
+    reportProgress(100, t('출간 완료', 'Published', '公開完了'), t('가이드와 미디어 업로드가 완료되었습니다.', 'Guide and media upload complete.', 'ガイドとメディアのアップロードが完了しました。'));
 
     return {
       guideId,

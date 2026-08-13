@@ -1572,6 +1572,67 @@ const TravelogCreatorModule = (() => {
   }
 
 
+  let publishProgressStartedAt = 0;
+  let publishProgressValue = 0;
+  let publishProgressTimer = null;
+  let publishProgressLastState = null;
+
+  function formatPublishEta(seconds) {
+    const safeSeconds = Math.max(1, Math.round(Number(seconds) || 0));
+    if (safeSeconds < 60) return t(`약 ${safeSeconds}초 남음`, `About ${safeSeconds}s left`, `約${safeSeconds}秒`);
+    const minutes = Math.floor(safeSeconds / 60);
+    const rest = safeSeconds % 60;
+    return t(`약 ${minutes}분 ${rest}초 남음`, `About ${minutes}m ${rest}s left`, `約${minutes}分${rest}秒`);
+  }
+
+  function updatePublishProgress(progress = {}) {
+    const container = document.getElementById('publish-loading-spinner');
+    const fill = document.getElementById('publish-progress-fill');
+    const percentEl = document.getElementById('publish-progress-percent');
+    const labelEl = document.getElementById('publish-progress-label');
+    const detailEl = document.getElementById('publish-progress-detail');
+    const etaEl = document.getElementById('publish-progress-eta');
+    if (!container) return;
+
+    const nextPercent = Math.max(publishProgressValue, Math.min(100, Math.round(Number(progress.percent) || 0)));
+    publishProgressValue = nextPercent;
+    publishProgressLastState = { ...progress, percent: nextPercent };
+    container.style.display = 'block';
+    container.setAttribute('aria-valuenow', String(nextPercent));
+    if (fill) fill.style.width = `${nextPercent}%`;
+    if (percentEl) percentEl.textContent = `${nextPercent}%`;
+    if (labelEl && progress.label) labelEl.textContent = progress.label;
+    if (detailEl && progress.detail) detailEl.textContent = progress.detail;
+
+    if (etaEl) {
+      const elapsedSeconds = publishProgressStartedAt ? (Date.now() - publishProgressStartedAt) / 1000 : 0;
+      if (nextPercent >= 100) {
+        etaEl.textContent = t('완료', 'Complete', '完了');
+      } else if (nextPercent >= 8 && elapsedSeconds >= 1.5) {
+        etaEl.textContent = formatPublishEta(elapsedSeconds * (100 - nextPercent) / nextPercent);
+      } else {
+        etaEl.textContent = t('예상 시간 계산 중...', 'Estimating time...', '残り時間を計算中...');
+      }
+    }
+  }
+
+  function resetPublishProgress() {
+    if (publishProgressTimer) clearInterval(publishProgressTimer);
+    publishProgressStartedAt = Date.now();
+    publishProgressValue = 0;
+    const fill = document.getElementById('publish-progress-fill');
+    if (fill) fill.style.width = '0%';
+    updatePublishProgress({
+      percent: 2,
+      label: t('출간 준비 중', 'Preparing', '公開準備中'),
+      detail: t('업로드할 데이터를 확인하고 있습니다.', 'Checking files to upload.', 'アップロードデータを確認しています。')
+    });
+    publishProgressTimer = setInterval(() => {
+      if (!publishProgressLastState || publishProgressValue >= 100) return;
+      updatePublishProgress(publishProgressLastState);
+    }, 1000);
+  }
+
   function showPublishModalLoading(title, desc) {
     const loadingModal = document.getElementById('publish-loading-modal');
     const statusTitle = document.getElementById('publish-status-title');
@@ -1590,6 +1651,7 @@ const TravelogCreatorModule = (() => {
     if (actions) actions.style.display = 'none';
     loadingModal.classList.add('active');
     loadingModal.setAttribute('aria-hidden', 'false');
+    resetPublishProgress();
   }
 
   function showPublishReadyModal(packageData, localSaveInfo) {
@@ -1604,6 +1666,11 @@ const TravelogCreatorModule = (() => {
     const closeButton = document.getElementById('publish-ready-close-btn');
 
     if (!loadingModal) return;
+    updatePublishProgress({
+      percent: 100,
+      label: t('저장 완료', 'Saved', '保存完了'),
+      detail: t('기기 저장이 완료되었습니다.', 'Device save complete.', '端末保存が完了しました。')
+    });
     if (statusTitle) statusTitle.textContent = t('저장이 완료되었습니다.', 'Saved successfully.', '保存が完了しました。');
     if (statusDesc) statusDesc.textContent = t('이제 출간 준비가 완료 되었어요.', 'Your guide is now ready to publish.', '公開準備が完了しました。');
     if (spinner) spinner.style.display = 'none';
@@ -1631,6 +1698,8 @@ const TravelogCreatorModule = (() => {
     if (!loadingModal) return;
     loadingModal.classList.remove('active');
     loadingModal.setAttribute('aria-hidden', 'true');
+    if (publishProgressTimer) clearInterval(publishProgressTimer);
+    publishProgressTimer = null;
   }
 
   function completeLocalGuideSave(packageData, localSaveInfo) {
@@ -1830,7 +1899,7 @@ const TravelogCreatorModule = (() => {
       storeSavedGuideRecord(packageData, localSaveInfo, shouldRepublishOnline ? 'published' : 'unpublished');
 
       if (shouldRepublishOnline && window.TravelogSupabase && typeof window.TravelogSupabase.publishGuidePackage === 'function') {
-        const publishResult = await window.TravelogSupabase.publishGuidePackage(packageData);
+        const publishResult = await window.TravelogSupabase.publishGuidePackage(packageData, { onProgress: updatePublishProgress });
         packageData = {
           ...packageData,
           guideId: publishResult.guideId || packageData.guideId,
@@ -1871,6 +1940,11 @@ const TravelogCreatorModule = (() => {
         summary.style.display = 'block';
       }
       if (actions) actions.style.display = 'none';
+      updatePublishProgress({
+        percent: 100,
+        label: t('수정 완료', 'Edit complete', '修正完了'),
+        detail: t('가이드 수정사항이 모두 반영되었습니다.', 'All guide changes have been applied.', 'ガイドの修正内容が反映されました。')
+      });
 
       window.TravelogApp.showToast(shouldRepublishOnline
         ? t('출간된 가이드 수정이 완료되었습니다. 새 가이드 제작 화면으로 초기화합니다.', 'Published guide edit complete. Studio reset for a new guide.', '公開ガイドの修正が完了しました。新規制作画面に初期化します。')
@@ -2857,7 +2931,7 @@ const TravelogCreatorModule = (() => {
         t('가이드 정보는 Database에, 대표 이미지/음성/영상/사진은 Storage에 업로드합니다.', 'Saving guide data to Database and media to Storage.', 'ガイド情報をDatabaseへ、メディアをStorageへ保存します。')
       );
 
-      const publishResult = await window.TravelogSupabase.publishGuidePackage(pendingPublishPackage);
+      const publishResult = await window.TravelogSupabase.publishGuidePackage(pendingPublishPackage, { onProgress: updatePublishProgress });
       const completedPackage = {
         ...pendingPublishPackage,
         guideId: publishResult.guideId || pendingPublishPackage.guideId,
@@ -2896,6 +2970,11 @@ const TravelogCreatorModule = (() => {
         summary.style.display = 'block';
       }
       if (actions) actions.style.display = 'none';
+      updatePublishProgress({
+        percent: 100,
+        label: t('출간 완료', 'Published', '公開完了'),
+        detail: t('서버 등록과 미디어 검사가 완료되었습니다.', 'Server registration and media verification complete.', 'サーバー登録とメディア確認が完了しました。')
+      });
 
       window.TravelogApp.addPoints(150);
       window.TravelogApp.showToast(t(`가이드 [${completedPackage.tourName}] Supabase 출간 완료!`, `Guide [${completedPackage.tourName}] published to Supabase!`, `ガイド［${completedPackage.tourName}］をSupabaseに公開しました！`));
