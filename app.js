@@ -412,9 +412,9 @@ let adRollingIntervalId = null;
 
 const RECOMMEND_GUIDES_DATA = {
   recommended: [
-    { id: 'rec-1', name: '서울 북촌한옥마을 반나절 도보 투어', author: '지민 (로컬 가이드)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', badge: '인기' },
-    { id: 'rec-2', name: '부산 해운대 해변 열차 낭만 여행', author: '준호 (로컬 가이드)', rating: '4.8', bg: 'assets/images/profile/profile-ocean.svg', badge: '강추' },
-    { id: 'rec-3', name: '제주 우도 전기자전거 환상 투어', author: '수진 (로컬 가이드)', rating: '4.7', bg: 'assets/images/profile/profile-compass.svg', badge: '신규' }
+    { id: 'rec-1', name: '서울 북촌한옥마을 반나절 도보 투어', author: '지민 (로컬 가이드)', rating: '4.9', bg: 'assets/images/recommended-guides/han.png', badge: '인기' },
+    { id: 'rec-2', name: '부산 해운대 해변 열차 낭만 여행', author: '준호 (로컬 가이드)', rating: '4.8', bg: 'assets/images/recommended-guides/hae.png', badge: '강추' },
+    { id: 'rec-3', name: '제주 우도 전기자전거 환상 투어', author: '수진 (로컬 가이드)', rating: '4.7', bg: 'assets/images/recommended-guides/jeju.png', badge: '신규' }
   ],
   today: [
     { id: 'today-1', name: '경복궁 역사/문화 가이드 투어', author: '민호 (서울 토박이)', rating: '4.9', bg: 'assets/images/blogs/blog-seoul-history-food.svg', badge: '오늘의 로그' },
