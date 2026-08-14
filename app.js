@@ -425,8 +425,8 @@ const RECOMMEND_GUIDES_DATA = {
     { id: 'star-2', name: '추아저씨의 오키나와 그냥 따라와 투어', author: '추아저씨 (스타 가이드)', rating: '4.9', bg: 'assets/images/star-guides/choo.png', badge: 'STAR' }
   ],
   event: [
-    { id: 'event-1', name: '수원 화성 성곽 보물찾기 퀘스트', author: '트레블로그 이벤트', rating: '4.8', bg: 'assets/images/adventure/quest-seoul-palace-mystery.svg', badge: '선물 증정' },
-    { id: 'event-2', name: '인천 송도 미래도시 야경 퀘스트', author: '송도 관광공사', rating: '4.6', bg: 'assets/images/profile/profile-night.svg', badge: '포인트 2배' }
+    { id: 'event-1', name: '수원 화성 성곽 보물찾기 퀘스트', author: '트레블로그 이벤트', rating: '4.8', bg: 'assets/images/event-guides/suwon.png', badge: '선물 증정' },
+    { id: 'event-2', name: '인천 송도 미래도시 야경 퀘스트', author: '송도 관광공사', rating: '4.6', bg: 'assets/images/event-guides/inch.png', badge: '포인트 2배' }
   ]
 };
 
