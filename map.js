@@ -37,6 +37,10 @@ const TravelogMapModule = (() => {
   let creatorRouteConnected = false;
   let creatorPreviewPackage = null;
   let creatorPreviewIndex = -1;
+  let activeGuidePreviewNodes = [];
+  let activeGuidePreviewIndex = -1;
+  let activeGuidePreviewPopup = null;
+  let activeGuidePreviewWasTracking = false;
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
   // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
@@ -249,14 +253,6 @@ const TravelogMapModule = (() => {
       );
     }
 
-    const simBtn = document.getElementById('gps-simulation-btn');
-    if (simBtn) {
-      setMapControlContent(
-        simBtn,
-        isSimulating ? 'Ⅱ' : '↟',
-        isSimulating ? t('테스트 중', 'Testing', 'テスト中') : t('걷기 테스트', 'Walk Test', '歩行テスト')
-      );
-    }
   }
 
   function getLocalizedGuideValue(source, baseKey, fallback = '') {
@@ -670,10 +666,9 @@ const TravelogMapModule = (() => {
       createPinBtn.addEventListener('click', handleCreatePinAtGpsClick);
     }
 
-    const gpsSimulationBtn = document.getElementById('gps-simulation-btn');
-    if (gpsSimulationBtn) {
-      gpsSimulationBtn.addEventListener('click', toggleGPSSimulation);
-    }
+    document.getElementById('active-guide-preview-prev')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex - 1));
+    document.getElementById('active-guide-preview-next')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex + 1));
+    document.getElementById('active-guide-preview-stop')?.addEventListener('click', stopActiveGuidePreview);
 
     initMemoModalEvents();
     
@@ -1006,6 +1001,7 @@ const TravelogMapModule = (() => {
   }
 
   function startGuideRun(activeGuide = null) {
+    stopActiveGuidePreview({ silent: true, resumeTracking: false });
     if (window.TravelogApp && activeGuide) {
       window.TravelogApp.getState().activeGuide = activeGuide;
     }
@@ -1016,6 +1012,115 @@ const TravelogMapModule = (() => {
     renderTour({ fitToGuide: true });
     renderUserMemoMarkers();
     invalidateMapSoon();
+  }
+
+  function closeActiveGuidePreviewPopup() {
+    if (map && activeGuidePreviewPopup) {
+      try { map.closePopup(activeGuidePreviewPopup); } catch (_) {}
+    }
+    activeGuidePreviewPopup = null;
+  }
+
+  function updateActiveGuidePreviewControls(node) {
+    const controls = document.getElementById('active-guide-preview-controls');
+    const title = document.getElementById('active-guide-preview-title');
+    const count = document.getElementById('active-guide-preview-count');
+    const prev = document.getElementById('active-guide-preview-prev');
+    const next = document.getElementById('active-guide-preview-next');
+    if (!controls) return;
+
+    controls.hidden = false;
+    if (title) title.textContent = node?.name || t('핀 미리보기', 'Pin preview', 'ピンプレビュー');
+    if (count) count.textContent = `${activeGuidePreviewIndex + 1} / ${activeGuidePreviewNodes.length}`;
+    if (prev) prev.disabled = activeGuidePreviewIndex <= 0;
+    if (next) next.disabled = activeGuidePreviewIndex >= activeGuidePreviewNodes.length - 1;
+
+    document.querySelectorAll('#location-guide-stop-list li').forEach((item, index) => {
+      item.classList.toggle('is-previewing', index === activeGuidePreviewIndex);
+    });
+  }
+
+  function showActiveGuidePreviewPin(index) {
+    if (!map || activeGuidePreviewNodes.length === 0) return;
+    const nextIndex = Math.max(0, Math.min(Number(index) || 0, activeGuidePreviewNodes.length - 1));
+    const node = activeGuidePreviewNodes[nextIndex];
+    if (!node) return;
+
+    activeGuidePreviewIndex = nextIndex;
+    closeActiveGuidePreviewPopup();
+    map.setView([node.lat, node.lng], Math.max(map.getZoom(), 17), { animate: true });
+
+    const detailLabel = activeGuidePreviewNodes.length > 1
+      ? `${activeGuidePreviewIndex + 1} / ${activeGuidePreviewNodes.length}`
+      : '1 / 1';
+    activeGuidePreviewPopup = L.popup({
+      closeButton: false,
+      autoPan: true,
+      offset: [0, -22],
+      className: 'active-guide-preview-popup'
+    })
+      .setLatLng([node.lat, node.lng])
+      .setContent(`
+        <div class="active-guide-preview-popup-card">
+          <span>${escapeHtml(detailLabel)}</span>
+          <strong>${escapeHtml(node.name)}</strong>
+          <p>${escapeHtml(node.desc || node.triggerText || '')}</p>
+          <button type="button" data-active-guide-preview-open>${t('핀 내용 보기', 'View pin details', 'ピンの内容を見る')}</button>
+        </div>
+      `)
+      .openOn(map);
+
+    window.setTimeout(() => {
+      const popupEl = activeGuidePreviewPopup?.getElement?.();
+      popupEl?.querySelector('[data-active-guide-preview-open]')?.addEventListener('click', () => openPublishedGuideMemoPopup(node), { once: true });
+    }, 0);
+
+    updateActiveGuidePreviewControls(node);
+  }
+
+  function startActiveGuidePreview() {
+    const appState = window.TravelogApp?.getState?.();
+    if (!appState?.activeGuide || appState.guideRunActive !== true) {
+      window.TravelogApp?.showToast(t('진행 중인 가이드가 없습니다.', 'There is no active guide.', '進行中のガイドがありません。'));
+      return;
+    }
+
+    activeGuidePreviewNodes = getTourNodes()
+      .slice()
+      .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+    if (activeGuidePreviewNodes.length === 0) {
+      window.TravelogApp?.showToast(t('미리볼 연결 핀이 없습니다.', 'There are no linked pins to preview.', 'プレビューできる連結ピンがありません。'));
+      return;
+    }
+
+    if (isSimulating) toggleGPSSimulation();
+    activeGuidePreviewWasTracking = isRealtimeTracking;
+    if (activeGuidePreviewWasTracking) stopRealtimeLocationTracking(false);
+    activeGuidePreviewIndex = 0;
+    window.setLocationGuidePanelCollapsed?.(true);
+    document.getElementById('map-tab')?.classList.add('is-guide-previewing');
+    showActiveGuidePreviewPin(0);
+    window.TravelogApp?.showToast(t('핀 미리보기를 시작합니다.', 'Starting pin preview.', 'ピンプレビューを開始します。'));
+  }
+
+  function stopActiveGuidePreview(options = {}) {
+    const wasPreviewing = activeGuidePreviewNodes.length > 0 || activeGuidePreviewIndex >= 0;
+    closeActiveGuidePreviewPopup();
+    activeGuidePreviewNodes = [];
+    activeGuidePreviewIndex = -1;
+    document.getElementById('map-tab')?.classList.remove('is-guide-previewing');
+    const controls = document.getElementById('active-guide-preview-controls');
+    if (controls) controls.hidden = true;
+    document.querySelectorAll('#location-guide-stop-list li').forEach(item => item.classList.remove('is-previewing'));
+    window.setLocationGuidePanelCollapsed?.(false);
+    const shouldResumeTracking = options.resumeTracking !== false
+      && activeGuidePreviewWasTracking
+      && window.TravelogApp?.getState?.()?.guideRunActive === true;
+    activeGuidePreviewWasTracking = false;
+    if (shouldResumeTracking) startRealtimeLocationTracking();
+    if (wasPreviewing && options.silent !== true) {
+      window.TravelogApp?.showToast(t('핀 미리보기를 끝냈습니다.', 'Pin preview ended.', 'ピンプレビューを終了しました。'));
+    }
   }
 
   function invalidateMapSoon() {
@@ -2142,6 +2247,8 @@ const TravelogMapModule = (() => {
     init: init,
     renderTour: renderTour,
     startGuideRun: startGuideRun,
+    startActiveGuidePreview: startActiveGuidePreview,
+    stopActiveGuidePreview: stopActiveGuidePreview,
     addNewCreatorPin: addNewCreatorPin,
     clearCreatorPins: clearCreatorPins,
     updateCreatorPinColor: updateCreatorPinColor,

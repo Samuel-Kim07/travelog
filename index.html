@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1038">
+  <link rel="stylesheet" href="index.css?v=1039">
 </head>
 <body>
 
@@ -232,9 +232,26 @@
                 <i class="fa-solid fa-stop" aria-hidden="true"></i>
                 <span data-localize="location_guide_stop">그만두기</span>
               </button>
+              <button type="button" id="location-guide-preview-btn" class="location-guide-action preview" aria-label="연결된 핀 미리보기 시작">
+                <i class="fa-solid fa-map-location-dot" aria-hidden="true"></i>
+                <span data-localize="location_guide_preview">미리보기</span>
+              </button>
             </div>
           </div>
         </aside>
+
+        <!-- Pin-by-pin guide preview controls (shown above the bottom menu only while previewing) -->
+        <div id="active-guide-preview-controls" class="active-guide-preview-controls glass-panel" role="group" aria-label="가이드 핀 미리보기 이동" hidden>
+          <button type="button" id="active-guide-preview-prev" class="active-guide-preview-nav" aria-label="이전 핀">&lt;</button>
+          <div class="active-guide-preview-current" aria-live="polite">
+            <strong id="active-guide-preview-title">핀 미리보기</strong>
+            <span id="active-guide-preview-count">1 / 1</span>
+          </div>
+          <button type="button" id="active-guide-preview-next" class="active-guide-preview-nav" aria-label="다음 핀">&gt;</button>
+          <button type="button" id="active-guide-preview-stop" class="active-guide-preview-stop" aria-label="미리보기 끝내기">
+            <img src="assets/icons/ui/preview_stop.svg" alt="" aria-hidden="true">
+          </button>
+        </div>
         
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
@@ -285,18 +302,11 @@
           <button class="btn-circle map-control-btn map-pin-create-btn" id="create-pin-at-gps-btn" title="내 위치에서 코스 메모 생성" aria-label="내 위치에서 코스 메모 생성">
             <span class="map-control-icon map-pin-create-icon" aria-hidden="true"><img src="assets/icons/ui/map_pin.png" alt=""></span>
           </button>
-          <button class="btn-circle map-control-btn" id="gps-simulation-btn" title="Simulate GPS Walk" aria-label="Simulate GPS Walk">
-            <span class="map-control-icon" aria-hidden="true">↟</span>
-            <span data-localize="map_control_sim">Walk Test</span>
-          </button>
           <button class="btn-circle map-control-btn" id="zoom-to-user-btn" title="Recenter Map" aria-label="Recenter Map">
             <span class="map-control-icon" aria-hidden="true">◎</span>
             <span data-localize="map_control_recenter">Center</span>
           </button>
           <div id="map-zoom-slot" class="map-zoom-slot" aria-label="Map zoom controls"></div>
-          <div id="simulation-status-pill" class="glass-panel map-status-pill" style="display: none;">
-            <i class="fa-solid fa-spinner fa-spin"></i> <span data-localize="walking">Walking...</span>
-          </div>
         </div>
 
         <!-- Mobile Friendly Bottom Status Sheet -->
@@ -1505,7 +1515,7 @@
 
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1011" defer></script>
-  <script src="map.js?v=1011" defer></script>
+  <script src="map.js?v=1012" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
@@ -1513,6 +1523,6 @@
   <script src="creator.js?v=1015" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1001" defer></script>
-  <script src="app.js?v=1025" defer></script>
+  <script src="app.js?v=1026" defer></script>
 </body>
 </html>

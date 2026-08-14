@@ -207,6 +207,7 @@ const LocalizationDictionary = {
   map_control_memo: { en: 'Memo', ko: '메모', ja: 'メモ' },
   map_control_sim: { en: 'Walk Test', ko: '걷기 테스트', ja: '歩行テスト' },
   map_control_sim_on: { en: 'Testing', ko: '테스트 중', ja: 'テスト中' },
+  location_guide_preview: { en: 'Preview', ko: '미리보기', ja: 'プレビュー' },
   map_control_recenter: { en: 'Center', ko: '내 위치', ja: '中央へ' },
   map_legend_current: { en: 'Me', ko: '나', ja: '自分' },
   map_legend_audio: { en: 'Audio', ko: '음성', ja: '音声' },
@@ -3774,6 +3775,7 @@ window.startCurrentGuideTracking = function() {
 };
 
 window.stopCurrentGuide = function() {
+  window.TravelogMapModule?.stopActiveGuidePreview?.({ silent: true, resumeTracking: false });
   TravelogState.guideRunActive = false;
   TravelogState.locationGuideStarted = false;
   TravelogState.activeGuide = null;
@@ -3783,12 +3785,12 @@ window.stopCurrentGuide = function() {
   showToast(localizedText('진행 중인 가이드를 멈췄습니다.', 'The active guide has stopped.', '進行中のガイドを停止しました。'));
 };
 
-window.toggleLocationGuidePanel = function() {
+window.setLocationGuidePanelCollapsed = function(collapsed) {
   const panel = document.getElementById('location-active-guide-panel');
   const button = document.getElementById('location-guide-collapse-btn');
   if (!panel || !button) return;
 
-  const collapsed = panel.classList.toggle('is-collapsed');
+  panel.classList.toggle('is-collapsed', Boolean(collapsed));
   button.setAttribute('aria-expanded', String(!collapsed));
   button.setAttribute('aria-label', localizedText(
     collapsed ? '진행 중인 가이드 펼치기' : '진행 중인 가이드 접기',
@@ -3799,9 +3801,16 @@ window.toggleLocationGuidePanel = function() {
   button.classList.toggle('is-collapsed', collapsed);
 };
 
+window.toggleLocationGuidePanel = function() {
+  const panel = document.getElementById('location-active-guide-panel');
+  if (!panel) return;
+  window.setLocationGuidePanelCollapsed(!panel.classList.contains('is-collapsed'));
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('location-guide-start-btn')?.addEventListener('click', window.startCurrentGuideTracking);
   document.getElementById('location-guide-stop-btn')?.addEventListener('click', window.stopCurrentGuide);
+  document.getElementById('location-guide-preview-btn')?.addEventListener('click', () => window.TravelogMapModule?.startActiveGuidePreview?.());
   document.getElementById('location-guide-collapse-btn')?.addEventListener('click', window.toggleLocationGuidePanel);
   window.renderLocationGuidePanel?.();
 });
