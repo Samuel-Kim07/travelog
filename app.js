@@ -421,8 +421,8 @@ const RECOMMEND_GUIDES_DATA = {
     { id: 'today-2', name: '경주 첨성대 달빛 야경 산책', author: '혜진 (로컬 가이드)', rating: '4.7', bg: 'assets/images/profile/profile-night.svg', badge: '오로 선정' }
   ],
   star: [
-    { id: 'star-1', name: '제주도 서귀포 감성 카페 투어', author: '로하 (스타 크리에이터)', rating: '5.0', bg: 'assets/images/profile/profile-cafe.svg', badge: 'STAR' },
-    { id: 'star-2', name: '강릉 안목해변 커피거리 도보 투어', author: '커피러버 (스타 크리에이터)', rating: '4.9', bg: 'assets/images/profile/profile-cafe.svg', badge: 'STAR' }
+    { id: 'star-1', name: 'JYP의 단내투어', author: 'JYP (스타 가이드)', rating: '5.0', bg: 'assets/images/star-guides/jyp.png', badge: 'STAR' },
+    { id: 'star-2', name: '추아저씨의 오키나와 그냥 따라와 투어', author: '추아저씨 (스타 가이드)', rating: '4.9', bg: 'assets/images/star-guides/choo.png', badge: 'STAR' }
   ],
   event: [
     { id: 'event-1', name: '수원 화성 성곽 보물찾기 퀘스트', author: '트레블로그 이벤트', rating: '4.8', bg: 'assets/images/adventure/quest-seoul-palace-mystery.svg', badge: '선물 증정' },
