@@ -757,8 +757,8 @@ nav.bottom-nav {
 .active-guide-preview-controls {
   position: absolute;
   left: 50%;
-  bottom: calc(24px + var(--nav-height) + 14px + env(safe-area-inset-bottom, 0px));
-  z-index: 1100;
+  bottom: var(--active-guide-preview-bottom, calc(24px + var(--nav-height) + 14px + env(safe-area-inset-bottom, 0px)));
+  z-index: 1200;
   width: min(386px, calc(100% - 28px));
   min-height: 58px;
   display: grid;
@@ -5654,7 +5654,8 @@ nav.bottom-nav {
   }
 
   .active-guide-preview-controls {
-    bottom: calc(12px + var(--nav-height) + 12px + env(safe-area-inset-bottom, 0px));
+    bottom: var(--active-guide-preview-bottom, calc(12px + var(--nav-height) + 12px + env(safe-area-inset-bottom, 0px)));
+    width: min(386px, calc(100% - 24px));
   }
 
   .creator-mode-banner {

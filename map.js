@@ -669,6 +669,10 @@ const TravelogMapModule = (() => {
     document.getElementById('active-guide-preview-prev')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex - 1));
     document.getElementById('active-guide-preview-next')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex + 1));
     document.getElementById('active-guide-preview-stop')?.addEventListener('click', stopActiveGuidePreview);
+    window.addEventListener('resize', positionActiveGuidePreviewControls, { passive: true });
+    window.addEventListener('orientationchange', () => window.setTimeout(positionActiveGuidePreviewControls, 250), { passive: true });
+    window.visualViewport?.addEventListener('resize', positionActiveGuidePreviewControls, { passive: true });
+    window.visualViewport?.addEventListener('scroll', positionActiveGuidePreviewControls, { passive: true });
 
     initMemoModalEvents();
     
@@ -1030,6 +1034,7 @@ const TravelogMapModule = (() => {
     if (!controls) return;
 
     controls.hidden = false;
+    positionActiveGuidePreviewControls();
     if (title) title.textContent = node?.name || t('핀 미리보기', 'Pin preview', 'ピンプレビュー');
     if (count) count.textContent = `${activeGuidePreviewIndex + 1} / ${activeGuidePreviewNodes.length}`;
     if (prev) prev.disabled = activeGuidePreviewIndex <= 0;
@@ -1038,6 +1043,19 @@ const TravelogMapModule = (() => {
     document.querySelectorAll('#location-guide-stop-list li').forEach((item, index) => {
       item.classList.toggle('is-previewing', index === activeGuidePreviewIndex);
     });
+  }
+
+  function positionActiveGuidePreviewControls() {
+    const controls = document.getElementById('active-guide-preview-controls');
+    const app = document.getElementById('app-container');
+    const bottomNav = document.querySelector('nav.bottom-nav');
+    if (!controls || controls.hidden || !app || !bottomNav) return;
+
+    const appRect = app.getBoundingClientRect();
+    const navRect = bottomNav.getBoundingClientRect();
+    const gap = window.matchMedia('(max-width: 600px)').matches ? 10 : 14;
+    const measuredBottom = Math.max(12, Math.round(appRect.bottom - navRect.top + gap));
+    controls.style.setProperty('--active-guide-preview-bottom', `${measuredBottom}px`);
   }
 
   function showActiveGuidePreviewPin(index) {
@@ -1110,7 +1128,10 @@ const TravelogMapModule = (() => {
     activeGuidePreviewIndex = -1;
     document.getElementById('map-tab')?.classList.remove('is-guide-previewing');
     const controls = document.getElementById('active-guide-preview-controls');
-    if (controls) controls.hidden = true;
+    if (controls) {
+      controls.hidden = true;
+      controls.style.removeProperty('--active-guide-preview-bottom');
+    }
     document.querySelectorAll('#location-guide-stop-list li').forEach(item => item.classList.remove('is-previewing'));
     window.setLocationGuidePanelCollapsed?.(false);
     const shouldResumeTracking = options.resumeTracking !== false

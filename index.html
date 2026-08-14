@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1039">
+  <link rel="stylesheet" href="index.css?v=1040">
 </head>
 <body>
 
@@ -240,19 +240,6 @@
           </div>
         </aside>
 
-        <!-- Pin-by-pin guide preview controls (shown above the bottom menu only while previewing) -->
-        <div id="active-guide-preview-controls" class="active-guide-preview-controls glass-panel" role="group" aria-label="가이드 핀 미리보기 이동" hidden>
-          <button type="button" id="active-guide-preview-prev" class="active-guide-preview-nav" aria-label="이전 핀">&lt;</button>
-          <div class="active-guide-preview-current" aria-live="polite">
-            <strong id="active-guide-preview-title">핀 미리보기</strong>
-            <span id="active-guide-preview-count">1 / 1</span>
-          </div>
-          <button type="button" id="active-guide-preview-next" class="active-guide-preview-nav" aria-label="다음 핀">&gt;</button>
-          <button type="button" id="active-guide-preview-stop" class="active-guide-preview-stop" aria-label="미리보기 끝내기">
-            <img src="assets/icons/ui/preview_stop.svg" alt="" aria-hidden="true">
-          </button>
-        </div>
-        
         <!-- Map HUD Left Controls: Guide Info -->
         <div class="map-hud">
           <div class="hud-card glass-panel collapsible-hud expanded" data-hud-id="active-guide">
@@ -808,6 +795,19 @@
       </section>
 
     </main>
+
+    <!-- Pin-by-pin guide preview controls. Kept beside the bottom nav so mobile stacking cannot hide it. -->
+    <div id="active-guide-preview-controls" class="active-guide-preview-controls glass-panel" role="group" aria-label="가이드 핀 미리보기 이동" hidden>
+      <button type="button" id="active-guide-preview-prev" class="active-guide-preview-nav" aria-label="이전 핀">&lt;</button>
+      <div class="active-guide-preview-current" aria-live="polite">
+        <strong id="active-guide-preview-title">핀 미리보기</strong>
+        <span id="active-guide-preview-count">1 / 1</span>
+      </div>
+      <button type="button" id="active-guide-preview-next" class="active-guide-preview-nav" aria-label="다음 핀">&gt;</button>
+      <button type="button" id="active-guide-preview-stop" class="active-guide-preview-stop" aria-label="미리보기 끝내기">
+        <img src="assets/icons/ui/preview_stop.svg" alt="" aria-hidden="true">
+      </button>
+    </div>
 
     <!-- Bottom Navigation Bar -->
     <nav class="bottom-nav">
@@ -1515,7 +1515,7 @@
 
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1011" defer></script>
-  <script src="map.js?v=1012" defer></script>
+  <script src="map.js?v=1013" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
