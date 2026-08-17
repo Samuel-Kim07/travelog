@@ -1185,12 +1185,12 @@ const TravelogSupabase = (() => {
     const { data: rows, error } = await supabase
       .from('friendships')
       .select('id, user_id, friend_id, status, created_at')
-      .eq('user_id', userId)
-      .neq('status', 'blocked')
+      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+      .eq('status', 'accepted')
       .order('created_at', { ascending: false });
     if (error) throw error;
 
-    const friendIds = [...new Set((rows || []).map(row => row.friend_id).filter(Boolean))];
+    const friendIds = [...new Set((rows || []).map(row => row.user_id === userId ? row.friend_id : row.user_id).filter(Boolean))];
     if (friendIds.length === 0) return [];
 
     const { data: profiles, error: profileError } = await supabase
@@ -1201,8 +1201,79 @@ const TravelogSupabase = (() => {
 
     const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
     return (rows || [])
-      .map(row => normalizeFriendProfile(profileMap.get(row.friend_id), row))
+      .map(row => {
+        const profileId = row.user_id === userId ? row.friend_id : row.user_id;
+        return normalizeFriendProfile(profileMap.get(profileId), row);
+      })
       .filter(Boolean);
+  }
+
+  async function fetchFriendRequests(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+
+    const { data: rows, error } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .eq('friend_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const requesterIds = [...new Set((rows || []).map(row => row.user_id).filter(Boolean))];
+    if (requesterIds.length === 0) return [];
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url, created_at')
+      .in('id', requesterIds);
+    if (profileError) throw profileError;
+    const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
+
+    return (rows || []).map(row => {
+      const profile = profileMap.get(row.user_id) || {};
+      return {
+        id: row.id,
+        requestId: row.id,
+        requesterId: row.user_id,
+        name: profile.display_name || 'Travelog User',
+        avatarUrl: profile.avatar_url || '',
+        createdAt: row.created_at || ''
+      };
+    });
+  }
+
+  async function fetchFriendFeedback(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+
+    const { data: rows, error } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .eq('user_id', userId)
+      .eq('status', 'rejected')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const recipientIds = [...new Set((rows || []).map(row => row.friend_id).filter(Boolean))];
+    if (recipientIds.length === 0) return [];
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', recipientIds);
+    if (profileError) throw profileError;
+    const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
+
+    return (rows || []).map(row => ({
+      id: row.id,
+      requestId: row.id,
+      recipientId: row.friend_id,
+      name: profileMap.get(row.friend_id)?.display_name || 'Travelog User',
+      createdAt: row.created_at || ''
+    }));
   }
 
   async function searchProfiles(query, options = {}) {
@@ -1222,39 +1293,124 @@ const TravelogSupabase = (() => {
       .limit(10);
     if (error) throw error;
 
-    const friends = await fetchFriends({ requireSession: false });
-    const friendIdSet = new Set(friends.map(friend => friend.supabaseProfileId || friend.id));
+    const { data: relationships, error: relationshipError } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+      .order('created_at', { ascending: false });
+    if (relationshipError) throw relationshipError;
+
+    const relationshipMap = new Map();
+    (relationships || []).forEach(row => {
+      const otherId = row.user_id === userId ? row.friend_id : row.user_id;
+      if (!otherId || relationshipMap.has(otherId)) return;
+      relationshipMap.set(otherId, {
+        id: row.id,
+        status: row.status,
+        direction: row.user_id === userId ? 'outgoing' : 'incoming'
+      });
+    });
     return (data || [])
-      .filter(profile => !friendIdSet.has(profile.id))
       .map(profile => ({
         id: profile.id,
         supabaseProfileId: profile.id,
         name: profile.display_name || 'Travelog User',
         avatarUrl: profile.avatar_url || '',
         memo: 'Supabase 유저',
-        createdAt: profile.created_at || ''
+        createdAt: profile.created_at || '',
+        relationship: relationshipMap.get(profile.id) || null
       }));
   }
 
-  async function addFriend(profileId, options = {}) {
+  async function requestFriend(profileId, options = {}) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
     if (!profileId || profileId === userId) throw new Error('INVALID_FRIEND_ID');
 
+    const { data: existingRows, error: existingError } = await supabase
+      .from('friendships')
+      .select('id, user_id, friend_id, status, created_at')
+      .or(`and(user_id.eq.${userId},friend_id.eq.${profileId}),and(user_id.eq.${profileId},friend_id.eq.${userId})`)
+      .order('created_at', { ascending: false });
+    if (existingError) throw existingError;
+
+    const accepted = (existingRows || []).find(row => row.status === 'accepted');
+    if (accepted) {
+      const error = new Error('ALREADY_FRIENDS');
+      error.code = 'ALREADY_FRIENDS';
+      throw error;
+    }
+    const incomingPending = (existingRows || []).find(row => row.status === 'pending' && row.friend_id === userId);
+    if (incomingPending) {
+      const error = new Error('INCOMING_FRIEND_REQUEST_EXISTS');
+      error.code = 'INCOMING_FRIEND_REQUEST_EXISTS';
+      throw error;
+    }
+    const outgoingPending = (existingRows || []).find(row => row.status === 'pending' && row.user_id === userId);
+    if (outgoingPending) return outgoingPending;
+
+    const reverseRejectedIds = (existingRows || [])
+      .filter(row => row.status === 'rejected' && row.user_id === profileId)
+      .map(row => row.id);
+    if (reverseRejectedIds.length > 0) {
+      const { error: cleanupError } = await supabase
+        .from('friendships')
+        .delete()
+        .in('id', reverseRejectedIds);
+      if (cleanupError) throw cleanupError;
+    }
+
     const { data, error } = await supabase
       .from('friendships')
       .upsert({
         user_id: userId,
         friend_id: profileId,
-        status: 'accepted'
+        status: 'pending'
       }, { onConflict: 'user_id,friend_id' })
       .select('id, user_id, friend_id, status, created_at')
       .single();
     if (error) throw error;
     return data;
   }
+
+  async function respondToFriendRequest(requestId, action, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const nextStatus = action === 'accept' ? 'accepted' : action === 'reject' ? 'rejected' : '';
+    if (!requestId || !nextStatus) throw new Error('INVALID_FRIEND_REQUEST_ACTION');
+
+    const { data, error } = await supabase
+      .from('friendships')
+      .update({ status: nextStatus })
+      .eq('id', requestId)
+      .eq('friend_id', userId)
+      .eq('status', 'pending')
+      .select('id, user_id, friend_id, status, created_at')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function dismissFriendFeedback(requestId, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .eq('id', requestId)
+      .eq('user_id', userId)
+      .eq('status', 'rejected');
+    if (error) throw error;
+    return true;
+  }
+
+  const addFriend = requestFriend;
 
   async function deleteFriend(profileId, options = {}) {
     const supabase = getClient();
@@ -1264,8 +1420,8 @@ const TravelogSupabase = (() => {
     const { error } = await supabase
       .from('friendships')
       .delete()
-      .eq('user_id', userId)
-      .eq('friend_id', profileId);
+      .or(`and(user_id.eq.${userId},friend_id.eq.${profileId}),and(user_id.eq.${profileId},friend_id.eq.${userId})`)
+      .eq('status', 'accepted');
     if (error) throw error;
     return true;
   }
@@ -1391,6 +1547,11 @@ const TravelogSupabase = (() => {
     signOut,
     searchProfiles,
     fetchFriends,
+    fetchFriendRequests,
+    fetchFriendFeedback,
+    requestFriend,
+    respondToFriendRequest,
+    dismissFriendFeedback,
     addFriend,
     deleteFriend,
     sendMessage,

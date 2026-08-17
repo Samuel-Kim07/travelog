@@ -5373,6 +5373,136 @@ textarea::placeholder {
   object-fit: contain;
 }
 
+/* Friend request inbox and rejection feedback */
+.friend-request-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.friend-request-summary {
+  padding: 9px 11px;
+  border: 1px solid rgba(112, 162, 183, .22);
+  border-radius: 12px;
+  background: rgba(112, 162, 183, .08);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.friend-request-summary.has-requests {
+  border-color: rgba(85, 157, 190, .46);
+  background: rgba(112, 162, 183, .16);
+  color: #315c70;
+}
+
+.home-friend-request-list,
+.home-friend-feedback-list {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.friend-request-card,
+.friend-feedback-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .76);
+}
+
+.friend-request-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.friend-request-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--grad-hero);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.friend-request-name {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friend-request-label {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.friend-request-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.friend-request-actions .btn-rect,
+.friend-feedback-card .btn-rect {
+  min-height: 30px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.friend-request-accept-btn,
+.friend-request-search-btn {
+  background: var(--color-ocean);
+  color: #fff;
+}
+
+.friend-request-reject-btn {
+  color: var(--accent-pink);
+}
+
+.friend-feedback-card {
+  border-color: rgba(224, 119, 138, .3);
+  background: rgba(255, 241, 244, .86);
+  color: #754550;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 520px) {
+  .friend-request-card,
+  .friend-feedback-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .friend-request-actions {
+    width: 100%;
+  }
+
+  .friend-request-actions .btn-rect {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .friend-feedback-card .btn-rect {
+    align-self: flex-end;
+  }
+}
+
 .friend-edit-icon-btn img {
   width: 22px;
   height: 22px;

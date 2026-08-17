@@ -353,6 +353,11 @@ function initNavigation() {
       // Special Tab-Specific Handlers
       if (targetTab === 'home-tab') {
         renderHomeTab();
+        if (typeof refreshSupabaseSocialData === 'function') {
+          refreshSupabaseSocialData({ requireSession: false }).catch(error => {
+            console.warn('[Travelog Supabase] Home social refresh skipped:', error);
+          });
+        }
       }
 
       if (targetTab === 'map-tab' && window.TravelogMapModule) {
@@ -449,6 +454,7 @@ async function initSupabaseRuntime() {
       refreshSupabaseSocialData({ requireSession: false }).catch(error => {
         console.warn('[Travelog Supabase] Social sync skipped:', error);
       });
+      startSupabaseSocialRefresh();
     }
 
     const remoteCards = await window.TravelogSupabase.fetchPublishedGuideCards();
@@ -963,6 +969,7 @@ function renderHomeTab() {
   }
 
   renderFriendList();
+  renderFriendRequestsAndFeedback();
 
   // 3. Render Widget Guides blocks
   renderGuideWidgets();
@@ -1042,9 +1049,12 @@ function renderGuidesScrollList(containerId, listData) {
 // Friends Logic
 let currentMessageFriendId = null;
 let latestFriendSearchResults = [];
+let latestFriendRequests = [];
+let latestFriendFeedback = [];
 let supabaseFriendSyncInProgress = false;
 let supabaseMessageSyncInProgress = false;
 let currentMessageBoxTab = 'received';
+let supabaseSocialRefreshIntervalId = null;
 
 function isSupabaseFriendFeatureReady() {
   return !!(window.TravelogSupabase && typeof window.TravelogSupabase.fetchFriends === 'function');
@@ -1063,6 +1073,19 @@ function renderFriendSearchResults(results = [], message = '') {
     container.innerHTML = '';
     return;
   }
+  const actionButton = profile => {
+    const relationship = profile.relationship || null;
+    if (relationship?.status === 'accepted') {
+      return '<button class="btn-rect secondary" type="button" disabled style="padding:6px 10px; font-size:11px; border-radius:999px; opacity:.7;">친구</button>';
+    }
+    if (relationship?.status === 'pending' && relationship.direction === 'outgoing') {
+      return '<button class="btn-rect secondary" type="button" disabled style="padding:6px 10px; font-size:11px; border-radius:999px; opacity:.7;">요청 중</button>';
+    }
+    if (relationship?.status === 'pending' && relationship.direction === 'incoming') {
+      return '<button class="btn-rect secondary" type="button" onclick="window.focusFriendRequests()" style="padding:6px 10px; font-size:11px; border-radius:999px;">받은 요청</button>';
+    }
+    return `<button class="btn-rect friend-request-search-btn" type="button" onclick="window.requestSupabaseFriend('${escapeHtml(profile.supabaseProfileId || profile.id)}')" style="padding:6px 10px; font-size:11px; border-radius:999px;"><i class="fa-solid fa-user-plus"></i> 친구신청</button>`;
+  };
   container.style.display = 'flex';
   container.innerHTML = `
     <div style="font-size:12px; color:var(--text-secondary); font-weight:800; margin-bottom:2px;">검색 결과</div>
@@ -1075,7 +1098,7 @@ function renderFriendSearchResults(results = [], message = '') {
             <div style="font-size:10px; color:var(--text-muted);">Supabase 유저</div>
           </div>
         </div>
-        <button class="btn-rect" type="button" onclick="window.addSupabaseFriend('${escapeHtml(profile.supabaseProfileId || profile.id)}')" style="padding:6px 10px; font-size:11px; border-radius:999px;"><i class="fa-solid fa-user-plus"></i> 등록</button>
+        ${actionButton(profile)}
       </div>`).join('')}`;
 }
 
@@ -1083,11 +1106,19 @@ async function syncSupabaseFriends(options = {}) {
   if (!isSupabaseFriendFeatureReady() || supabaseFriendSyncInProgress) return false;
   supabaseFriendSyncInProgress = true;
   try {
-    const friends = await window.TravelogSupabase.fetchFriends({ requireSession: options.requireSession === true, interactiveLogin: options.interactiveLogin === true });
+    const requestOptions = { requireSession: options.requireSession === true, interactiveLogin: options.interactiveLogin === true };
+    const [friends, requests, feedback] = await Promise.all([
+      window.TravelogSupabase.fetchFriends(requestOptions),
+      typeof window.TravelogSupabase.fetchFriendRequests === 'function' ? window.TravelogSupabase.fetchFriendRequests(requestOptions) : Promise.resolve([]),
+      typeof window.TravelogSupabase.fetchFriendFeedback === 'function' ? window.TravelogSupabase.fetchFriendFeedback(requestOptions) : Promise.resolve([])
+    ]);
     if (Array.isArray(friends)) {
       TravelogState.friends = friends;
+      latestFriendRequests = Array.isArray(requests) ? requests : [];
+      latestFriendFeedback = Array.isArray(feedback) ? feedback : [];
       saveHomePersistentState();
       renderFriendList();
+      renderFriendRequestsAndFeedback();
       renderFriendEditList();
       return true;
     }
@@ -1124,6 +1155,27 @@ async function syncSupabaseMessages(options = {}) {
 async function refreshSupabaseSocialData(options = {}) {
   await syncSupabaseFriends(options);
   await syncSupabaseMessages(options);
+}
+
+function startSupabaseSocialRefresh() {
+  if (supabaseSocialRefreshIntervalId) return;
+  supabaseSocialRefreshIntervalId = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      refreshSupabaseSocialData({ requireSession: false }).catch(error => {
+        console.warn('[Travelog Supabase] Scheduled social refresh skipped:', error);
+      });
+    }
+  }, 20000);
+  if (!document.documentElement.dataset.friendRequestVisibilityBound) {
+    document.documentElement.dataset.friendRequestVisibilityBound = 'true';
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshSupabaseSocialData({ requireSession: false }).catch(error => {
+          console.warn('[Travelog Supabase] Visibility social refresh skipped:', error);
+        });
+      }
+    });
+  }
 }
 
 function bindFriendUiEvents() {
@@ -1185,12 +1237,50 @@ function renderFriendList() {
     </div>`).join('');
 }
 
+function renderFriendRequestsAndFeedback() {
+  const summary = document.getElementById('friend-request-summary');
+  const requestList = document.getElementById('home-friend-request-list');
+  const feedbackList = document.getElementById('home-friend-feedback-list');
+  const requests = Array.isArray(latestFriendRequests) ? latestFriendRequests : [];
+  const feedback = Array.isArray(latestFriendFeedback) ? latestFriendFeedback : [];
+
+  if (summary) {
+    summary.textContent = `친구요청 ${requests.length}건이 있습니다.`;
+    summary.classList.toggle('has-requests', requests.length > 0);
+  }
+  if (requestList) {
+    requestList.style.display = requests.length > 0 ? 'flex' : 'none';
+    requestList.innerHTML = requests.map(request => `
+      <div class="friend-request-card">
+        <div class="friend-request-person">
+          <div class="friend-request-avatar">${escapeHtml((request.name || '?').slice(0, 1))}</div>
+          <div>
+            <div class="friend-request-name">${escapeHtml(request.name || 'Travelog User')}</div>
+            <div class="friend-request-label">친구 요청을 보냈습니다.</div>
+          </div>
+        </div>
+        <div class="friend-request-actions">
+          <button class="btn-rect friend-request-accept-btn" type="button" onclick="window.respondToFriendRequest('${escapeHtml(request.requestId || request.id)}', 'accept')">수락</button>
+          <button class="btn-rect secondary friend-request-reject-btn" type="button" onclick="window.respondToFriendRequest('${escapeHtml(request.requestId || request.id)}', 'reject')">거절</button>
+        </div>
+      </div>`).join('');
+  }
+  if (feedbackList) {
+    feedbackList.style.display = feedback.length > 0 ? 'flex' : 'none';
+    feedbackList.innerHTML = feedback.map(item => `
+      <div class="friend-feedback-card" role="status">
+        <div><strong>${escapeHtml(item.name || '상대방')}</strong>님이 친구 수락을 거절했습니다.</div>
+        <button class="btn-rect secondary" type="button" onclick="window.dismissFriendFeedback('${escapeHtml(item.requestId || item.id)}')">확인</button>
+      </div>`).join('');
+  }
+}
+
 function renderFriendEditList() {
   const list = document.getElementById('friend-edit-list');
   if (!list) return;
   const friends = Array.isArray(TravelogState.friends) ? TravelogState.friends : [];
   if (friends.length === 0) {
-    list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px 0;">친구를 검색해서 등록해 주세요.</div>';
+    list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px 0;">사용자를 검색해 친구신청을 보내 주세요. 상대방이 수락하면 여기에 표시됩니다.</div>';
     return;
   }
   list.innerHTML = friends.map(friend => `
@@ -1255,28 +1345,66 @@ async function addFriendFromInput() {
     }
   }
 
-  const friend = { id: `friend-${Date.now()}`, name, memo: '로컬 친구' };
-  TravelogState.friends = [friend, ...(TravelogState.friends || [])];
-  if (input) input.value = '';
-  saveHomePersistentState();
-  renderFriendList();
-  renderFriendEditList();
-  showToast(localizedText('로컬 친구를 추가했습니다.', 'Local friend added.', 'ローカル友だちを追加しました。'));
+  renderFriendSearchResults([], '로그인 연결 후 친구신청 기능을 사용할 수 있습니다.');
+  showToast(localizedText('친구신청은 Supabase 로그인 연결이 필요합니다.', 'Friend requests require a Supabase login.', '友だち申請にはSupabaseログインが必要です。'));
 }
 
-window.addSupabaseFriend = async function(profileId) {
-  if (!profileId || !window.TravelogSupabase || typeof window.TravelogSupabase.addFriend !== 'function') return;
+window.requestSupabaseFriend = async function(profileId) {
+  if (!profileId || !window.TravelogSupabase || typeof window.TravelogSupabase.requestFriend !== 'function') return;
   try {
-    await window.TravelogSupabase.addFriend(profileId, { interactiveLogin: true });
+    await window.TravelogSupabase.requestFriend(profileId, { interactiveLogin: true });
     const input = document.getElementById('friend-name-input');
     if (input) input.value = '';
-    latestFriendSearchResults = [];
-    renderFriendSearchResults([]);
+    latestFriendSearchResults = latestFriendSearchResults.map(profile => {
+      if (String(profile.supabaseProfileId || profile.id) !== String(profileId)) return profile;
+      return { ...profile, relationship: { status: 'pending', direction: 'outgoing' } };
+    });
+    renderFriendSearchResults(latestFriendSearchResults);
     await syncSupabaseFriends({ requireSession: true, interactiveLogin: true });
-    showToast(localizedText('Supabase 친구로 등록했습니다.', 'Added as a Supabase friend.', 'Supabase友だちとして登録しました。'));
+    showToast(localizedText('친구신청을 보냈습니다.', 'Friend request sent.', '友だち申請を送信しました。'));
   } catch (error) {
-    console.error('[Travelog Supabase] Friend add failed:', error);
-    showToast(localizedText(`친구 등록에 실패했습니다: ${error.message || error}`, `Failed to add friend: ${error.message || error}`, `友だち登録に失敗しました: ${error.message || error}`));
+    console.error('[Travelog Supabase] Friend request failed:', error);
+    const code = error?.code || error?.message || '';
+    if (code === 'ALREADY_FRIENDS') {
+      showToast(localizedText('이미 친구로 등록되어 있습니다.', 'You are already friends.', 'すでに友だちです。'));
+    } else if (code === 'INCOMING_FRIEND_REQUEST_EXISTS') {
+      showToast(localizedText('상대방이 보낸 친구요청이 있습니다. 홈에서 수락 또는 거절해 주세요.', 'You have a request from this user. Respond from Home.', '相手からの友だち申請があります。ホームで確認してください。'));
+    } else {
+      showToast(localizedText(`친구신청에 실패했습니다: ${error.message || error}`, `Friend request failed: ${error.message || error}`, `友だち申請に失敗しました: ${error.message || error}`));
+    }
+  }
+};
+window.addSupabaseFriend = window.requestSupabaseFriend;
+
+window.focusFriendRequests = function() {
+  closeFriendEditModal();
+  const section = document.getElementById('home-friend-section');
+  section?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+window.respondToFriendRequest = async function(requestId, action) {
+  if (!requestId || !window.TravelogSupabase || typeof window.TravelogSupabase.respondToFriendRequest !== 'function') return;
+  try {
+    await window.TravelogSupabase.respondToFriendRequest(requestId, action, { interactiveLogin: true });
+    await syncSupabaseFriends({ requireSession: true, interactiveLogin: true });
+    showToast(action === 'accept'
+      ? localizedText('친구요청을 수락했습니다. 친구 목록에 추가되었습니다.', 'Friend request accepted.', '友だち申請を承認しました。')
+      : localizedText('친구요청을 거절했습니다. 신청자에게 결과가 전달됩니다.', 'Friend request declined. The requester will be notified.', '友だち申請を拒否しました。'));
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend request response failed:', error);
+    showToast(localizedText('친구요청 처리에 실패했습니다.', 'Could not process the friend request.', '友だち申請を処理できませんでした。'));
+  }
+};
+
+window.dismissFriendFeedback = async function(requestId) {
+  if (!requestId || !window.TravelogSupabase || typeof window.TravelogSupabase.dismissFriendFeedback !== 'function') return;
+  try {
+    await window.TravelogSupabase.dismissFriendFeedback(requestId, { interactiveLogin: true });
+    latestFriendFeedback = latestFriendFeedback.filter(item => String(item.requestId || item.id) !== String(requestId));
+    renderFriendRequestsAndFeedback();
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend feedback dismiss failed:', error);
+    showToast(localizedText('알림 확인 처리에 실패했습니다.', 'Could not dismiss the notification.', '通知を確認できませんでした。'));
   }
 };
 
@@ -1468,7 +1596,7 @@ function renderMessageBoxMessages(container) {
             <span class="msg-item-date">${escapeHtml(msg.date || '')}</span>
           </div>
           <div class="msg-action-group">
-            ${showAddFriend ? `<button class="msg-add-friend-btn" type="button" onclick="event.stopPropagation(); window.registerMessageSenderAsFriend('${messageId}')" aria-label="보낸 사람을 친구로 등록">친구로등록</button>` : ''}
+            ${showAddFriend ? `<button class="msg-add-friend-btn" type="button" onclick="event.stopPropagation(); window.registerMessageSenderAsFriend('${messageId}')" aria-label="보낸 사람에게 친구신청">친구신청</button>` : ''}
             <button class="msg-delete-btn" type="button" onclick="event.stopPropagation(); window.deleteMessageFromInbox('${messageId}')" aria-label="쪽지 삭제">삭제</button>
           </div>
         </div>
@@ -1528,19 +1656,19 @@ window.registerMessageSenderAsFriend = async function(id) {
     return;
   }
 
-  if (!window.TravelogSupabase || typeof window.TravelogSupabase.addFriend !== 'function') {
-    showToast(localizedText('Supabase 친구 등록 기능을 사용할 수 없습니다.', 'Supabase friend registration is not available.', 'Supabase友だち登録機能を使用できません。'));
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.requestFriend !== 'function') {
+    showToast(localizedText('Supabase 친구신청 기능을 사용할 수 없습니다.', 'Supabase friend requests are not available.', 'Supabase友だち申請機能を使用できません。'));
     return;
   }
 
   try {
-    await window.TravelogSupabase.addFriend(msg.senderId, { interactiveLogin: true });
+    await window.TravelogSupabase.requestFriend(msg.senderId, { interactiveLogin: true });
     await syncSupabaseFriends({ requireSession: true, interactiveLogin: true });
     renderMessageBoxMessages(document.getElementById('msg-list-container'));
-    showToast(localizedText(`${msg.sender}님을 친구로 등록했습니다.`, `Added ${msg.sender} as a friend.`, `${msg.sender}さんを友だち登録しました。`));
+    showToast(localizedText(`${msg.sender}님에게 친구신청을 보냈습니다.`, `Friend request sent to ${msg.sender}.`, `${msg.sender}さんに友だち申請を送りました。`));
   } catch (error) {
-    console.error('[Travelog Supabase] Message sender friend add failed:', error);
-    showToast(localizedText(`친구 등록에 실패했습니다: ${error.message || error}`, `Failed to add friend: ${error.message || error}`, `友だち登録に失敗しました: ${error.message || error}`));
+    console.error('[Travelog Supabase] Message sender friend request failed:', error);
+    showToast(localizedText(`친구신청에 실패했습니다: ${error.message || error}`, `Friend request failed: ${error.message || error}`, `友だち申請に失敗しました: ${error.message || error}`));
   }
 };
 
@@ -3400,6 +3528,8 @@ async function logoutCurrentProfile() {
 
   TravelogState.userProfile = buildDefaultUserProfile();
   TravelogState.friends = [];
+  latestFriendRequests = [];
+  latestFriendFeedback = [];
   TravelogState.messages = [];
   verifiedNickname = '';
   latestFriendSearchResults = [];

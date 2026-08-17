@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1040">
+  <link rel="stylesheet" href="index.css?v=1041">
 </head>
 <body>
 
@@ -104,7 +104,7 @@
           </div>
 
           <!-- Friends List Section -->
-          <div class="home-friend-section glass-panel" style="padding: 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div class="home-friend-section glass-panel" id="home-friend-section" style="padding: 18px; display: flex; flex-direction: column; gap: 12px;">
             <div class="section-title-bar" style="margin-bottom: 0;">
               <h3 class="home-friend-title" style="font-size: 16px; margin: 0;">
                 <img class="home-friend-list-icon" src="assets/images/friends.png" alt="" aria-hidden="true">
@@ -114,7 +114,12 @@
                 <img src="assets/icons/ui/icon_control.svg" alt="" aria-hidden="true">
               </button>
             </div>
-            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">함께 여행할 친구를 등록하고 쪽지를 보낼 수 있습니다.</p>
+            <p style="font-size: 12px; color: var(--text-secondary); margin: 0;">친구신청을 수락한 사용자와 쪽지를 주고받을 수 있습니다.</p>
+            <div class="friend-request-area" aria-live="polite">
+              <div class="friend-request-summary" id="friend-request-summary">친구요청 0건이 있습니다.</div>
+              <div class="home-friend-request-list" id="home-friend-request-list" style="display:none;"></div>
+              <div class="home-friend-feedback-list" id="home-friend-feedback-list" style="display:none;"></div>
+            </div>
             <div id="home-friend-list" style="display: flex; flex-direction: column; gap: 8px;">
               <!-- Populated dynamically -->
             </div>
@@ -1389,7 +1394,7 @@
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px;">
         <div>
           <h2 class="gradient-text" style="font-size:20px; margin:0 0 4px 0;">친구 편집</h2>
-          <p style="font-size:12px; color:var(--text-secondary); margin:0;">Supabase 프로필 닉네임으로 친구를 찾고 등록한 뒤 쪽지를 보낼 수 있습니다.</p>
+          <p style="font-size:12px; color:var(--text-secondary); margin:0;">Supabase 프로필 닉네임으로 사용자를 찾아 친구신청을 보낼 수 있습니다.</p>
         </div>
         <button class="btn-circle" id="friend-edit-close-btn" type="button" aria-label="친구 편집 닫기" style="width:34px; height:34px; font-size:14px;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       </div>
@@ -1514,7 +1519,7 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1011" defer></script>
+  <script src="supabaseClient.js?v=1012" defer></script>
   <script src="map.js?v=1013" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1005" defer></script>
@@ -1523,6 +1528,6 @@
   <script src="creator.js?v=1015" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1001" defer></script>
-  <script src="app.js?v=1029" defer></script>
+  <script src="app.js?v=1030" defer></script>
 </body>
 </html>
