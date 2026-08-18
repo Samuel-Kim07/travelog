@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1045">
+  <link rel="stylesheet" href="index.css?v=1046">
 </head>
 <body>
 
@@ -1012,12 +1012,12 @@
               <span id="profile-manager-avatar-emoji">☀️</span>
             </div>
             <label for="profile-manager-file-input" class="upload-badge profile-upload-badge" title="Upload Profile Image">
-              <i class="fa-solid fa-camera"></i>
+              <img class="onboarding-camera-icon" src="assets/icons/onboarding/onboarding-camera.svg" alt="" aria-hidden="true">
             </label>
             <input type="file" id="profile-manager-file-input" accept="image/*" style="display: none;">
           </div>
           <button class="btn-rect" id="profile-manager-upload-btn" type="button">
-            <i class="fa-solid fa-image"></i>
+            <img class="profile-action-icon" src="assets/icons/profile/profile-image.svg" alt="" aria-hidden="true">
             <span data-localize="profile_use_my_photo">내 사진/이미지 선택</span>
           </button>
           <p class="profile-image-note" data-localize="profile_image_note">사진은 이 브라우저에만 저장되는 프로토타입용 데이터입니다.</p>
@@ -1028,7 +1028,7 @@
             <div class="profile-field-label-row">
               <label data-localize="profile_nickname_label">닉네임</label>
               <button type="button" id="profile-nickname-edit-btn" class="btn-chip profile-nickname-edit-btn">
-                <i class="fa-solid fa-pen"></i>
+                <img class="profile-action-icon profile-action-icon-small" src="assets/icons/profile/profile-edit.svg" alt="" aria-hidden="true">
                 <span>닉네임변경</span>
               </button>
             </div>
@@ -1061,18 +1061,18 @@
       <div class="profile-manager-actions">
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button id="profile-manager-reset-btn" class="btn-rect secondary" type="button">
-            <i class="fa-solid fa-rotate-left"></i>
+            <img class="profile-action-icon" src="assets/icons/profile/profile-reset.svg" alt="" aria-hidden="true">
             <span data-localize="profile_reset_onboarding">처음 설정 다시하기</span>
           </button>
           <button id="profile-manager-logout-btn" class="btn-rect secondary profile-logout-btn" type="button" style="color:var(--accent-pink);">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            <img class="profile-action-icon" src="assets/icons/profile/profile-logout.svg" alt="" aria-hidden="true">
             <span>로그아웃</span>
           </button>
         </div>
         <div class="profile-action-right">
           <button id="profile-manager-cancel-btn" class="btn-rect secondary" type="button" data-localize="profile_cancel">취소</button>
           <button id="profile-manager-save-btn" class="btn-rect" type="button">
-            <i class="fa-solid fa-floppy-disk"></i>
+            <img class="profile-action-icon" src="assets/icons/profile/profile-save.svg" alt="" aria-hidden="true">
             <span data-localize="profile_save">저장하기</span>
           </button>
         </div>

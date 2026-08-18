@@ -3037,6 +3037,20 @@ nav.bottom-nav {
   height: 34px;
   font-size: 14px;
 }
+
+.profile-action-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.profile-action-icon-small {
+  width: 16px;
+  height: 16px;
+  flex-basis: 16px;
+}
 .profile-image-note {
   font-size: 11px;
   color: var(--text-muted);
