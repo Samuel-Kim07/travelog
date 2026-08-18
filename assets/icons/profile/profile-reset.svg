@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="처음 설정 다시하기">
+  <path d="M6.2 8.2V4.5L3 7.7l3.2 3.2V8.2Z" fill="#E28743"/>
+  <path d="M6.2 8.2A7.8 7.8 0 1 1 5 15.5" fill="none" stroke="#70A2B7" stroke-width="2" stroke-linecap="round"/>
+  <path d="M12 8v4.4l3 1.8" fill="none" stroke="#557784" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
