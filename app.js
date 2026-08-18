@@ -699,6 +699,7 @@ function removePublishedGuide(guideId) {
 
 function saveHomePersistentState() {
   try {
+    TravelogState.friends = dedupeFriendCollection(TravelogState.friends);
     localStorage.setItem(HOME_COINS_STORAGE_KEY, String(TravelogState.coins));
     localStorage.setItem(HOME_FRIENDS_STORAGE_KEY, JSON.stringify(TravelogState.friends || []));
     localStorage.setItem(HOME_MESSAGES_STORAGE_KEY, JSON.stringify(TravelogState.messages || []));
@@ -716,7 +717,7 @@ function loadHomePersistentState() {
     const savedFriends = localStorage.getItem(HOME_FRIENDS_STORAGE_KEY);
     if (savedFriends) {
       const friends = JSON.parse(savedFriends);
-      if (Array.isArray(friends)) TravelogState.friends = friends;
+      if (Array.isArray(friends)) TravelogState.friends = dedupeFriendCollection(friends);
     }
     const savedMessages = localStorage.getItem(HOME_MESSAGES_STORAGE_KEY);
     if (savedMessages) {
@@ -1060,6 +1061,24 @@ function isSupabaseFriendFeatureReady() {
   return !!(window.TravelogSupabase && typeof window.TravelogSupabase.fetchFriends === 'function');
 }
 
+function getFriendIdentityKey(friend) {
+  if (!friend || typeof friend !== 'object') return '';
+  return String(friend.supabaseProfileId || friend.id || '').trim();
+}
+
+function dedupeFriendCollection(friends = []) {
+  const uniqueFriends = new Map();
+  (Array.isArray(friends) ? friends : []).forEach(friend => {
+    const identityKey = getFriendIdentityKey(friend);
+    if (!identityKey) return;
+    const existing = uniqueFriends.get(identityKey);
+    if (!existing || (!existing.isSupabaseFriend && friend.isSupabaseFriend)) {
+      uniqueFriends.set(identityKey, friend);
+    }
+  });
+  return [...uniqueFriends.values()];
+}
+
 function renderFriendSearchResults(results = [], message = '') {
   const container = document.getElementById('friend-search-results');
   if (!container) return;
@@ -1113,7 +1132,7 @@ async function syncSupabaseFriends(options = {}) {
       typeof window.TravelogSupabase.fetchFriendFeedback === 'function' ? window.TravelogSupabase.fetchFriendFeedback(requestOptions) : Promise.resolve([])
     ]);
     if (Array.isArray(friends)) {
-      TravelogState.friends = friends;
+      TravelogState.friends = dedupeFriendCollection(friends);
       latestFriendRequests = Array.isArray(requests) ? requests : [];
       latestFriendFeedback = Array.isArray(feedback) ? feedback : [];
       saveHomePersistentState();
@@ -1217,7 +1236,7 @@ function bindFriendUiEvents() {
 function renderFriendList() {
   const list = document.getElementById('home-friend-list');
   if (!list) return;
-  const friends = Array.isArray(TravelogState.friends) ? TravelogState.friends : [];
+  const friends = dedupeFriendCollection(TravelogState.friends);
   if (friends.length === 0) {
     list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px 0; text-align:center;">아직 등록된 친구가 없습니다. 친구 편집에서 Supabase 닉네임으로 찾아보세요.</div>';
     return;
@@ -1278,7 +1297,7 @@ function renderFriendRequestsAndFeedback() {
 function renderFriendEditList() {
   const list = document.getElementById('friend-edit-list');
   if (!list) return;
-  const friends = Array.isArray(TravelogState.friends) ? TravelogState.friends : [];
+  const friends = dedupeFriendCollection(TravelogState.friends);
   if (friends.length === 0) {
     list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px 0;">사용자를 검색해 친구신청을 보내 주세요. 상대방이 수락하면 여기에 표시됩니다.</div>';
     return;

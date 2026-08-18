@@ -1200,11 +1200,15 @@ const TravelogSupabase = (() => {
     if (profileError) throw profileError;
 
     const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
-    return (rows || [])
-      .map(row => {
-        const profileId = row.user_id === userId ? row.friend_id : row.user_id;
-        return normalizeFriendProfile(profileMap.get(profileId), row);
-      })
+    const friendshipByProfileId = new Map();
+    (rows || []).forEach(row => {
+      const profileId = row.user_id === userId ? row.friend_id : row.user_id;
+      if (profileId && !friendshipByProfileId.has(profileId)) {
+        friendshipByProfileId.set(profileId, row);
+      }
+    });
+    return friendIds
+      .map(profileId => normalizeFriendProfile(profileMap.get(profileId), friendshipByProfileId.get(profileId)))
       .filter(Boolean);
   }
 
