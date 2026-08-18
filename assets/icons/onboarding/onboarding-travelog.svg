@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- 외곽 둥근 모서리 클립 마스크 -->
+    <clipPath id="squircle-clip">
+      <rect x="20" y="20" width="460" height="460" rx="90" ry="90" />
+    </clipPath>
+  </defs>
+
+  <!-- 전체 아이콘 영역 (클리핑 적용) -->
+  <g clip-path="url(#squircle-clip)">
+    <!-- 1. 좌하단 기본 배경: 라임 그린 -->
+    <rect width="500" height="500" fill="#82C335" />
+
+    <!-- 2. 상단 배경: 오렌지/레드 -->
+    <rect x="0" y="0" width="500" height="115" fill="#E85327" />
+
+    <!-- 3. 우측 중단 배경: 스카이블루 -->
+    <rect x="260" y="190" width="240" height="130" fill="#42A5DF" />
+
+    <!-- 4. 아이보리/화이트 도로 및 상단 밴드 경로 -->
+    <path 
+      d="
+        M 0 115 
+        H 500 
+        V 190 
+        H 260 
+        V 320 
+        H 500 
+        V 405 
+        H 255 
+        C 210 405 175 370 175 325 
+        V 190 
+        H 0 
+        Z
+      " 
+      fill="#F3EFEF" 
+    />
+
+    <!-- 5. "TRAVELOG" 텍스트 -->
+    <text 
+      x="248" 
+      y="170" 
+      fill="#45535C" 
+      font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" 
+      font-size="58" 
+      font-weight="900" 
+      letter-spacing="5" 
+      text-anchor="middle"
+    >
+      TRAVELOG
+    </text>
+  </g>
+</svg>
