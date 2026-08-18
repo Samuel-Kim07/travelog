@@ -112,7 +112,7 @@
   add('login_naver', '使用Naver继续', 'ดำเนินการต่อด้วย Naver', 'Tiếp tục với Naver', 'Continuer avec Naver', 'Continuar con Naver');
   add('login_email', '使用邮箱继续', 'ดำเนินการต่อด้วยอีเมล', 'Tiếp tục với email', 'Continuer avec un e-mail', 'Continuar con correo');
   add('login_guest', '以访客身份体验', 'ทดลองในฐานะแขก', 'Dùng thử với tư cách khách', 'Essayer en tant qu’invité', 'Probar como invitado');
-  add('onboarding_privacy_hint', '此原型不会发送登录信息，只会进入下一设置步骤。', 'ต้นแบบนี้ไม่ส่งข้อมูลเข้าสู่ระบบ เพียงไปยังขั้นตอนถัดไป', 'Bản mẫu không gửi dữ liệu đăng nhập, chỉ chuyển sang bước tiếp theo.', 'Ce prototype n’envoie aucune donnée de connexion.', 'Este prototipo no envía datos de inicio de sesión.');
+  add('onboarding_privacy_hint', '电子邮件登录信息仅用于Supabase身份验证，应用不会保存。', 'ข้อมูลเข้าสู่ระบบอีเมลใช้เพื่อยืนยันตัวตนกับ Supabase เท่านั้นและแอปจะไม่บันทึก', 'Thông tin đăng nhập email chỉ dùng để xác thực Supabase và không được ứng dụng lưu lại.', 'Les identifiants e-mail servent uniquement à l’authentification Supabase et ne sont pas enregistrés par l’application.', 'Las credenciales de correo solo se usan para la autenticación de Supabase y la aplicación no las guarda.');
   add('onboarding_feature_guide', 'GPS语音导游', 'ไกด์เสียง GPS', 'Hướng dẫn âm thanh GPS', 'Guide audio GPS', 'Audioguía GPS');
   add('onboarding_feature_reward', '优惠券与任务', 'คูปองและภารกิจ', 'Phiếu giảm giá & nhiệm vụ', 'Coupons et quêtes', 'Cupones y misiones');
   add('onboarding_feature_creator', '导游制作工作室', 'สตูดิโอสร้างไกด์', 'Studio tạo hướng dẫn', 'Studio de création', 'Estudio de creación');

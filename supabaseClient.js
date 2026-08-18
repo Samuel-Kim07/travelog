@@ -234,16 +234,38 @@ const TravelogSupabase = (() => {
     const displayName = profile?.nickname || profile?.displayName || 'Travelog User';
     if (provider === 'Email') {
       const email = window.prompt(t('Supabase 테스트 계정 이메일을 입력해 주세요. 새 계정 자동 가입은 email rate limit 방지를 위해 하지 않습니다.', 'Enter your Supabase test account email. Automatic signup is disabled to avoid email rate limits.', 'Supabaseテストアカウントのメールを入力してください。email rate limit回避のため自動登録は行いません。'));
-      if (!email) return { mode: 'local-only', user: null };
+      if (email === null) return { mode: 'email', user: null, cancelled: true, cancelledAt: 'email' };
+      if (!String(email).trim()) {
+        const error = new Error('EMAIL_REQUIRED');
+        error.code = 'EMAIL_REQUIRED';
+        throw error;
+      }
       const password = window.prompt(t('Supabase 테스트 계정 비밀번호를 입력해 주세요.', 'Enter the Supabase test account password.', 'Supabaseテストアカウントのパスワードを入力してください。'));
-      if (!password) return { mode: 'local-only', user: null };
-      const session = await ensureEmailSession(email, password, displayName, { allowSignUp: false });
+      if (password === null) return { mode: 'email', user: null, cancelled: true, cancelledAt: 'password' };
+      if (!String(password).trim()) {
+        const error = new Error('PASSWORD_REQUIRED');
+        error.code = 'PASSWORD_REQUIRED';
+        throw error;
+      }
+
+      let session;
+      try {
+        session = await ensureEmailSession(String(email).trim(), String(password).trim(), displayName, { allowSignUp: false });
+      } catch (error) {
+        const message = String(error?.message || '').toLowerCase();
+        if (message.includes('invalid login credentials') || message.includes('invalid_credentials')) {
+          error.code = 'INVALID_LOGIN_CREDENTIALS';
+        } else if (message.includes('email not confirmed')) {
+          error.code = 'EMAIL_NOT_CONFIRMED';
+        }
+        throw error;
+      }
+
       const remoteProfile = await fetchCurrentProfile({ requireSession: false });
       if (hasSavedRemoteProfile(remoteProfile)) {
         return { mode: 'email', user: session?.user || null, profile: remoteProfile, hasRemoteProfile: true };
       }
-      const syncedProfile = await syncProfile({ ...profile, nickname: displayName });
-      return { mode: 'email', user: session?.user || null, profile: syncedProfile, hasRemoteProfile: false };
+      return { mode: 'email', user: session?.user || null, profile: null, hasRemoteProfile: false };
     }
 
     try {
@@ -274,14 +296,15 @@ const TravelogSupabase = (() => {
       coin_balance: typeof row.coin_balance === 'number' ? row.coin_balance : row.coinBalance,
       coinBalance: typeof row.coin_balance === 'number' ? row.coin_balance : row.coinBalance,
       created_at: row.created_at || row.createdAt || '',
-      updated_at: row.updated_at || row.updatedAt || ''
+      updated_at: row.updated_at || row.updatedAt || '',
+      isFallbackProfile: row.isFallbackProfile === true
     };
   }
 
   function hasSavedRemoteProfile(row) {
     const profile = normalizeProfileRow(row);
     const name = String(profile?.displayName || '').trim();
-    return !!name;
+    return !!name && profile?.isFallbackProfile !== true;
   }
 
   async function fetchCurrentProfile(options = {}) {
@@ -302,10 +325,13 @@ const TravelogSupabase = (() => {
       .maybeSingle();
     if (error) throw error;
 
-    return normalizeProfileRow(data || {
+    if (data) return normalizeProfileRow(data);
+
+    return normalizeProfileRow({
       id: user.id,
       display_name: user.user_metadata?.display_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Travelog User',
-      avatar_url: user.user_metadata?.avatar_url || ''
+      avatar_url: user.user_metadata?.avatar_url || '',
+      isFallbackProfile: true
     });
   }
 

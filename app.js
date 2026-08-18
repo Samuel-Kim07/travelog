@@ -168,7 +168,7 @@ const LocalizationDictionary = {
   login_naver: { en: 'Continue with Naver', ko: '네이버로 계속하기', ja: 'NAVERで続ける' },
   login_email: { en: 'Continue with Email', ko: '이메일로 계속하기', ja: 'メールで続ける' },
   login_guest: { en: 'Try as Guest', ko: '게스트로 먼저 둘러보기', ja: 'ゲストとして見る' },
-  onboarding_privacy_hint: { en: 'This prototype does not send login data. It only moves to the next setup step.', ko: '현재 프로토타입에서는 실제 로그인 정보를 전송하지 않고 다음 설정 단계로 이동합니다.', ja: 'このプロトタイプではログイン情報を送信せず、次の設定ステップへ進むだけです。' },
+  onboarding_privacy_hint: { en: 'Email credentials are used only for Supabase authentication and are not stored by the app.', ko: '이메일 로그인 정보는 Supabase 인증에만 사용되며 앱에 저장되지 않습니다.', ja: 'メールログイン情報はSupabase認証にのみ使用され、アプリには保存されません。' },
   onboarding_feature_guide: { en: 'GPS audio guide', ko: 'GPS 음성 가이드', ja: 'GPS音声ガイド' },
   onboarding_feature_reward: { en: 'Coupons & quests', ko: '쿠폰과 퀘스트', ja: 'クーポン＆クエスト' },
   onboarding_feature_creator: { en: 'Creator studio', ko: '가이드 제작 스튜디오', ja: 'ガイド制作スタジオ' },
@@ -2504,6 +2504,7 @@ const HOME_COINS_STORAGE_KEY = 'travelog_home_coins_v1';
 const HOME_FRIENDS_STORAGE_KEY = 'travelog_home_friends_v1';
 const HOME_MESSAGES_STORAGE_KEY = 'travelog_home_messages_v1';
 const HIDDEN_MESSAGES_STORAGE_KEY = 'travelog_hidden_messages_v1';
+const ACCOUNT_PROFILE_STORAGE_KEY = 'travelog_account_profiles_v1';
 const RESERVED_NICKNAMES = ['admin', 'travelog', 'guide', 'manager', 'test', '운영자', '관리자'];
 const AVATAR_PRESETS = {
   sun: '☀️',
@@ -2532,6 +2533,49 @@ let profileManagerOriginalNickname = '';
 let profileManagerVerifiedNickname = '';
 let onboardingAuthInProgress = false;
 
+function showOnboardingLoginFeedback(message, type = 'error') {
+  const feedback = document.getElementById('onboarding-login-feedback');
+  if (!feedback) return;
+  feedback.textContent = String(message || '');
+  feedback.classList.remove('success', 'error', 'info');
+  feedback.classList.add(type === 'info' ? 'info' : type === 'success' ? 'success' : 'error');
+  feedback.style.display = message ? 'block' : 'none';
+}
+
+function clearOnboardingLoginFeedback() {
+  showOnboardingLoginFeedback('', 'info');
+}
+
+function setOnboardingLoginBusy(isBusy) {
+  document.querySelectorAll('#onboarding-screen-login .login-button-container button').forEach(button => {
+    button.disabled = !!isBusy;
+    button.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+  });
+}
+
+function getOnboardingLoginErrorMessage(error) {
+  const code = String(error?.code || error?.name || '').toUpperCase();
+  const rawMessage = String(error?.detail || error?.message || error || '');
+  const normalizedMessage = rawMessage.toLowerCase();
+
+  if (code === 'EMAIL_REQUIRED') {
+    return localizedText('메일 주소를 입력해 주세요.', 'Enter your email address.', 'メールアドレスを入力してください。');
+  }
+  if (code === 'PASSWORD_REQUIRED') {
+    return localizedText('비밀번호를 입력해 주세요.', 'Enter your password.', 'パスワードを入力してください。');
+  }
+  if (code === 'INVALID_LOGIN_CREDENTIALS' || normalizedMessage.includes('invalid login credentials') || normalizedMessage.includes('invalid_credentials')) {
+    return localizedText('메일 주소 또는 비밀번호가 올바르지 않습니다. 다시 확인해 주세요.', 'The email address or password is incorrect. Check them and try again.', 'メールアドレスまたはパスワードが正しくありません。もう一度確認してください。');
+  }
+  if (code === 'EMAIL_NOT_CONFIRMED' || normalizedMessage.includes('email not confirmed')) {
+    return localizedText('이메일 인증이 완료되지 않은 계정입니다. 인증 상태를 확인해 주세요.', 'This account has not completed email confirmation.', 'メール認証が完了していないアカウントです。');
+  }
+  if (code === 'SUPABASE_EMAIL_SESSION_REQUIRED') {
+    return localizedText('로그인은 처리됐지만 세션을 만들지 못했습니다. Supabase에서 이메일 확인 상태를 확인해 주세요.', 'Sign-in was accepted, but a session could not be created. Check email confirmation in Supabase.', 'ログインは処理されましたが、セッションを作成できませんでした。');
+  }
+  return localizedText('로그인에 실패했습니다. 메일 주소와 비밀번호를 확인한 뒤 다시 시도해 주세요.', 'Sign-in failed. Check your email address and password, then try again.', 'ログインに失敗しました。メールアドレスとパスワードを確認して再試行してください。');
+}
+
 function initOnboarding() {
   loadSavedProfile();
   bindOnboardingEvents();
@@ -2541,6 +2585,7 @@ function initOnboarding() {
   if (TravelogState.userProfile.isOnboarded) {
     hideOnboardingOverlay(true);
   } else {
+    clearOnboardingLoginFeedback();
     showOnboardingScreen('login');
     restoreSupabaseProfileFromExistingSession().catch(error => {
       console.warn('[Travelog Supabase] Existing profile restore skipped:', error);
@@ -2550,25 +2595,53 @@ function initOnboarding() {
 
 
 async function safelyGoToProfileStep(provider) {
-  // Login choice: try Supabase Auth for server features, then continue locally even if Auth is unavailable.
-  // The app enters only after nickname + device storage agreement are completed.
   const authProvider = provider || TravelogState.userProfile.authProvider || 'Guest';
   if (onboardingAuthInProgress) return;
   onboardingAuthInProgress = true;
-  try {
-  const defaultNicknames = {
-    Google: '구글 여행자',
-    Naver: '네이버 여행자',
-    Email: '이메일 여행자',
-    Guest: '여행자'
-  };
+  const isEmailLogin = authProvider === 'Email';
+  if (isEmailLogin) {
+    showOnboardingScreen('login');
+    showOnboardingLoginFeedback(localizedText('Supabase 계정으로 로그인하고 있습니다...', 'Signing in to your Supabase account...', 'Supabaseアカウントにログインしています...'), 'info');
+    setOnboardingLoginBusy(true);
+  }
 
-  TravelogState.userProfile.authProvider = authProvider;
-  if (window.TravelogSupabase && typeof window.TravelogSupabase.connectLoginProvider === 'function') {
-    try {
+  try {
+    const defaultNicknames = {
+      Google: '구글 여행자',
+      Naver: '네이버 여행자',
+      Email: '이메일 여행자',
+      Guest: '여행자'
+    };
+
+    TravelogState.userProfile.authProvider = authProvider;
+    if (window.TravelogSupabase && typeof window.TravelogSupabase.connectLoginProvider === 'function') {
       const authResult = await window.TravelogSupabase.connectLoginProvider(authProvider, TravelogState.userProfile);
+
+      if (isEmailLogin && authResult?.cancelled) {
+        showOnboardingScreen('login');
+        showOnboardingLoginFeedback(localizedText('이메일 로그인이 취소되었습니다. 로그인 화면에서 다시 시도할 수 있습니다.', 'Email sign-in was cancelled. You can try again from this screen.', 'メールログインがキャンセルされました。この画面から再試行できます。'), 'info');
+        return;
+      }
+
+      if (isEmailLogin && (!authResult?.user || authResult?.mode !== 'email')) {
+        const authError = new Error('SUPABASE_EMAIL_LOGIN_FAILED');
+        authError.code = 'SUPABASE_EMAIL_LOGIN_FAILED';
+        throw authError;
+      }
+
       TravelogState.userProfile.supabaseAuthMode = authResult?.mode || 'local-only';
       TravelogState.userProfile.supabaseUserId = authResult?.user?.id || TravelogState.userProfile.supabaseUserId || '';
+
+      const accountProfile = getAccountScopedProfile(TravelogState.userProfile.supabaseUserId);
+      if (accountProfile) {
+        TravelogState.userProfile = {
+          ...buildDefaultUserProfile(),
+          ...accountProfile,
+          authProvider,
+          supabaseAuthMode: authResult?.mode || accountProfile.supabaseAuthMode || 'email',
+          supabaseUserId: authResult?.user?.id || accountProfile.supabaseUserId || ''
+        };
+      }
 
       if (authResult?.hasRemoteProfile && authResult?.profile) {
         await applySupabaseProfileToLocal(authResult.profile, {
@@ -2584,24 +2657,51 @@ async function safelyGoToProfileStep(provider) {
         ));
         return;
       }
-    } catch (error) {
-      console.warn('[Travelog Supabase] Onboarding auth failed; continuing locally.', error);
-      TravelogState.userProfile.supabaseAuthMode = 'local-only';
-    }
-  }
-  const input = document.getElementById('onboarding-nickname-input');
-  const startBtn = document.getElementById('start-app-btn');
-  const draftNickname = TravelogState.userProfile.nickname || defaultNicknames[authProvider] || '여행자';
 
-  if (input) input.value = draftNickname;
-  verifiedNickname = draftNickname;
-  TravelogState.userProfile.nickname = draftNickname;
-  updateOnboardingStartAvailability();
-  showNicknameFeedback(localizedText('로그인 방식이 선택되었습니다. 내 디바이스에서 저장폴더를 지정하고 시작하세요.', 'Login method selected. Choose a device storage folder and start.', 'ログイン方法を選択しました。端末の保存フォルダを指定して開始してください。'), true);
-  showOnboardingScreen('profile');
-  syncDeviceStorageStatus();
+      if (isEmailLogin && accountProfile?.nickname) {
+        await applySupabaseProfileToLocal({
+          id: authResult.user?.id || accountProfile.supabaseUserId || '',
+          display_name: accountProfile.nickname,
+          avatar_url: accountProfile.avatarType === 'image' || accountProfile.avatarType === 'presetImage' ? accountProfile.avatarValue || '' : ''
+        }, {
+          authProvider,
+          authMode: 'email',
+          userId: authResult.user?.id || accountProfile.supabaseUserId || ''
+        });
+        hideOnboardingOverlay(false);
+        showToast(localizedText(
+          `${TravelogState.userProfile.nickname}님의 기기 저장 프로필을 복원했습니다.`,
+          `Restored ${TravelogState.userProfile.nickname}'s saved device profile.`,
+          `${TravelogState.userProfile.nickname}さんの端末保存プロフィールを復元しました。`
+        ));
+        return;
+      }
+    }
+
+    const input = document.getElementById('onboarding-nickname-input');
+    const draftNickname = TravelogState.userProfile.nickname || defaultNicknames[authProvider] || '여행자';
+
+    if (input) input.value = draftNickname;
+    verifiedNickname = draftNickname;
+    TravelogState.userProfile.nickname = draftNickname;
+    updateOnboardingStartAvailability();
+    showNicknameFeedback(localizedText('처음 사용하는 계정입니다. 닉네임과 기기 저장폴더를 설정해 주세요.', 'This is a new account. Set a nickname and device storage folder.', '初めて使用するアカウントです。ニックネームと保存フォルダを設定してください。'), true);
+    showOnboardingScreen('profile');
+    syncDeviceStorageStatus();
+  } catch (error) {
+    if (isEmailLogin) {
+      console.warn('[Travelog Supabase] Email onboarding login failed:', error);
+      TravelogState.userProfile.supabaseAuthMode = 'signed-out';
+      TravelogState.userProfile.supabaseUserId = '';
+      showOnboardingScreen('login');
+      showOnboardingLoginFeedback(getOnboardingLoginErrorMessage(error), 'error');
+      return;
+    }
+    console.warn('[Travelog Supabase] Onboarding auth failed; continuing locally.', error);
+    TravelogState.userProfile.supabaseAuthMode = 'local-only';
   } finally {
     onboardingAuthInProgress = false;
+    if (isEmailLogin) setOnboardingLoginBusy(false);
   }
 }
 
@@ -2724,13 +2824,9 @@ function syncDeviceStorageStatus() {
 function attachActivationHandler(element, handler) {
   if (!element || element.dataset.travelogActivationBound === 'true') return;
   element.dataset.travelogActivationBound = 'true';
-  ['click', 'pointerup', 'touchend'].forEach(eventName => {
-    element.addEventListener(eventName, (event) => {
-      if (eventName !== 'click') {
-        event.preventDefault();
-      }
-      handler(event);
-    }, { passive: false });
+  element.addEventListener('click', (event) => {
+    event.preventDefault();
+    handler(event);
   });
 }
 
@@ -2750,7 +2846,10 @@ function bindOnboardingEvents() {
 
   const backBtn = document.getElementById('onboarding-back-btn');
   if (backBtn) {
-    attachActivationHandler(backBtn, () => showOnboardingScreen('login'));
+    attachActivationHandler(backBtn, () => {
+      clearOnboardingLoginFeedback();
+      showOnboardingScreen('login');
+    });
   }
 
   const nicknameInput = document.getElementById('onboarding-nickname-input');
@@ -2858,6 +2957,7 @@ function installOnboardingSafetyNet() {
   document.addEventListener('click', (event) => {
     const loginButton = event.target.closest('#login-google-btn, #login-naver-btn, #login-email-btn, #login-guest-btn');
     if (loginButton) {
+      if (loginButton.dataset.travelogActivationBound === 'true') return;
       const providerMap = {
         'login-google-btn': 'Google',
         'login-naver-btn': 'Naver',
@@ -2870,18 +2970,21 @@ function installOnboardingSafetyNet() {
 
     const backButton = event.target.closest('#onboarding-back-btn');
     if (backButton) {
+      if (backButton.dataset.travelogActivationBound === 'true') return;
       showOnboardingScreen('login');
       return;
     }
 
     const checkButton = event.target.closest('#nickname-check-btn');
     if (checkButton) {
+      if (checkButton.dataset.travelogActivationBound === 'true') return;
       verifyNickname();
       return;
     }
 
     const startButton = event.target.closest('#start-app-btn');
     if (startButton && !startButton.disabled) {
+      if (startButton.dataset.travelogActivationBound === 'true') return;
       completeOnboarding();
     }
   }, true);
@@ -3533,6 +3636,9 @@ async function logoutCurrentProfile() {
   );
   if (!window.confirm(confirmMessage)) return;
 
+  // 로그아웃 전에 계정별 프로필과 저장폴더 정보를 보존해 같은 계정 재로그인 때 복원합니다.
+  saveAccountScopedProfile(TravelogState.userProfile);
+
   try {
     if (window.TravelogSupabase && typeof window.TravelogSupabase.signOut === 'function') {
       await window.TravelogSupabase.signOut();
@@ -3561,6 +3667,7 @@ async function logoutCurrentProfile() {
   if (overlay) {
     overlay.style.display = 'flex';
     overlay.classList.remove('closing');
+    clearOnboardingLoginFeedback();
     showOnboardingScreen('login');
   }
 
@@ -3668,12 +3775,48 @@ function renderUserProfileWidget() {
   applyAvatarToElements(profile, avatar, null);
 }
 
+function readAccountScopedProfiles() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACCOUNT_PROFILE_STORAGE_KEY) || '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function getAccountScopedProfile(userId) {
+  const cleanUserId = String(userId || '').trim();
+  if (!cleanUserId) return null;
+  const profile = readAccountScopedProfiles()[cleanUserId];
+  return profile && typeof profile === 'object' ? profile : null;
+}
+
+function saveAccountScopedProfile(profile = TravelogState.userProfile) {
+  const userId = String(profile?.supabaseUserId || '').trim();
+  if (!userId || !profile?.nickname) return false;
+  try {
+    const profiles = readAccountScopedProfiles();
+    profiles[userId] = {
+      ...profile,
+      supabaseUserId: userId,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(ACCOUNT_PROFILE_STORAGE_KEY, JSON.stringify(profiles));
+    return true;
+  } catch (error) {
+    console.warn('Account-scoped profile could not be saved locally.', error);
+    return false;
+  }
+}
+
 function saveProfile() {
   try {
     localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(TravelogState.userProfile));
   } catch (error) {
     console.warn('Travelog profile could not be saved locally.', error);
   }
+
+  saveAccountScopedProfile(TravelogState.userProfile);
 
   if (window.TravelogSupabase && typeof window.TravelogSupabase.syncProfile === 'function') {
     window.TravelogSupabase.syncProfile(TravelogState.userProfile).catch(error => {
