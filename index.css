@@ -2400,11 +2400,12 @@ nav.bottom-nav {
   gap: 8px;
 }
 
-.onboarding-header .logo-icon {
-  font-size: 48px;
-  color: var(--color-ocean);
+.onboarding-logo-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
   margin-bottom: 12px;
-  text-shadow: 0 4px 15px rgba(112, 162, 183, 0.3);
+  filter: drop-shadow(0 7px 12px rgba(112, 162, 183, 0.22));
 }
 
 .onboarding-header h2 {
@@ -2834,9 +2835,18 @@ nav.bottom-nav {
   font-size: 12px;
 }
 
-.onboarding-feature-row i {
-  width: 18px;
-  color: var(--color-ocean);
+.onboarding-feature-icon {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  object-fit: contain;
+}
+
+.login-action-icon {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  object-fit: contain;
 }
 
 .login-btn-guest {
