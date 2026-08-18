@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1044">
+  <link rel="stylesheet" href="index.css?v=1045">
 </head>
 <body>
 
@@ -924,7 +924,7 @@
       <!-- SCREEN 2: PROFILE SETUP -->
       <div id="onboarding-screen-profile" class="onboarding-screen">
         <div class="onboarding-step-row">
-          <button type="button" id="onboarding-back-btn" class="onboarding-back-btn"><i class="fa-solid fa-chevron-left"></i> <span data-localize="back_to_login">이전</span></button>
+          <button type="button" id="onboarding-back-btn" class="onboarding-back-btn"><img class="onboarding-back-icon" src="assets/icons/onboarding/onboarding-back.svg" alt="" aria-hidden="true"> <span data-localize="back_to_login">이전</span></button>
           <span class="step-pill" data-localize="onboarding_step_profile">2/2단계 · 프로필 만들기</span>
           <div class="step-dots" aria-hidden="true"><span></span><span class="active"></span></div>
         </div>
@@ -941,7 +941,7 @@
                 <span id="avatar-preview-emoji">☀️</span>
               </div>
               <label for="onboarding-file-input" class="upload-badge" title="Upload Custom Photo">
-                <i class="fa-solid fa-camera"></i>
+                <img class="onboarding-camera-icon" src="assets/icons/onboarding/onboarding-camera.svg" alt="" aria-hidden="true">
               </label>
               <input type="file" id="onboarding-file-input" accept="image/*" style="display: none;">
             </div>
@@ -974,7 +974,7 @@
                 </div>
               </label>
               <button type="button" class="btn-rect secondary" id="device-storage-select-btn" style="width: 100%; justify-content: center; margin-top: 10px; font-size: 12px; border-radius: 14px;">
-                <i class="fa-solid fa-folder-plus"></i> 내 디바이스에서 저장폴더 지정하기
+                <img class="onboarding-folder-icon" src="assets/icons/onboarding/onboarding-folder.svg" alt="" aria-hidden="true"> 내 디바이스에서 저장폴더 지정하기
               </button>
               <div id="device-storage-status" style="font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45;">아직 저장 위치가 지정되지 않았습니다. 버튼을 눌러 원하는 위치에 travelog_data 폴더를 만들어 주세요.</div>
               <div id="device-storage-required-hint" style="font-size: 11px; color: #A34E54; margin-top: 6px; line-height: 1.45;">시작 전 내 디바이스에서 저장폴더를 먼저 지정해 주세요.</div>
