@@ -416,9 +416,12 @@ const TravelogSupabase = (() => {
     const user = session?.user;
     if (!user?.id) return null;
 
+    const stableDisplayName = String(profile.nickname || profile.displayName || '').trim()
+      || user.email?.split('@')[0]
+      || 'Travelog User';
     const profileRow = {
       id: user.id,
-      display_name: profile.nickname || profile.displayName || user.email?.split('@')[0] || 'Travelog User',
+      display_name: stableDisplayName,
       avatar_url: profile.avatarType === 'image' || profile.avatarType === 'presetImage' ? profile.avatarValue || null : null,
       updated_at: new Date().toISOString()
     };
@@ -431,6 +434,16 @@ const TravelogSupabase = (() => {
     if (error) {
       console.warn('[Travelog Supabase] Profile sync failed:', error);
       return null;
+    }
+
+    const metadataDisplayName = String(user.user_metadata?.display_name || '').trim();
+    if (stableDisplayName && metadataDisplayName !== stableDisplayName) {
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: { display_name: stableDisplayName }
+      });
+      if (metadataError) {
+        console.warn('[Travelog Supabase] Auth nickname metadata sync failed:', metadataError);
+      }
     }
     return normalizeProfileRow(data);
   }

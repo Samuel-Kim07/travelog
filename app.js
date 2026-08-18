@@ -2854,6 +2854,33 @@ async function safelyGoToProfileStep(provider) {
         };
       }
 
+      const remoteNickname = getSupabaseProfileName(authResult?.profile);
+      const accountNickname = String(accountProfile?.nickname || '').trim();
+      const shouldPreferAccountProfile = !!accountNickname
+        && !isTemporarySupabaseProfileName(accountNickname)
+        && (!authResult?.hasRemoteProfile || isTemporarySupabaseProfileName(remoteNickname, authResult?.user));
+
+      // 비밀번호 재설정 뒤 서버에 이메일 앞부분 등의 임시명이 남아 있어도,
+      // 같은 Supabase user id로 보관된 실제 닉네임을 우선 복원하고 서버에도 다시 동기화합니다.
+      if (isEmailLogin && shouldPreferAccountProfile) {
+        await applySupabaseProfileToLocal({
+          id: authResult.user?.id || accountProfile.supabaseUserId || '',
+          display_name: accountNickname,
+          avatar_url: accountProfile.avatarType === 'image' || accountProfile.avatarType === 'presetImage' ? accountProfile.avatarValue || '' : ''
+        }, {
+          authProvider,
+          authMode: 'email',
+          userId: authResult.user?.id || accountProfile.supabaseUserId || ''
+        });
+        hideOnboardingOverlay(false);
+        showToast(localizedText(
+          `${TravelogState.userProfile.nickname}님의 기존 닉네임과 프로필을 복원했습니다.`,
+          `Restored ${TravelogState.userProfile.nickname}'s existing nickname and profile.`,
+          `${TravelogState.userProfile.nickname}さんの既存のニックネームとプロフィールを復元しました。`
+        ));
+        return;
+      }
+
       if (authResult?.hasRemoteProfile && authResult?.profile) {
         await applySupabaseProfileToLocal(authResult.profile, {
           authProvider,
@@ -3796,6 +3823,23 @@ function getSupabaseProfileName(remoteProfile) {
   ).trim();
 }
 
+function isTemporarySupabaseProfileName(nickname, user = null) {
+  const cleanName = String(nickname || '').trim();
+  if (!cleanName) return true;
+  const normalizedName = cleanName.toLocaleLowerCase();
+  const temporaryNames = new Set([
+    'travelog user',
+    'traveler',
+    '이메일 여행자',
+    '여행자',
+    'email traveler'
+  ]);
+  if (temporaryNames.has(normalizedName)) return true;
+
+  const emailLocalPart = String(user?.email || '').split('@')[0].trim().toLocaleLowerCase();
+  return !!emailLocalPart && normalizedName === emailLocalPart;
+}
+
 async function applySupabaseProfileToLocal(remoteProfile, options = {}) {
   const nickname = getSupabaseProfileName(remoteProfile);
   if (!nickname) return false;
@@ -3846,13 +3890,30 @@ async function restoreSupabaseProfileFromExistingSession() {
   if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchCurrentProfile !== 'function') return false;
 
   window.TravelogSupabase.init?.();
+  const existingSession = await window.TravelogSupabase.getSession?.();
+  const existingUser = existingSession?.user || null;
   const remoteProfile = await window.TravelogSupabase.fetchCurrentProfile({ requireSession: false });
-  if (!getSupabaseProfileName(remoteProfile)) return false;
+  const userId = remoteProfile?.id || remoteProfile?.supabaseProfileId || existingUser?.id || '';
+  const accountProfile = getAccountScopedProfile(userId);
+  const remoteNickname = getSupabaseProfileName(remoteProfile);
+  const accountNickname = String(accountProfile?.nickname || '').trim();
+  const shouldUseAccountProfile = !!accountNickname
+    && !isTemporarySupabaseProfileName(accountNickname)
+    && isTemporarySupabaseProfileName(remoteNickname, existingUser);
 
-  const restored = await applySupabaseProfileToLocal(remoteProfile, {
+  if (!remoteNickname && !shouldUseAccountProfile) return false;
+  if (isTemporarySupabaseProfileName(remoteNickname, existingUser) && !shouldUseAccountProfile) return false;
+
+  const profileToRestore = shouldUseAccountProfile ? {
+    id: userId,
+    display_name: accountNickname,
+    avatar_url: accountProfile.avatarType === 'image' || accountProfile.avatarType === 'presetImage' ? accountProfile.avatarValue || '' : ''
+  } : remoteProfile;
+
+  const restored = await applySupabaseProfileToLocal(profileToRestore, {
     authProvider: TravelogState.userProfile.authProvider || 'Email',
     authMode: TravelogState.userProfile.supabaseAuthMode || 'email',
-    userId: remoteProfile.id || remoteProfile.supabaseProfileId || ''
+    userId
   });
   if (restored) {
     hideOnboardingOverlay(false);
