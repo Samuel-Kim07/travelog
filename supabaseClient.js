@@ -63,6 +63,76 @@ const TravelogSupabase = (() => {
     return data?.session || null;
   }
 
+  function isPasswordRecoveryRedirect() {
+    try {
+      const query = new URLSearchParams(window.location.search || '');
+      const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+      return query.get('type') === 'recovery'
+        || hash.get('type') === 'recovery'
+        || query.has('code')
+        || query.has('token_hash') && query.get('type') === 'recovery'
+        || hash.has('access_token') && hash.get('type') === 'recovery'
+        || query.get('error_code') === 'otp_expired'
+        || hash.get('error_code') === 'otp_expired';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function getPasswordRecoveryRedirectError() {
+    try {
+      const query = new URLSearchParams(window.location.search || '');
+      const hash = new URLSearchParams(String(window.location.hash || '').replace(/^#/, ''));
+      const code = query.get('error_code') || hash.get('error_code') || '';
+      const description = query.get('error_description') || hash.get('error_description') || '';
+      return code || description ? { code, description } : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function onAuthStateChange(callback) {
+    const supabase = getClient();
+    if (!supabase || typeof callback !== 'function') return null;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      callback(event, session);
+    });
+    return data?.subscription || null;
+  }
+
+  async function updatePassword(newPassword) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const cleanPassword = String(newPassword || '');
+    if (cleanPassword.length < 8) {
+      const error = new Error('PASSWORD_TOO_SHORT');
+      error.code = 'PASSWORD_TOO_SHORT';
+      throw error;
+    }
+
+    const session = await getSession();
+    if (!session?.user) {
+      const error = new Error('PASSWORD_RECOVERY_SESSION_MISSING');
+      error.code = 'PASSWORD_RECOVERY_SESSION_MISSING';
+      throw error;
+    }
+
+    const { data, error } = await supabase.auth.updateUser({ password: cleanPassword });
+    if (error) throw error;
+    return data?.user || null;
+  }
+
+  function clearPasswordRecoveryUrl() {
+    try {
+      const url = new URL(window.location.href);
+      ['code', 'type', 'token', 'token_hash', 'access_token', 'refresh_token', 'expires_at', 'expires_in', 'error', 'error_code', 'error_description'].forEach(key => {
+        url.searchParams.delete(key);
+      });
+      url.hash = '';
+      window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+    } catch (_) {}
+  }
+
   function randomToken() {
     if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
       const bytes = new Uint8Array(12);
@@ -1569,6 +1639,11 @@ const TravelogSupabase = (() => {
     init,
     getClient,
     getSession,
+    isPasswordRecoveryRedirect,
+    getPasswordRecoveryRedirectError,
+    onAuthStateChange,
+    updatePassword,
+    clearPasswordRecoveryUrl,
     ensureSession,
     connectLoginProvider,
     syncProfile,

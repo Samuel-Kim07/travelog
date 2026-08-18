@@ -292,7 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initLanguageToggle();
   loadHomePersistentState();
   updatePointsDisplay();
-  initOnboarding();
+  const passwordRecoveryRedirectDetected = initPasswordRecoveryFlow();
+  initOnboarding({ forcePasswordRecovery: passwordRecoveryRedirectDetected });
   
   // Trigger sub-module updates if they need state initial loading
   if (window.TravelogMapModule && typeof window.TravelogMapModule.init === 'function') {
@@ -440,17 +441,17 @@ async function initSupabaseRuntime() {
   if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchPublishedGuideCards !== 'function') return;
   try {
     window.TravelogSupabase.init?.();
-    if (!TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.fetchCurrentProfile === 'function') {
+    if (!passwordRecoveryActive && !TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.fetchCurrentProfile === 'function') {
       await restoreSupabaseProfileFromExistingSession();
     }
 
-    if (TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.syncProfile === 'function') {
+    if (!passwordRecoveryActive && TravelogState.userProfile?.isOnboarded && typeof window.TravelogSupabase.syncProfile === 'function') {
       window.TravelogSupabase.syncProfile(TravelogState.userProfile).catch(error => {
         console.warn('[Travelog Supabase] Profile sync skipped:', error);
       });
     }
 
-    if (TravelogState.userProfile?.isOnboarded && typeof refreshSupabaseSocialData === 'function') {
+    if (!passwordRecoveryActive && TravelogState.userProfile?.isOnboarded && typeof refreshSupabaseSocialData === 'function') {
       refreshSupabaseSocialData({ requireSession: false }).catch(error => {
         console.warn('[Travelog Supabase] Social sync skipped:', error);
       });
@@ -2532,6 +2533,214 @@ let profileManagerNicknameEditEnabled = false;
 let profileManagerOriginalNickname = '';
 let profileManagerVerifiedNickname = '';
 let onboardingAuthInProgress = false;
+let passwordRecoveryActive = false;
+let passwordRecoverySessionReady = false;
+let passwordRecoverySubmitting = false;
+let passwordRecoverySubscription = null;
+
+function setPasswordRecoveryFeedback(message, type = 'info') {
+  const feedback = document.getElementById('password-recovery-feedback');
+  if (!feedback) return;
+  feedback.textContent = String(message || '');
+  feedback.classList.remove('success', 'error', 'info');
+  feedback.classList.add(type === 'success' ? 'success' : type === 'error' ? 'error' : 'info');
+  feedback.style.display = message ? 'block' : 'none';
+}
+
+function setPasswordRecoveryBusy(isBusy) {
+  passwordRecoverySubmitting = !!isBusy;
+  const submitButton = document.getElementById('password-recovery-submit-btn');
+  const newPasswordInput = document.getElementById('password-recovery-new');
+  const confirmPasswordInput = document.getElementById('password-recovery-confirm');
+  if (submitButton) {
+    submitButton.disabled = !!isBusy || !passwordRecoverySessionReady;
+    submitButton.setAttribute('aria-busy', isBusy ? 'true' : 'false');
+  }
+  if (newPasswordInput) newPasswordInput.disabled = !!isBusy || !passwordRecoverySessionReady;
+  if (confirmPasswordInput) confirmPasswordInput.disabled = !!isBusy || !passwordRecoverySessionReady;
+}
+
+function showPasswordRecoveryScreen(options = {}) {
+  passwordRecoveryActive = true;
+  const overlay = document.getElementById('onboarding-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.classList.remove('closing');
+  }
+  showOnboardingScreen('password-recovery');
+
+  if (options.ready === true) {
+    passwordRecoverySessionReady = true;
+    setPasswordRecoveryFeedback(localizedText(
+      '복구 링크가 확인되었습니다. 새 비밀번호를 두 번 입력해 주세요.',
+      'Recovery link verified. Enter your new password twice.',
+      '復旧リンクを確認しました。新しいパスワードを2回入力してください。'
+    ), 'success');
+    setPasswordRecoveryBusy(false);
+    window.setTimeout(() => document.getElementById('password-recovery-new')?.focus(), 120);
+    return;
+  }
+
+  passwordRecoverySessionReady = false;
+  setPasswordRecoveryBusy(false);
+  if (options.invalid === true) {
+    setPasswordRecoveryFeedback(localizedText(
+      '복구 링크가 만료되었거나 이미 사용되었습니다. Supabase에서 비밀번호 재설정 메일을 다시 보내 주세요.',
+      'This recovery link has expired or was already used. Send a new password recovery email from Supabase.',
+      '復旧リンクの有効期限が切れているか、すでに使用されています。Supabaseから再設定メールをもう一度送信してください。'
+    ), 'error');
+  } else {
+    setPasswordRecoveryFeedback(localizedText(
+      '복구 링크를 확인하고 있습니다...',
+      'Verifying the recovery link...',
+      '復旧リンクを確認しています...'
+    ), 'info');
+  }
+}
+
+async function checkPasswordRecoverySession(attempt = 0) {
+  if (!passwordRecoveryActive || passwordRecoverySessionReady) return;
+  const recoveryError = window.TravelogSupabase?.getPasswordRecoveryRedirectError?.();
+  if (recoveryError) {
+    showPasswordRecoveryScreen({ invalid: true });
+    return;
+  }
+
+  try {
+    const session = await window.TravelogSupabase?.getSession?.();
+    if (session?.user) {
+      showPasswordRecoveryScreen({ ready: true });
+      return;
+    }
+  } catch (error) {
+    console.warn('[Travelog Supabase] Password recovery session check failed:', error);
+  }
+
+  if (attempt < 4) {
+    window.setTimeout(() => checkPasswordRecoverySession(attempt + 1), 350 * (attempt + 1));
+  } else {
+    showPasswordRecoveryScreen({ invalid: true });
+  }
+}
+
+function initPasswordRecoveryFlow() {
+  if (!window.TravelogSupabase) return false;
+  window.TravelogSupabase.init?.();
+
+  const redirectDetected = window.TravelogSupabase.isPasswordRecoveryRedirect?.() === true;
+  if (redirectDetected) passwordRecoveryActive = true;
+
+  if (!passwordRecoverySubscription && typeof window.TravelogSupabase.onAuthStateChange === 'function') {
+    passwordRecoverySubscription = window.TravelogSupabase.onAuthStateChange((event, session) => {
+      // Supabase auth 콜백 안에서는 추가 인증 요청을 await하지 않고 UI 상태만 갱신합니다.
+      if (event === 'PASSWORD_RECOVERY') {
+        passwordRecoveryActive = true;
+        passwordRecoverySessionReady = !!session?.user;
+        window.setTimeout(() => {
+          showPasswordRecoveryScreen(passwordRecoverySessionReady ? { ready: true } : {});
+          if (!passwordRecoverySessionReady) checkPasswordRecoverySession(0);
+        }, 0);
+      }
+    });
+  }
+
+  if (redirectDetected) {
+    window.setTimeout(() => checkPasswordRecoverySession(0), 180);
+  }
+  return redirectDetected;
+}
+
+function clearLocalProfileForRequiredLogin() {
+  saveAccountScopedProfile(TravelogState.userProfile);
+  try { localStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch (_) {}
+  try { localStorage.removeItem(HOME_FRIENDS_STORAGE_KEY); } catch (_) {}
+  try { localStorage.removeItem(HOME_MESSAGES_STORAGE_KEY); } catch (_) {}
+  TravelogState.userProfile = buildDefaultUserProfile();
+  TravelogState.friends = [];
+  latestFriendRequests = [];
+  latestFriendFeedback = [];
+  TravelogState.messages = [];
+  latestFriendSearchResults = [];
+  verifiedNickname = '';
+  renderFriendSearchResults([]);
+  renderUserProfileWidget();
+  renderHomeTab();
+}
+
+async function finishPasswordRecoveryAndShowLogin(message, type = 'info') {
+  passwordRecoveryActive = false;
+  passwordRecoverySessionReady = false;
+  setPasswordRecoveryBusy(false);
+  document.getElementById('password-recovery-form')?.reset();
+  window.TravelogSupabase?.clearPasswordRecoveryUrl?.();
+
+  try {
+    await window.TravelogSupabase?.signOut?.();
+  } catch (error) {
+    console.warn('[Travelog Supabase] Recovery sign-out failed, continuing to login screen:', error);
+  }
+
+  clearLocalProfileForRequiredLogin();
+  const overlay = document.getElementById('onboarding-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    overlay.classList.remove('closing');
+  }
+  showOnboardingScreen('login');
+  showOnboardingLoginFeedback(message, type);
+}
+
+function getPasswordRecoveryErrorMessage(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+  if (code === 'PASSWORD_RECOVERY_SESSION_MISSING') {
+    return localizedText('복구 세션이 만료되었습니다. 새 재설정 메일을 요청해 주세요.', 'The recovery session has expired. Request a new reset email.', '復旧セッションの有効期限が切れました。新しい再設定メールを要求してください。');
+  }
+  if (message.includes('different from the old password') || message.includes('same password')) {
+    return localizedText('기존 비밀번호와 다른 새 비밀번호를 입력해 주세요.', 'Enter a password different from your old password.', '以前のパスワードとは異なる新しいパスワードを入力してください。');
+  }
+  if (message.includes('weak') || message.includes('password')) {
+    return localizedText('Supabase 비밀번호 정책을 충족하지 못했습니다. 더 길고 복잡한 비밀번호로 다시 시도해 주세요.', 'The password does not meet the Supabase password policy. Try a longer, stronger password.', 'Supabaseのパスワードポリシーを満たしていません。より長く複雑なパスワードで再試行してください。');
+  }
+  return localizedText('비밀번호를 변경하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'Could not change the password. Try again shortly.', 'パスワードを変更できませんでした。しばらくしてから再試行してください。');
+}
+
+async function submitPasswordRecovery(event) {
+  event?.preventDefault();
+  if (passwordRecoverySubmitting) return;
+  const newPassword = document.getElementById('password-recovery-new')?.value || '';
+  const confirmPassword = document.getElementById('password-recovery-confirm')?.value || '';
+
+  if (!passwordRecoverySessionReady) {
+    setPasswordRecoveryFeedback(localizedText('복구 링크가 유효하지 않습니다. 새 재설정 메일을 요청해 주세요.', 'The recovery link is not valid. Request a new reset email.', '復旧リンクが無効です。新しい再設定メールを要求してください。'), 'error');
+    return;
+  }
+  if (newPassword.length < 8) {
+    setPasswordRecoveryFeedback(localizedText('새 비밀번호는 8자 이상 입력해 주세요.', 'Enter a new password with at least 8 characters.', '新しいパスワードは8文字以上で入力してください。'), 'error');
+    document.getElementById('password-recovery-new')?.focus();
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    setPasswordRecoveryFeedback(localizedText('두 비밀번호가 일치하지 않습니다. 다시 확인해 주세요.', 'The two passwords do not match. Check them and try again.', '2つのパスワードが一致しません。もう一度確認してください。'), 'error');
+    document.getElementById('password-recovery-confirm')?.focus();
+    return;
+  }
+
+  setPasswordRecoveryBusy(true);
+  setPasswordRecoveryFeedback(localizedText('새 비밀번호를 안전하게 저장하고 있습니다...', 'Saving your new password securely...', '新しいパスワードを安全に保存しています...'), 'info');
+  try {
+    await window.TravelogSupabase.updatePassword(newPassword);
+    await finishPasswordRecoveryAndShowLogin(localizedText(
+      '비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.',
+      'Your password was changed. Sign in with your new password.',
+      'パスワードを変更しました。新しいパスワードでログインしてください。'
+    ), 'success');
+  } catch (error) {
+    console.warn('[Travelog Supabase] Password update failed:', error);
+    setPasswordRecoveryBusy(false);
+    setPasswordRecoveryFeedback(getPasswordRecoveryErrorMessage(error), 'error');
+  }
+}
 
 function showOnboardingLoginFeedback(message, type = 'error') {
   const feedback = document.getElementById('onboarding-login-feedback');
@@ -2576,13 +2785,15 @@ function getOnboardingLoginErrorMessage(error) {
   return localizedText('로그인에 실패했습니다. 메일 주소와 비밀번호를 확인한 뒤 다시 시도해 주세요.', 'Sign-in failed. Check your email address and password, then try again.', 'ログインに失敗しました。メールアドレスとパスワードを確認して再試行してください。');
 }
 
-function initOnboarding() {
+function initOnboarding(options = {}) {
   loadSavedProfile();
   bindOnboardingEvents();
   renderUserProfileWidget();
   syncDeviceStorageStatus();
 
-  if (TravelogState.userProfile.isOnboarded) {
+  if (options.forcePasswordRecovery || passwordRecoveryActive) {
+    showPasswordRecoveryScreen();
+  } else if (TravelogState.userProfile.isOnboarded) {
     hideOnboardingOverlay(true);
   } else {
     clearOnboardingLoginFeedback();
@@ -2844,6 +3055,23 @@ function bindOnboardingEvents() {
     attachActivationHandler(btn, () => safelyGoToProfileStep(provider));
   });
 
+  const recoveryForm = document.getElementById('password-recovery-form');
+  if (recoveryForm && recoveryForm.dataset.bound !== 'true') {
+    recoveryForm.dataset.bound = 'true';
+    recoveryForm.addEventListener('submit', submitPasswordRecovery);
+  }
+
+  const recoveryCancelButton = document.getElementById('password-recovery-cancel-btn');
+  if (recoveryCancelButton) {
+    attachActivationHandler(recoveryCancelButton, () => {
+      finishPasswordRecoveryAndShowLogin(localizedText(
+        '비밀번호 변경을 취소했습니다. 필요하면 새 복구 메일을 요청해 주세요.',
+        'Password change cancelled. Request a new recovery email if needed.',
+        'パスワード変更をキャンセルしました。必要な場合は新しい復旧メールを要求してください。'
+      ), 'info');
+    });
+  }
+
   const backBtn = document.getElementById('onboarding-back-btn');
   if (backBtn) {
     attachActivationHandler(backBtn, () => {
@@ -2924,20 +3152,29 @@ function bindOnboardingEvents() {
 function showOnboardingScreen(screenName) {
   const loginScreen = document.getElementById('onboarding-screen-login');
   const profileScreen = document.getElementById('onboarding-screen-profile');
-  if (!loginScreen || !profileScreen) return;
+  const recoveryScreen = document.getElementById('onboarding-screen-password-recovery');
+  if (!loginScreen || !profileScreen || !recoveryScreen) return;
 
   const isLogin = screenName === 'login';
+  const isProfile = screenName === 'profile';
+  const isRecovery = screenName === 'password-recovery';
   loginScreen.classList.toggle('active', isLogin);
-  profileScreen.classList.toggle('active', !isLogin);
+  profileScreen.classList.toggle('active', isProfile);
+  recoveryScreen.classList.toggle('active', isRecovery);
+  loginScreen.setAttribute('aria-hidden', isLogin ? 'false' : 'true');
+  profileScreen.setAttribute('aria-hidden', isProfile ? 'false' : 'true');
+  recoveryScreen.setAttribute('aria-hidden', isRecovery ? 'false' : 'true');
 
   // 모바일 브라우저에서 class 전환이 늦게 반영되거나 이전 스타일이 남는 경우를 막기 위한 하드 보정입니다.
   loginScreen.style.display = isLogin ? 'flex' : 'none';
   loginScreen.style.pointerEvents = isLogin ? 'auto' : 'none';
-  profileScreen.style.display = isLogin ? 'none' : 'flex';
-  profileScreen.style.pointerEvents = isLogin ? 'none' : 'auto';
+  profileScreen.style.display = isProfile ? 'flex' : 'none';
+  profileScreen.style.pointerEvents = isProfile ? 'auto' : 'none';
+  recoveryScreen.style.display = isRecovery ? 'flex' : 'none';
+  recoveryScreen.style.pointerEvents = isRecovery ? 'auto' : 'none';
 
-  document.querySelectorAll('.step-dots span').forEach((dot, index) => {
-    const shouldActivate = isLogin ? index === 0 : index === 1;
+  document.querySelectorAll('#onboarding-overlay .step-dots span').forEach((dot, index) => {
+    const shouldActivate = !isRecovery && (isLogin ? index === 0 : index === 1);
     dot.classList.toggle('active', shouldActivate);
   });
 }

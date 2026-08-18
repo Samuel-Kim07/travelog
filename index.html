@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1042">
+  <link rel="stylesheet" href="index.css?v=1043">
 </head>
 <body>
 
@@ -889,6 +889,38 @@
         <p class="onboarding-privacy-note" data-localize="onboarding_privacy_hint">이메일 로그인 정보는 Supabase 인증에만 사용되며 앱에 저장되지 않습니다.</p>
       </div>
 
+      <!-- PASSWORD RECOVERY: Supabase recovery email redirect -->
+      <div id="onboarding-screen-password-recovery" class="onboarding-screen password-recovery-screen" aria-hidden="true">
+        <div class="onboarding-step-row password-recovery-step-row">
+          <span class="step-pill"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> 계정 보안</span>
+        </div>
+
+        <div class="onboarding-header password-recovery-header">
+          <span class="password-recovery-icon" aria-hidden="true"><i class="fa-solid fa-key"></i></span>
+          <h2 class="gradient-text">새 비밀번호 설정</h2>
+          <p>메일의 복구 링크가 확인되면 새 비밀번호로 변경할 수 있습니다.</p>
+        </div>
+
+        <form id="password-recovery-form" class="password-recovery-form" novalidate>
+          <label for="password-recovery-new">새 비밀번호</label>
+          <input id="password-recovery-new" name="new-password" type="password" autocomplete="new-password" minlength="8" required placeholder="8자 이상 입력">
+
+          <label for="password-recovery-confirm">새 비밀번호 확인</label>
+          <input id="password-recovery-confirm" name="confirm-password" type="password" autocomplete="new-password" minlength="8" required placeholder="한 번 더 입력">
+
+          <p class="password-recovery-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> 영문, 숫자, 기호를 섞어 8자 이상을 권장합니다.</p>
+          <div id="password-recovery-feedback" class="feedback-badge password-recovery-feedback info" role="alert" aria-live="polite">복구 링크를 확인하고 있습니다...</div>
+
+          <button id="password-recovery-submit-btn" class="btn-rect password-recovery-submit" type="submit" disabled>
+            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+            <span>비밀번호 변경하기</span>
+          </button>
+          <button id="password-recovery-cancel-btn" class="btn-rect secondary password-recovery-cancel" type="button">로그인 화면으로 돌아가기</button>
+        </form>
+
+        <p class="onboarding-privacy-note">입력한 비밀번호는 Supabase 인증에만 전달되며 Travelog에 저장되지 않습니다.</p>
+      </div>
+
       <!-- SCREEN 2: PROFILE SETUP -->
       <div id="onboarding-screen-profile" class="onboarding-screen">
         <div class="onboarding-step-row">
@@ -1521,7 +1553,7 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1014" defer></script>
+  <script src="supabaseClient.js?v=1015" defer></script>
   <script src="map.js?v=1013" defer></script>
   <script src="explore.js?v=1003" defer></script>
   <script src="rewards.js?v=1005" defer></script>
@@ -1530,6 +1562,6 @@
   <script src="creator.js?v=1015" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
-  <script src="app.js?v=1032" defer></script>
+  <script src="app.js?v=1033" defer></script>
 </body>
 </html>
