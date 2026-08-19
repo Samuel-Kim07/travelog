@@ -176,6 +176,7 @@ const TravelogExploreModule = (() => {
       const location = pick(vlog, 'location');
       const sound = pick(vlog, 'sound');
       const likeClass = vlog.liked ? 'liked' : '';
+      const likeIcon = vlog.liked ? 'explore-heart-liked.svg' : 'explore-heart.svg';
 
       card.innerHTML = `
         <div class="simulated-video-container">
@@ -185,10 +186,10 @@ const TravelogExploreModule = (() => {
             <!-- Top bar -->
             <div class="vlog-top">
               <div class="location-tag">
-                <i class="fa-solid fa-location-dot" style="color:var(--accent-pink);"></i>
+                <img class="explore-svg-icon explore-location-icon" src="assets/icons/explore/explore-location.svg" alt="" aria-hidden="true">
                 <span>${location}</span>
               </div>
-              <i class="fa-solid fa-volume-xmark" style="font-size:16px; cursor:pointer;" title="Mute/Unmute"></i>
+              <img class="explore-svg-icon explore-mute-icon" src="assets/icons/explore/explore-mute.svg" alt="" aria-hidden="true" title="Mute/Unmute">
             </div>
             
             <!-- Floating Right Actions -->
@@ -198,17 +199,17 @@ const TravelogExploreModule = (() => {
               </div>
               
               <div class="action-btn-vertical ${likeClass}" onclick="TravelogExploreModule.toggleVlogLike(${index})">
-                <i class="fa-solid fa-heart"></i>
+                <img class="explore-svg-icon explore-action-icon" src="assets/icons/explore/${likeIcon}" alt="" aria-hidden="true">
                 <span>${vlog.likes}</span>
               </div>
               
               <div class="action-btn-vertical">
-                <i class="fa-solid fa-comment-dots"></i>
+                <img class="explore-svg-icon explore-action-icon" src="assets/icons/explore/explore-comment.svg" alt="" aria-hidden="true">
                 <span>${vlog.comments}</span>
               </div>
               
               <div class="action-btn-vertical" onclick="TravelogExploreModule.shareVlog('${vlog.id}')">
-                <i class="fa-solid fa-paper-plane"></i>
+                <img class="explore-svg-icon explore-action-icon" src="assets/icons/explore/explore-share.svg" alt="" aria-hidden="true">
                 <span data-localize="share">${t('공유', 'Share', '共有')}</span>
               </div>
             </div>
@@ -219,7 +220,7 @@ const TravelogExploreModule = (() => {
               <p style="font-weight: 500;">${title}</p>
               <p style="font-size: 13px; opacity:0.8;">${desc}</p>
               <div class="vlog-soundtrack" style="margin-top:4px;">
-                <i class="fa-solid fa-music"></i>
+                <img class="explore-svg-icon explore-music-icon" src="assets/icons/explore/explore-music.svg" alt="" aria-hidden="true">
                 <span>${sound}</span>
               </div>
             </div>
@@ -281,7 +282,7 @@ const TravelogExploreModule = (() => {
     if (filteredBlogs.length === 0) {
       container.innerHTML = `
         <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px 0;">
-          <i class="fa-solid fa-magnifying-glass" style="font-size: 32px; margin-bottom: 12px;"></i>
+          <img class="explore-empty-search-icon" src="assets/icons/explore/explore-search.svg" alt="" aria-hidden="true">
           <p>${t('검색 결과가 없습니다.', 'No matching stories found.', '一致するストーリーがありません。')}</p>
         </div>
       `;
@@ -310,7 +311,7 @@ const TravelogExploreModule = (() => {
               <span style="font-weight:600;">${blog.author}</span>
             </div>
             <span style="color:var(--accent-purple); font-weight:600; cursor:pointer;" onclick="TravelogExploreModule.readBlogPost('${blog.id}')">
-              ${t('자세히 보기 <i class="fa-solid fa-arrow-right"></i>', 'Read <i class="fa-solid fa-arrow-right"></i>', '詳しく見る <i class="fa-solid fa-arrow-right"></i>')}
+              ${t('자세히 보기', 'Read', '詳しく見る')} <img class="explore-read-more-icon" src="assets/icons/explore/explore-arrow.svg" alt="" aria-hidden="true">
             </span>
           </div>
         </div>

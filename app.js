@@ -100,7 +100,7 @@ const LocalizationDictionary = {
   walking: { en: '<i class="fa-solid fa-spinner fa-spin"></i> Walking...', ko: '<i class="fa-solid fa-spinner fa-spin"></i> 이동 중...', ja: '<i class="fa-solid fa-spinner fa-spin"></i> 移動中...' },
   audio_guide: { en: 'Audio Guide Triggered', ko: '음성 안내 시작', ja: '音声ガイド開始' },
   vlog_playing: { en: 'Vlog Video Playing...', ko: '브이로그 영상 재생 중...', ja: 'Vlog動画を再生中...' },
-  blog_feed_title: { en: '<i class="fa-solid fa-book-open"></i> Travel Logs & Stories', ko: '<i class="fa-solid fa-book-open"></i> 여행 블로그 & 스토리', ja: '<i class="fa-solid fa-book-open"></i> 旅ログ＆ストーリー' },
+  blog_feed_title: { en: 'Travel Logs & Stories', ko: '여행 블로그 & 스토리', ja: '旅ログ＆ストーリー' },
   filter_all: { en: 'All', ko: '전체', ja: 'すべて' },
   filter_korea: { en: 'South Korea', ko: '대한민국', ja: '韓国' },
   filter_japan: { en: 'Japan', ko: '일본', ja: '日本' },

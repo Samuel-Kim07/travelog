@@ -1649,6 +1649,82 @@ nav.bottom-nav {
   color: var(--color-sun);
 }
 
+/* Explore feed local SVG icons */
+.explore-title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.explore-blog-title-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+}
+
+.explore-nav-icon {
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.simulated-video-container img.explore-svg-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex: 0 0 20px;
+}
+
+.simulated-video-container img.explore-location-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+.simulated-video-container img.explore-mute-icon {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,.35));
+}
+
+.simulated-video-container img.explore-action-icon {
+  width: 29px;
+  height: 29px;
+  flex-basis: 29px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.45));
+  transition: transform .2s ease;
+}
+
+.action-btn-vertical:hover .explore-action-icon {
+  transform: scale(1.12);
+}
+
+.simulated-video-container img.explore-music-icon {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
+}
+
+.explore-read-more-icon {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: -3px;
+  object-fit: contain;
+}
+
+.explore-empty-search-icon {
+  display: block;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;

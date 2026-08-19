@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1047">
+  <link rel="stylesheet" href="index.css?v=1048">
 </head>
 <body>
 
@@ -401,14 +401,14 @@
             </div>
             
             <!-- Vlog Navigation Arrows -->
-            <button class="btn-circle" id="prev-vlog-btn" style="position: absolute; top: 20px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;"><i class="fa-solid fa-chevron-up"></i></button>
-            <button class="btn-circle" id="next-vlog-btn" style="position: absolute; top: 66px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;"><i class="fa-solid fa-chevron-down"></i></button>
+            <button class="btn-circle" id="prev-vlog-btn" style="position: absolute; top: 20px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;" aria-label="이전 여행 영상"><img class="explore-nav-icon" src="assets/icons/explore/explore-up.svg" alt="" aria-hidden="true"></button>
+            <button class="btn-circle" id="next-vlog-btn" style="position: absolute; top: 66px; right: 20px; z-index: 100; width: 36px; height: 36px; font-size: 14px;" aria-label="다음 여행 영상"><img class="explore-nav-icon" src="assets/icons/explore/explore-down.svg" alt="" aria-hidden="true"></button>
           </div>
 
           <!-- Right Column: Blog Grid (Pinterest Layout) -->
           <div class="blog-section">
             <div class="section-title-bar">
-              <h2 data-localize="blog_feed_title"><i class="fa-solid fa-book-open"></i> Travel Logs & Stories</h2>
+              <h2 class="explore-title-with-icon"><img class="explore-blog-title-icon" src="assets/icons/explore/explore-blog.svg" alt="" aria-hidden="true"><span data-localize="blog_feed_title">Travel Logs & Stories</span></h2>
               <div style="display: flex; gap: 8px;">
                 <input type="text" id="blog-search" placeholder="Search logs..." style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: white; padding: 6px 12px; border-radius: var(--radius-sm); font-size: 13px;" data-localize-placeholder="search_placeholder">
               </div>
@@ -1555,7 +1555,7 @@
   <!-- Javascript Logic Files -->
   <script src="supabaseClient.js?v=1016" defer></script>
   <script src="map.js?v=1013" defer></script>
-  <script src="explore.js?v=1003" defer></script>
+  <script src="explore.js?v=1004" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
