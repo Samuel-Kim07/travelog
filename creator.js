@@ -243,28 +243,28 @@ const TravelogCreatorModule = (() => {
     const desc = document.getElementById('creator-mode-desc');
     const publishBtn = document.getElementById('publish-final-tour-btn');
     const publishBtnText = publishBtn?.querySelector('span');
-    const publishBtnIcon = publishBtn?.querySelector('i');
+    const publishBtnIcon = publishBtn?.querySelector('img');
     const saveBtnText = document.querySelector('#save-current-guide-btn span');
 
     if (isStudioEditMode()) {
       banner?.classList.add('editing');
-      if (label) label.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 가이드 수정중';
+      if (label) label.innerHTML = '<img class="studio-svg-icon studio-svg-icon-small" src="assets/icons/studio/studio-create.svg" alt="" aria-hidden="true"> 가이드 수정중';
       if (title) title.textContent = document.getElementById('new-tour-name')?.value?.trim() || activeStudioEditTitle || '수정 중인 가이드';
       if (desc) desc.textContent = isActiveEditPublished()
         ? '출간된 가이드를 수정 중입니다. 수정 완료 시 기존 Supabase 데이터와 저장 기록을 덮어씁니다.'
         : '저장된 가이드를 수정 중입니다. 수정 완료 시 기존 저장 데이터를 덮어씁니다.';
       if (publishBtnText) publishBtnText.textContent = '수정 완료';
-      if (publishBtnIcon) publishBtnIcon.className = 'fa-solid fa-circle-check';
+      if (publishBtnIcon) publishBtnIcon.src = 'assets/icons/studio/studio-check-white.svg';
       if (saveBtnText) saveBtnText.textContent = '수정 저장';
       return;
     }
 
     banner?.classList.remove('editing');
-    if (label) label.innerHTML = '<i class="fa-solid fa-pen-nib"></i> 가이드 제작중';
+    if (label) label.innerHTML = '<img class="studio-svg-icon studio-svg-icon-small" src="assets/icons/studio/studio-create.svg" alt="" aria-hidden="true"> 가이드 제작중';
     if (title) title.textContent = '새 가이드 제작';
     if (desc) desc.textContent = '새로운 가이드 출간을 준비하고 있습니다.';
     if (publishBtnText) publishBtnText.textContent = '최종 출간하기';
-    if (publishBtnIcon) publishBtnIcon.className = 'fa-solid fa-cloud-arrow-up';
+    if (publishBtnIcon) publishBtnIcon.src = 'assets/icons/studio/studio-publish-white.svg';
     if (saveBtnText) saveBtnText.textContent = '저장하기';
   }
 
@@ -3093,7 +3093,7 @@ const TravelogCreatorModule = (() => {
     recordedAudioChunks = [];
     recordingMode = 'simulated';
     btn.classList.add('recording');
-    btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
+    btn.innerHTML = '<img class="studio-record-icon" src="assets/icons/studio/studio-stop-white.svg" alt="" aria-hidden="true">';
     statusText.textContent = t('음성 가이드를 녹음 중입니다... 말씀해 주세요.', 'Recording audio guide... Speak now!', '音声ガイドを録音中です... 話してください。');
 
     try {
@@ -3136,7 +3136,7 @@ const TravelogCreatorModule = (() => {
     clearInterval(recordInterval);
     isRecording = false;
     btn.classList.remove('recording');
-    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+    btn.innerHTML = '<img class="studio-record-icon" src="assets/icons/studio/studio-microphone-white.svg" alt="" aria-hidden="true">';
     statusText.textContent = t('녹음 처리 중입니다...', 'Processing recording...', '録音を処理しています...');
 
     if (recordingMode === 'real' && mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -3217,7 +3217,7 @@ const TravelogCreatorModule = (() => {
         <div style="display: flex; align-items: center; gap: 6px;">
           ${selectHtml}
           <button class="btn-circle" style="width: 24px; height: 24px; font-size: 10px; background: rgba(255,50,50,0.1); border-color: rgba(255,50,50,0.15); color: var(--accent-pink);" onclick="TravelogCreatorModule.deleteAudio(${audio.id})">
-            <i class="fa-solid fa-trash-can"></i>
+            <img class="studio-svg-icon" src="assets/icons/studio/studio-delete.svg" alt="" aria-hidden="true">
           </button>
         </div>
       `;
@@ -3262,7 +3262,7 @@ const TravelogCreatorModule = (() => {
     recordedVideoChunks = [];
     recordingMode = 'simulated';
     btn.classList.add('recording');
-    btn.innerHTML = `<i class="fa-solid fa-square"></i>`;
+    btn.innerHTML = '<img class="studio-record-icon" src="assets/icons/studio/studio-stop-white.svg" alt="" aria-hidden="true">';
     statusText.textContent = t('가이드 영상을 녹화 중입니다...', 'Recording video...', 'ビデオガイドを録画中です...');
 
     try {
@@ -3312,7 +3312,7 @@ const TravelogCreatorModule = (() => {
     clearInterval(videoRecordInterval);
     isVideoRecording = false;
     btn.classList.remove('recording');
-    btn.innerHTML = `<i class="fa-solid fa-video"></i>`;
+    btn.innerHTML = '<img class="studio-record-icon" src="assets/icons/studio/studio-video-white.svg" alt="" aria-hidden="true">';
     statusText.textContent = t('녹화 완료 처리 중...', 'Processing video recording...', '録画を処理しています...');
 
     if (videoStream) {
@@ -3392,7 +3392,7 @@ const TravelogCreatorModule = (() => {
         <div style="display: flex; align-items: center; gap: 6px;">
           ${selectHtml}
           <button class="btn-circle" style="width: 24px; height: 24px; font-size: 10px; background: rgba(255,50,50,0.1); border-color: rgba(255,50,50,0.15); color: var(--accent-pink);" onclick="TravelogCreatorModule.deleteVideo(${video.id})">
-            <i class="fa-solid fa-trash-can"></i>
+            <img class="studio-svg-icon" src="assets/icons/studio/studio-delete.svg" alt="" aria-hidden="true">
           </button>
         </div>
       `;
@@ -3551,7 +3551,7 @@ const TravelogCreatorModule = (() => {
     const recordBtn = document.getElementById('record-audio-btn');
     if (recordBtn) {
       recordBtn.classList.remove('recording');
-      recordBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+      recordBtn.innerHTML = '<img class="studio-record-icon" src="assets/icons/studio/studio-microphone-white.svg" alt="" aria-hidden="true">';
     }
     const recordStatus = document.getElementById('record-status-text');
     if (recordStatus) recordStatus.textContent = t('마이크 버튼을 클릭하여 녹음 시작', 'Click Mic to Start Recording', 'マイクボタンをクリックして録音開始');

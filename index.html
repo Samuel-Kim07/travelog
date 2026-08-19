@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1046">
+  <link rel="stylesheet" href="index.css?v=1047">
 </head>
 <body>
 
@@ -501,7 +501,7 @@
       <section id="creator-tab" class="tab-content">
         <div class="creator-mode-banner glass-panel" id="creator-mode-banner">
           <div class="creator-mode-left">
-            <span class="creator-mode-pill" id="creator-mode-label"><i class="fa-solid fa-pen-nib"></i> 가이드 제작중</span>
+            <span class="creator-mode-pill" id="creator-mode-label"><img class="studio-svg-icon studio-svg-icon-small" src="assets/icons/studio/studio-create.svg" alt="" aria-hidden="true"> 가이드 제작중</span>
             <strong id="creator-mode-title">새 가이드 제작</strong>
           </div>
           <span id="creator-mode-desc">새로운 가이드 출간을 준비하고 있습니다.</span>
@@ -510,12 +510,12 @@
           <!-- Left Column: Guide Node Builder -->
           <div class="studio-panel">
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 8px;" data-localize="builder_title"><i class="fa-solid fa-route"></i> Map Tour Guide Builder</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 8px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-route.svg" alt="" aria-hidden="true"><span data-localize="builder_title">Map Tour Guide Builder</span></h3>
               <p style="font-size: 13px; margin-bottom: 16px;" data-localize="builder_desc">Create your own customized guide! Click points directly on the Map tab to log coordinates, then upload audio tracks or write guidance scripts here.</p>
               
               <div style="display: flex; flex-direction: column; gap: 12px;">
                 <button type="button" class="btn-rect" id="go-to-map-builder-btn" style="width: 100%; justify-content: center; background: var(--grad-pink-purple); font-weight: 700; height: 38px; border-radius: 8px;">
-                  <i class="fa-solid fa-map-location-dot"></i> 지도에서 코스 핀 & 미디어 추가하러 가기
+                  <img class="studio-svg-icon" src="assets/icons/studio/studio-map-add.svg" alt="" aria-hidden="true"> 지도에서 코스 핀 & 미디어 추가하러 가기
                 </button>
 
                 <div class="guide-cover-uploader" style="background: rgba(112,162,183,0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px;">
@@ -527,8 +527,8 @@
                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px;">
                       <input type="file" id="guide-cover-input" accept="image/*" style="display: none;">
                       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn-rect secondary" id="guide-cover-select-btn" style="padding: 7px 12px; font-size: 12px; border-radius: 12px;"><i class="fa-solid fa-image"></i> 이미지 넣기</button>
-                        <button type="button" class="btn-rect secondary" id="guide-cover-clear-btn" style="padding: 7px 12px; font-size: 12px; border-radius: 12px;"><i class="fa-solid fa-xmark"></i> 삭제</button>
+                        <button type="button" class="btn-rect secondary" id="guide-cover-select-btn" style="padding: 7px 12px; font-size: 12px; border-radius: 12px;"><img class="studio-svg-icon" src="assets/icons/studio/studio-image.svg" alt="" aria-hidden="true"> 이미지 넣기</button>
+                        <button type="button" class="btn-rect secondary" id="guide-cover-clear-btn" style="padding: 7px 12px; font-size: 12px; border-radius: 12px;"><img class="studio-svg-icon" src="assets/icons/studio/studio-delete.svg" alt="" aria-hidden="true"> 삭제</button>
                       </div>
                       <p style="font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.4;">홈의 오늘의 가이드 카드와 미리보기 상단 프로필에 사용됩니다.</p>
                     </div>
@@ -547,7 +547,7 @@
                   </div>
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
                     <div style="background: rgba(255,255,255,0.55); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 7px;">
-                      <strong style="font-size: 12px; color: var(--text-primary);"><i class="fa-solid fa-volume-high"></i> 투어소개 음성</strong>
+                      <strong class="studio-inline-label" style="font-size: 12px; color: var(--text-primary);"><img class="studio-svg-icon" src="assets/icons/studio/studio-audio.svg" alt="" aria-hidden="true"> 투어소개 음성</strong>
                       <input type="file" id="guide-intro-audio-input" accept="audio/*" style="display: none;">
                       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         <button type="button" class="btn-rect secondary" id="guide-intro-audio-select-btn" style="padding: 6px 10px; font-size: 11px; border-radius: 10px;">음성 선택</button>
@@ -556,7 +556,7 @@
                       <span id="guide-intro-audio-status" style="font-size: 11px; color: var(--text-muted);">선택된 음성 없음</span>
                     </div>
                     <div style="background: rgba(255,255,255,0.55); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 7px;">
-                      <strong style="font-size: 12px; color: var(--text-primary);"><i class="fa-solid fa-video"></i> 투어소개 영상</strong>
+                      <strong class="studio-inline-label" style="font-size: 12px; color: var(--text-primary);"><img class="studio-svg-icon" src="assets/icons/studio/studio-video.svg" alt="" aria-hidden="true"> 투어소개 영상</strong>
                       <input type="file" id="guide-intro-video-input" accept="video/*" style="display: none;">
                       <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         <button type="button" class="btn-rect secondary" id="guide-intro-video-select-btn" style="padding: 6px 10px; font-size: 11px; border-radius: 10px;">영상 선택</button>
@@ -575,18 +575,18 @@
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
-                  <button class="btn-rect" id="connect-pins-btn" type="button" style="width: 100%; justify-content: center; background: var(--color-ocean);"><i class="fa-solid fa-link"></i> <span>핀 연결하기</span></button>
+                  <button class="btn-rect" id="connect-pins-btn" type="button" style="width: 100%; justify-content: center; background: var(--color-ocean);"><img class="studio-svg-icon" src="assets/icons/studio/studio-link-white.svg" alt="" aria-hidden="true"> <span>핀 연결하기</span></button>
                 </div>
               </div>
             </div>
 
             <!-- Dynamic Audio Recorder Simulation -->
             <div class="voice-recording-card glass-panel">
-              <h3 data-localize="recorder_title"><i class="fa-solid fa-microphone-lines"></i> Interactive Guide Voice Recorder</h3>
+              <h3 class="studio-icon-heading"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-microphone.svg" alt="" aria-hidden="true"><span data-localize="recorder_title">Interactive Guide Voice Recorder</span></h3>
               <p style="font-size: 12px;" data-localize="recorder_desc">Record detailed guidance audio matching your active pins. Follow templates to create quick alerts.</p>
               
               <div class="record-btn-container">
-                <button class="record-btn" id="record-audio-btn"><i class="fa-solid fa-microphone"></i></button>
+                <button class="record-btn" id="record-audio-btn"><img class="studio-record-icon" src="assets/icons/studio/studio-microphone-white.svg" alt="" aria-hidden="true"></button>
                 <span id="record-status-text" style="font-size: 13px; font-weight: 600;" data-localize="recorder_ready">Click Mic to Start Recording</span>
                 <span id="record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
               </div>
@@ -601,7 +601,7 @@
 
             <!-- Voice Recording List Card -->
             <div class="glass-panel" style="padding: 24px; margin-top: 16px;">
-              <h3 style="margin-bottom: 8px;"><i class="fa-solid fa-microphone-lines" style="color: var(--accent-pink);"></i> 녹음된 음성 리스트</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 8px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-microphone.svg" alt="" aria-hidden="true"> 녹음된 음성 리스트</h3>
               <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">녹음 완료된 음성 파일 리스트입니다. 각 음성이 재생될 지도상의 코스 핀 번호를 지정해 주세요.</p>
               <div id="creator-audio-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto;">
                 <div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">아직 녹음된 음성이 없습니다. 위에서 녹음을 시작해 보세요!</div>
@@ -612,20 +612,20 @@
           <!-- Right Column: Video Recording & Video List -->
           <div class="studio-panel">
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);</i> 가이드 영상 녹화 스튜디오</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 4px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-video.svg" alt="" aria-hidden="true"> 가이드 영상 녹화 스튜디오</h3>
               <p style="font-size: 13px; margin-bottom: 16px;">가이드에 첨부할 짧은 클립 영상을 직접 촬영하여 지정 핀 코스에 맞춤 가이드를 구성하세요.</p>
               
               <div class="record-btn-container" style="background: rgba(0,0,0,0.4); border-radius: var(--radius-md); padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--glass-border); margin-bottom: 16px;">
                 <div id="camera-preview-box" style="width: 100%; height: 140px; background: #000; border-radius: var(--radius-sm); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
                   <video id="webcam-video" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
                   <div id="camera-placeholder" style="color: var(--text-muted); text-align: center; font-size: 12px;">
-                    <i class="fa-solid fa-camera" style="font-size: 32px; margin-bottom: 8px; display: block; color: var(--text-secondary);"></i>
+                    <img class="studio-camera-placeholder-icon" src="assets/icons/studio/studio-camera.svg" alt="" aria-hidden="true">
                     카메라 미리보기 꺼짐
                   </div>
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 15px; width: 100%; justify-content: center; margin-top: 10px;">
-                  <button class="record-btn" id="record-video-btn" style="background: var(--accent-blue); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: none; color: white;"><i class="fa-solid fa-video"></i></button>
+                  <button class="record-btn" id="record-video-btn" style="background: var(--accent-blue); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: none; color: white;"><img class="studio-record-icon" src="assets/icons/studio/studio-video-white.svg" alt="" aria-hidden="true"></button>
                   <div style="display: flex; flex-direction: column;">
                     <span id="video-record-status-text" style="font-size: 13px; font-weight: 600;">녹화 버튼 클릭</span>
                     <span id="video-record-timer" style="font-size: 11px; color: var(--text-muted);">00:00</span>
@@ -634,7 +634,7 @@
               </div>
 
               <!-- Recorded Video List -->
-              <h4 style="font-size: 13px; margin-bottom: 8px; font-weight: 700;"><i class="fa-solid fa-clapperboard" style="color: var(--accent-blue);"></i> 녹화된 영상 리스트</h4>
+              <h4 class="studio-icon-heading" style="font-size: 13px; margin-bottom: 8px; font-weight: 700;"><img class="studio-svg-icon" src="assets/icons/studio/studio-clapper.svg" alt="" aria-hidden="true"> 녹화된 영상 리스트</h4>
               <div id="creator-video-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto; border-top: 1px solid var(--glass-border); padding-top: 10px;">
                 <div style="text-align: center; color: var(--text-muted); padding: 20px 0; font-size: 12px;">아직 녹화된 영상이 없습니다.</div>
               </div>
@@ -642,7 +642,7 @@
 
             <!-- Guide Publisher Control Panel -->
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-cloud-arrow-up" style="color: #4285F4;"></i> 가이드 최종 출간 제어판</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 4px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-publish.svg" alt="" aria-hidden="true"> 가이드 최종 출간 제어판</h3>
               <p style="font-size: 13px; margin-bottom: 16px;">작성한 가이드 핀 정보와 연동 완료한 오디오/비디오 에셋을 종합하여 클라우드에 최종 출간합니다.</p>
 
               <!-- Status indicator -->
@@ -666,7 +666,7 @@
               </div>
 
               <div style="font-size: 12px; color: var(--text-secondary); background: rgba(255,255,255,0.58); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;">
-                <strong style="display:block; color: var(--text-primary);"><i class="fa-solid fa-coins" style="color:#d9aa28;"></i> 가이드 판매 설정</strong>
+                <strong class="studio-inline-label" style="display:flex; color: var(--text-primary);"><img class="studio-svg-icon" src="assets/icons/studio/studio-coins.svg" alt="" aria-hidden="true"> 가이드 판매 설정</strong>
                 <label style="display:flex; align-items:center; gap:8px; font-weight:700; color:var(--text-primary);">
                   <input type="radio" name="guide-price-type" id="guide-price-free" value="free" checked> 무료
                   <span style="font-size:11px; color:var(--text-muted); font-weight:500;">홈 카드에 무료 스티커 표시</span>
@@ -684,7 +684,7 @@
                   <span style="display: block; font-weight: 700; color: #34A853;">Supabase Cloud</span>
                   <span style="font-size: 11px; color: var(--text-muted);">가이드 원본 서버 / 오프라인 다운로드 소스</span>
                 </div>
-                <span style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><i class="fa-solid fa-database"></i> 연결 준비 완료</span>
+                <span style="color: #34A853; text-decoration: none; font-weight: 700; display: flex; align-items: center; gap: 4px; white-space: nowrap;"><img class="studio-svg-icon" src="assets/icons/studio/studio-database.svg" alt="" aria-hidden="true"> 연결 준비 완료</span>
               </div>
 
               <div style="font-size: 11px; color: var(--text-secondary); background: rgba(112,162,183,0.08); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px;">
@@ -693,21 +693,21 @@
               </div>
               <div style="display: flex; gap: 10px;">
                 <button class="btn-rect secondary" id="save-current-guide-btn" type="button" style="flex: 1; justify-content: center; font-size: 14px;">
-                  <i class="fa-solid fa-floppy-disk"></i> <span>저장하기</span>
+                  <img class="studio-svg-icon" src="assets/icons/studio/studio-save.svg" alt="" aria-hidden="true"> <span>저장하기</span>
                 </button>
                 <button class="btn-rect secondary" id="preview-current-guide-btn" type="button" style="flex: 1; justify-content: center; font-size: 14px;">
-                  <i class="fa-solid fa-eye"></i> <span>미리보기</span>
+                  <img class="studio-svg-icon" src="assets/icons/studio/studio-preview.svg" alt="" aria-hidden="true"> <span>미리보기</span>
                 </button>
               </div>
               <button class="btn-rect" id="publish-final-tour-btn" type="button" aria-disabled="true" style="width: 100%; justify-content: center; font-size: 14px; background: #b8b8b8; color: #ffffff; margin-top: 10px; cursor: not-allowed; opacity: .78;">
-                <i class="fa-solid fa-cloud-arrow-up"></i> <span>최종 출간하기</span>
+                <img class="studio-svg-icon" src="assets/icons/studio/studio-publish-white.svg" alt="" aria-hidden="true"> <span>최종 출간하기</span>
               </button>
               <p id="publish-ready-hint" style="font-size: 11px; color: var(--text-muted); margin: 8px 0 0 0; line-height: 1.45;">핀을 1개 이상 추가한 뒤 저장하기를 눌러야 출간할 수 있습니다.</p>
             </div>
 
             <!-- My Guides Panel -->
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-box-archive" style="color: var(--color-ocean);"></i> 나의 가이드</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 4px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-guides.svg" alt="" aria-hidden="true"> 나의 가이드</h3>
               <p style="font-size: 13px; margin-bottom: 14px;">제작한 가이드를 출간/미출간 상태로 확인하고 다시 불러와 수정할 수 있습니다.</p>
               <div id="saved-guide-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto;">
                 <div style="text-align: center; color: var(--text-muted); padding: 18px 0; font-size: 12px;">아직 등록된 가이드가 없습니다.</div>
@@ -716,7 +716,7 @@
 
             <!-- Event Coupon Control Panel -->
             <div class="glass-panel" style="padding: 24px;">
-              <h3 style="margin-bottom: 4px;"><i class="fa-solid fa-ticket" style="color: var(--accent-orange);"></i> 이벤트 쿠폰 제어판</h3>
+              <h3 class="studio-icon-heading" style="margin-bottom: 4px;"><img class="studio-svg-icon studio-svg-icon-heading" src="assets/icons/studio/studio-coupon.svg" alt="" aria-hidden="true"> 이벤트 쿠폰 제어판</h3>
               <p style="font-size: 13px; margin-bottom: 14px;">가이드 코스에 연결할 제휴 업체 쿠폰을 선택해서 등록합니다.</p>
               <div style="display: flex; flex-direction: column; gap: 10px;">
                 <div>
@@ -1559,7 +1559,7 @@
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
-  <script src="creator.js?v=1015" defer></script>
+  <script src="creator.js?v=1016" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
   <script src="app.js?v=1034" defer></script>

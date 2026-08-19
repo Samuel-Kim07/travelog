@@ -2035,6 +2035,49 @@ nav.bottom-nav {
   animation: pulse-recording 1.5s infinite;
 }
 
+/* Creator Studio local SVG icons */
+.studio-icon-heading,
+.studio-inline-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.studio-svg-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.studio-svg-icon-small {
+  width: 16px;
+  height: 16px;
+  flex-basis: 16px;
+}
+
+.studio-svg-icon-heading {
+  width: 25px;
+  height: 25px;
+  flex-basis: 25px;
+}
+
+.studio-record-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.studio-camera-placeholder-icon {
+  display: block;
+  width: 38px;
+  height: 38px;
+  margin: 0 auto 8px;
+  object-fit: contain;
+}
+
 @keyframes pulse-recording {
   0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(232, 180, 184, 0.6); }
   70% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(232, 180, 184, 0); }
