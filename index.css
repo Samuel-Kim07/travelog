@@ -1670,6 +1670,23 @@ nav.bottom-nav {
   pointer-events: none;
 }
 
+.vlog-nav-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vlog-nav-btn.btn-circle {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  font-size: 14px;
+}
+
 .simulated-video-container img.explore-svg-icon {
   width: 20px;
   height: 20px;
@@ -1739,6 +1756,23 @@ nav.bottom-nav {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.blog-search-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.blog-search-input {
+  width: min(220px, 100%);
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
 }
 
 .blog-grid {
@@ -2465,6 +2499,52 @@ nav.bottom-nav {
   .scratch-card-container {
     width: 260px;
     height: 156px;
+  }
+
+  #explore-tab .vlog-section {
+    height: 520px;
+    padding: 16px 24px 12px;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #explore-tab .vlog-swiper {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  #explore-tab .vlog-nav-controls {
+    position: static;
+    width: 100%;
+    flex: 0 0 36px;
+    flex-direction: row;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  #explore-tab .vlog-nav-btn.btn-circle {
+    width: 48px;
+    height: 36px;
+    flex-basis: 48px;
+    border-radius: 18px;
+  }
+
+  #explore-tab .section-title-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  #explore-tab .explore-title-with-icon {
+    width: 100%;
+    margin: 0;
+    line-height: 1.25;
+  }
+
+  #explore-tab .blog-search-wrap,
+  #explore-tab .blog-search-input {
+    width: 100%;
   }
 }
 
