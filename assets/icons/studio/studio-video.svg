@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="영상 녹화">
+  <rect x="3" y="6" width="13" height="12" rx="3" fill="#70A2B7"/>
+  <path d="m16 10 5-3v10l-5-3v-4Z" fill="#E28743" stroke="#557784" stroke-width="1.1" stroke-linejoin="round"/>
+  <circle cx="9.5" cy="12" r="2.2" fill="#fff" opacity=".85"/>
+</svg>

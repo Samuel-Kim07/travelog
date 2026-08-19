@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="녹화 영상 목록">
+  <rect x="3" y="8" width="18" height="12" rx="2.5" fill="#E8F1F2" stroke="#70A2B7" stroke-width="1.7"/>
+  <path d="M3.5 8 5 4l16 0-1.5 4h-16ZM7 4l2.5 4M13 4l2.5 4" fill="none" stroke="#557784" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="m10 11 5 3-5 3v-6Z" fill="#E28743"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="지도에 핀과 미디어 추가">
+  <path d="m3 5 5-2 8 2 5-2v15l-5 2-8-2-5 2V5Z" fill="none" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M8 3v15M16 5v15" stroke="#fff" stroke-width="1.4" opacity=".7"/>
+  <path d="M12 8v6M9 11h6" stroke="#F4B45F" stroke-width="2" stroke-linecap="round"/>
+</svg>

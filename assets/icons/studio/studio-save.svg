@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="가이드 저장">
+  <path d="M5 3.8h11.5L20 7.3V20H5V3.8Z" fill="#E8F1F2" stroke="#70A2B7" stroke-width="1.7" stroke-linejoin="round"/>
+  <path d="M8 3.8v6h8v-6M8.2 20v-6.5h7.6V20" fill="none" stroke="#557784" stroke-width="1.6"/>
+  <path d="m10 16.6 1.4 1.4 2.8-3" fill="none" stroke="#E28743" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="음성 녹음">
+  <rect x="8" y="3" width="8" height="12" rx="4" fill="#70A2B7"/>
+  <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7" fill="none" stroke="#557784" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M10.2 7h3.6M10.2 10h3.6" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>
+</svg>
