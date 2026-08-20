@@ -1868,6 +1868,303 @@ nav.bottom-nav {
   }
 }
 
+/* Native-camera video memo recorder and lightweight editor */
+#video-memo-modal.profile-manager-modal {
+  padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+}
+
+.video-memo-recorder-card {
+  width: min(640px, calc(100vw - 24px));
+  max-width: 640px;
+  max-height: 94vh;
+  overflow-y: auto;
+  position: relative;
+  padding: 26px;
+  text-align: center;
+}
+
+.video-memo-heading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 0 46px 5px;
+  color: #373737 !important;
+  font-size: 19px;
+}
+
+.video-memo-title-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  object-fit: contain;
+}
+
+.video-memo-status {
+  min-height: 18px;
+  margin: 0 0 16px;
+  color: #555 !important;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.video-memo-title-label {
+  display: block;
+  margin-bottom: 6px;
+  color: #373737 !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.video-memo-title-input {
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: #373737 !important;
+  font-size: 13px;
+  outline: none;
+}
+
+.video-memo-preview-shell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 260px;
+  max-height: 54vh;
+  aspect-ratio: 16 / 10;
+  margin-bottom: 14px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: #050708;
+}
+
+.video-memo-preview {
+  display: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.video-memo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: #aab7bc;
+  font-size: 12px;
+}
+
+.video-memo-placeholder img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.video-memo-timer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: none;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.68);
+  color: #fff;
+  font: 800 12px/1.2 ui-monospace, monospace;
+  pointer-events: none;
+}
+
+.video-memo-main-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.video-memo-control-btn.btn-circle {
+  width: 52px;
+  height: 52px;
+}
+
+.video-memo-control-btn img {
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.video-memo-record-btn.btn-circle {
+  width: 66px;
+  height: 66px;
+  border-color: var(--color-ocean);
+  background: var(--color-ocean);
+}
+
+.video-memo-record-btn img {
+  width: 31px;
+  height: 31px;
+}
+
+.video-memo-editor {
+  margin: 4px 0 16px;
+  padding: 14px;
+  border: 1px solid rgba(112,162,183,.28);
+  border-radius: 16px;
+  background: rgba(234,244,246,.72);
+  text-align: left;
+}
+
+.video-memo-editor-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+}
+
+.video-memo-editor-head strong {
+  color: #37474f;
+  font-size: 13px;
+}
+
+.video-memo-editor-head span {
+  color: #66787f;
+  font-size: 11px;
+}
+
+.video-memo-editor-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.video-memo-editor-btn,
+.video-memo-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.video-memo-editor-btn img,
+.video-memo-action-btn img {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  object-fit: contain;
+}
+
+.video-memo-clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.video-memo-clip-card {
+  padding: 10px;
+  border: 1px solid rgba(112,162,183,.24);
+  border-radius: 12px;
+  background: rgba(255,255,255,.86);
+}
+
+.video-memo-clip-head,
+.video-memo-trim-values {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.video-memo-clip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #37474f;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-memo-clip-delete {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: #f9ecec;
+  cursor: pointer;
+}
+
+.video-memo-clip-delete img {
+  width: 17px;
+  height: 17px;
+}
+
+.video-memo-trim-values {
+  margin: 7px 0 3px;
+  color: #60747c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.video-memo-trim-label {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+  color: #60747c;
+  font-size: 11px;
+}
+
+.video-memo-trim-label input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-ocean);
+}
+
+.video-memo-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.video-memo-complete-btn {
+  background: linear-gradient(135deg, #79aeb3, #9fd493);
+}
+
+@media (max-width: 520px) {
+  .video-memo-recorder-card {
+    padding: 20px 16px;
+  }
+
+  .video-memo-heading {
+    margin-top: 8px;
+    font-size: 18px;
+  }
+
+  .video-memo-preview-shell {
+    min-height: 230px;
+    max-height: 48vh;
+    aspect-ratio: 4 / 3;
+  }
+
+  .video-memo-editor-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;

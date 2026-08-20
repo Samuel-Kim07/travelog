@@ -476,6 +476,11 @@ const TravelogCreatorModule = (() => {
   let videoMemoBlob = null;
   let videoMemoSeconds = 0;
   let videoMemoInterval = null;
+  let videoMemoClips = [];
+  let videoMemoCaptureMode = 'replace';
+  let videoMemoPreviewIndex = -1;
+  let videoMemoPreviewing = false;
+  let videoMemoRenderInProgress = false;
 
   function init() {
     loadRegisteredCoupons();
@@ -595,6 +600,7 @@ const TravelogCreatorModule = (() => {
       document.getElementById('video-memo-stop').addEventListener('click', stopVideoMemoRecording);
       document.getElementById('video-memo-play').addEventListener('click', playVideoMemoRecording);
       document.getElementById('video-memo-reset').addEventListener('click', resetVideoMemoRecording);
+      bindVideoMemoEditorControls();
       const videoCloseBtn = document.getElementById('video-memo-close-btn');
       if (videoCloseBtn) videoCloseBtn.addEventListener('click', closeVideoMemoModal);
       videoComplete.addEventListener('click', completeVideoMemoRecording);
@@ -3551,6 +3557,7 @@ const TravelogCreatorModule = (() => {
     videoMemoChunks = [];
     videoMemoBlob = null;
     videoMemoSeconds = 0;
+    cleanupVideoMemoEditorState();
 
     const recordBtn = document.getElementById('record-audio-btn');
     if (recordBtn) {
@@ -3714,6 +3721,10 @@ const TravelogCreatorModule = (() => {
   }
 
   function closeVideoMemoModal() {
+    if (videoMemoRenderInProgress) {
+      window.TravelogApp?.showToast(t('편집본을 만드는 중입니다. 잠시만 기다려 주세요.', 'The edited video is being created. Please wait.', '編集中です。しばらくお待ちください。'));
+      return;
+    }
     clearInterval(videoMemoInterval);
     if (videoMemoRecorder && videoMemoRecorder.state !== 'inactive') {
       try { videoMemoRecorder.stop(); } catch (_) {}
@@ -3726,21 +3737,9 @@ const TravelogCreatorModule = (() => {
     videoMemoChunks = [];
     videoMemoBlob = null;
     videoMemoSeconds = 0;
-    const webcamEl = document.getElementById('video-memo-webcam');
-    if (webcamEl) {
-      webcamEl.pause?.();
-      webcamEl.srcObject = null;
-      webcamEl.style.display = 'none';
-    }
-    const placeholder = document.getElementById('video-memo-placeholder');
-    if (placeholder) placeholder.style.display = 'block';
-    const timer = document.getElementById('video-memo-timer');
-    if (timer) {
-      timer.style.display = 'none';
-      timer.textContent = '00:00 REC';
-    }
+    cleanupVideoMemoEditorState();
     const videoStatus = document.getElementById('video-memo-status');
-    if (videoStatus) videoStatus.textContent = t('녹화 버튼을 눌러 카메라 촬영 시작', 'Press Record to start video guide', '録画ボタンを押して撮影開始');
+    if (videoStatus) videoStatus.textContent = t('녹화 버튼을 누르면 스마트폰 카메라가 열립니다.', 'Press Record to open the phone camera.', '録画ボタンでスマートフォンのカメラを開きます。');
     setModalHidden('video-memo-modal', true);
   }
 
@@ -4109,7 +4108,7 @@ const TravelogCreatorModule = (() => {
   }
 
   // 2) Video Field Capture
-  function openVideoMemoModal() {
+  function legacyOpenVideoMemoModal() {
     const modal = document.getElementById('video-memo-modal');
     if (modal) {
       modal.classList.add('active');
@@ -4134,7 +4133,7 @@ const TravelogCreatorModule = (() => {
     document.getElementById('video-memo-placeholder').style.display = 'block';
   }
 
-  async function startVideoMemoRecording() {
+  async function legacyStartVideoMemoRecording() {
     document.getElementById('video-memo-record').disabled = true;
     document.getElementById('video-memo-stop').disabled = false;
     document.getElementById('video-memo-status').textContent = t('카메라 가이드 영상을 촬영 중입니다...', 'Recording video...', '動画撮影中...');
@@ -4175,7 +4174,7 @@ const TravelogCreatorModule = (() => {
     }
   }
 
-  function stopVideoMemoRecording() {
+  function legacyStopVideoMemoRecording() {
     document.getElementById('video-memo-stop').disabled = true;
     document.getElementById('video-memo-play').disabled = false;
     document.getElementById('video-memo-reset').disabled = false;
@@ -4209,7 +4208,7 @@ const TravelogCreatorModule = (() => {
     }
   }
 
-  function playVideoMemoRecording() {
+  function legacyPlayVideoMemoRecording() {
     if (!videoMemoBlob) return;
     const url = URL.createObjectURL(videoMemoBlob);
     const video = document.createElement('video');
@@ -4224,11 +4223,11 @@ const TravelogCreatorModule = (() => {
     video.play().catch(() => window.TravelogApp.showToast(t('재생 버튼을 눌러 영상을 확인해 주세요.', 'Tap play to preview the video.', '再生ボタンを押して動画を確認してください。')));
   }
 
-  function resetVideoMemoRecording() {
+  function legacyResetVideoMemoRecording() {
     openVideoMemoModal();
   }
 
-  async function completeVideoMemoRecording() {
+  async function legacyCompleteVideoMemoRecording() {
     const completeBtn = document.getElementById('video-memo-complete');
     if (completeBtn) completeBtn.disabled = true;
     const videoBlobToSave = await waitForFieldMemoBlob('video');
@@ -4288,6 +4287,643 @@ const TravelogCreatorModule = (() => {
     updatePublishPanelCounts();
   }
 
+
+  // Native camera video memo editor
+  let videoMemoPreviewRaf = null;
+
+  function formatVideoMemoTime(seconds) {
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const min = Math.floor(safeSeconds / 60);
+    const sec = Math.floor(safeSeconds % 60);
+    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  function escapeVideoMemoHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function getVideoMemoPreviewElement() {
+    return document.getElementById('video-memo-webcam');
+  }
+
+  function getVideoMemoEditedDuration() {
+    return videoMemoClips.reduce((sum, clip) => sum + Math.max(0, clip.trimEnd - clip.trimStart), 0);
+  }
+
+  function invalidateRenderedVideoMemo() {
+    videoMemoBlob = null;
+    videoMemoSeconds = Math.ceil(getVideoMemoEditedDuration());
+  }
+
+  function updateVideoMemoButtons() {
+    const hasClips = videoMemoClips.length > 0;
+    const playBtn = document.getElementById('video-memo-play');
+    const stopBtn = document.getElementById('video-memo-stop');
+    const resetBtn = document.getElementById('video-memo-reset');
+    const completeBtn = document.getElementById('video-memo-complete');
+    if (playBtn) playBtn.disabled = !hasClips || videoMemoRenderInProgress;
+    if (stopBtn) stopBtn.disabled = !videoMemoPreviewing || videoMemoRenderInProgress;
+    if (resetBtn) resetBtn.disabled = !hasClips || videoMemoRenderInProgress;
+    if (completeBtn) completeBtn.disabled = !hasClips || videoMemoRenderInProgress;
+    const editor = document.getElementById('video-memo-editor');
+    if (editor) editor.hidden = !hasClips;
+  }
+
+  function revokeVideoMemoClipUrls() {
+    videoMemoClips.forEach((clip) => {
+      if (clip.url) {
+        try { URL.revokeObjectURL(clip.url); } catch (_) {}
+      }
+    });
+  }
+
+  function stopVideoMemoPreview(resetFrame = false) {
+    if (videoMemoPreviewRaf) {
+      cancelAnimationFrame(videoMemoPreviewRaf);
+      videoMemoPreviewRaf = null;
+    }
+    const preview = getVideoMemoPreviewElement();
+    preview?.pause();
+    videoMemoPreviewing = false;
+    videoMemoPreviewIndex = -1;
+    updateVideoMemoButtons();
+    if (resetFrame && preview && videoMemoClips[0]) {
+      showVideoMemoClipFrame(0, videoMemoClips[0].trimStart).catch(() => {});
+    }
+  }
+
+  function cleanupVideoMemoEditorState() {
+    stopVideoMemoPreview(false);
+    revokeVideoMemoClipUrls();
+    videoMemoClips = [];
+    videoMemoCaptureMode = 'replace';
+    videoMemoPreviewIndex = -1;
+    const preview = getVideoMemoPreviewElement();
+    if (preview) {
+      preview.pause();
+      preview.removeAttribute('src');
+      preview.srcObject = null;
+      preview.removeAttribute('data-clip-id');
+      preview.load();
+      preview.style.display = 'none';
+    }
+    const placeholder = document.getElementById('video-memo-placeholder');
+    if (placeholder) placeholder.style.display = 'flex';
+    const timer = document.getElementById('video-memo-timer');
+    if (timer) {
+      timer.style.display = 'none';
+      timer.textContent = '00:00';
+    }
+    const clipList = document.getElementById('video-memo-clip-list');
+    if (clipList) clipList.innerHTML = '';
+    const editor = document.getElementById('video-memo-editor');
+    if (editor) editor.hidden = true;
+    const cameraInput = document.getElementById('video-memo-camera-input');
+    const appendInput = document.getElementById('video-memo-append-input');
+    if (cameraInput) cameraInput.value = '';
+    if (appendInput) appendInput.value = '';
+    updateVideoMemoButtons();
+  }
+
+  function readVideoMemoMetadata(url) {
+    return new Promise((resolve, reject) => {
+      const probe = document.createElement('video');
+      probe.preload = 'metadata';
+      probe.playsInline = true;
+      probe.onloadedmetadata = () => resolve({
+        duration: Number.isFinite(probe.duration) ? probe.duration : 0,
+        width: probe.videoWidth || 720,
+        height: probe.videoHeight || 1280
+      });
+      probe.onerror = () => reject(new Error('VIDEO_METADATA_READ_FAILED'));
+      probe.src = url;
+    });
+  }
+
+  async function addVideoMemoCapture(file, mode = 'replace') {
+    const status = document.getElementById('video-memo-status');
+    if (!(file instanceof Blob) || !String(file.type || '').startsWith('video/')) {
+      if (status) status.textContent = t('영상 파일을 선택하거나 카메라로 촬영해 주세요.', 'Choose or record a video file.', '動画ファイルを選択または撮影してください。');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    try {
+      const metadata = await readVideoMemoMetadata(url);
+      if (!metadata.duration || metadata.duration <= 0) throw new Error('VIDEO_DURATION_INVALID');
+      if (mode === 'replace') {
+        revokeVideoMemoClipUrls();
+        videoMemoClips = [];
+      }
+      videoMemoClips.push({
+        id: `video-clip-${Date.now()}-${videoMemoClips.length}`,
+        blob: file,
+        fileName: file.name || `camera_clip_${videoMemoClips.length + 1}`,
+        mimeType: file.type || 'video/mp4',
+        url,
+        duration: metadata.duration,
+        width: metadata.width,
+        height: metadata.height,
+        trimStart: 0,
+        trimEnd: metadata.duration
+      });
+      invalidateRenderedVideoMemo();
+      renderVideoMemoClipEditor();
+      await showVideoMemoClipFrame(videoMemoClips.length - 1, 0);
+      if (status) status.textContent = mode === 'append'
+        ? t('영상이 뒤에 추가되었습니다. 시작점과 끝점을 조절해 주세요.', 'Video appended. Adjust its start and end points.', '動画を後ろに追加しました。開始点と終了点を調整してください。')
+        : t('촬영이 완료되었습니다. 자르기·붙이기 후 편집본을 확인하세요.', 'Capture finished. Trim, join, and preview the edit.', '撮影完了。トリミング・結合後に編集版を確認してください。');
+      updateVideoMemoButtons();
+    } catch (error) {
+      try { URL.revokeObjectURL(url); } catch (_) {}
+      console.warn('Video memo capture could not be loaded.', error);
+      if (status) status.textContent = t('촬영한 영상을 불러오지 못했습니다. 다시 촬영해 주세요.', 'Could not load the captured video. Please try again.', '撮影した動画を読み込めませんでした。もう一度お試しください。');
+    }
+  }
+
+  function bindVideoMemoEditorControls() {
+    const cameraInput = document.getElementById('video-memo-camera-input');
+    const appendInput = document.getElementById('video-memo-append-input');
+    const appendBtn = document.getElementById('video-memo-append-btn');
+    const editedPreviewBtn = document.getElementById('video-memo-preview-edited');
+    const clipList = document.getElementById('video-memo-clip-list');
+    if (cameraInput && cameraInput.dataset.bound !== 'true') {
+      cameraInput.addEventListener('change', () => {
+        const file = cameraInput.files?.[0];
+        if (file) addVideoMemoCapture(file, videoMemoCaptureMode);
+      });
+      cameraInput.dataset.bound = 'true';
+    }
+    if (appendInput && appendInput.dataset.bound !== 'true') {
+      appendInput.addEventListener('change', () => {
+        const file = appendInput.files?.[0];
+        if (file) addVideoMemoCapture(file, 'append');
+      });
+      appendInput.dataset.bound = 'true';
+    }
+    if (appendBtn && appendBtn.dataset.bound !== 'true') {
+      appendBtn.addEventListener('click', () => {
+        stopVideoMemoPreview(false);
+        if (appendInput) {
+          appendInput.value = '';
+          appendInput.click();
+        }
+      });
+      appendBtn.dataset.bound = 'true';
+    }
+    if (editedPreviewBtn && editedPreviewBtn.dataset.bound !== 'true') {
+      editedPreviewBtn.addEventListener('click', playVideoMemoRecording);
+      editedPreviewBtn.dataset.bound = 'true';
+    }
+    if (clipList && clipList.dataset.bound !== 'true') {
+      clipList.addEventListener('input', handleVideoMemoTrimInput);
+      clipList.addEventListener('click', handleVideoMemoClipAction);
+      clipList.dataset.bound = 'true';
+    }
+  }
+
+  function renderVideoMemoClipEditor() {
+    const clipList = document.getElementById('video-memo-clip-list');
+    if (!clipList) return;
+    clipList.innerHTML = videoMemoClips.map((clip, index) => `
+      <article class="video-memo-clip-card" data-video-clip-index="${index}">
+        <div class="video-memo-clip-head">
+          <span class="video-memo-clip-name">${index + 1}. ${escapeVideoMemoHtml(clip.fileName)}</span>
+          <button type="button" class="video-memo-clip-delete" data-video-clip-delete="${index}" aria-label="${index + 1}번 영상 삭제"><img src="assets/icons/video-memo/video-delete.svg" alt="" aria-hidden="true"></button>
+        </div>
+        <div class="video-memo-trim-values">
+          <span>시작 <b data-trim-start-value>${formatVideoMemoTime(clip.trimStart)}</b></span>
+          <span>끝 <b data-trim-end-value>${formatVideoMemoTime(clip.trimEnd)}</b></span>
+          <span>사용 <b data-trim-duration-value>${formatVideoMemoTime(clip.trimEnd - clip.trimStart)}</b></span>
+        </div>
+        <label class="video-memo-trim-label">시작점<input class="video-memo-trim-range" type="range" min="0" max="${clip.duration.toFixed(2)}" step="0.1" value="${clip.trimStart.toFixed(2)}" data-video-trim="start" data-video-clip-index="${index}"></label>
+        <label class="video-memo-trim-label">끝점<input class="video-memo-trim-range" type="range" min="0" max="${clip.duration.toFixed(2)}" step="0.1" value="${clip.trimEnd.toFixed(2)}" data-video-trim="end" data-video-clip-index="${index}"></label>
+      </article>
+    `).join('');
+    updateVideoMemoButtons();
+  }
+
+  function handleVideoMemoTrimInput(event) {
+    const input = event.target.closest('[data-video-trim]');
+    if (!input) return;
+    const index = Number(input.dataset.videoClipIndex);
+    const clip = videoMemoClips[index];
+    if (!clip) return;
+    const minimumGap = Math.min(0.25, Math.max(0.05, clip.duration / 10));
+    const value = Math.max(0, Math.min(clip.duration, Number(input.value) || 0));
+    if (input.dataset.videoTrim === 'start') {
+      clip.trimStart = Math.min(value, clip.trimEnd - minimumGap);
+      input.value = clip.trimStart.toFixed(2);
+    } else {
+      clip.trimEnd = Math.max(value, clip.trimStart + minimumGap);
+      input.value = clip.trimEnd.toFixed(2);
+    }
+    invalidateRenderedVideoMemo();
+    const card = input.closest('.video-memo-clip-card');
+    if (card) {
+      card.querySelector('[data-trim-start-value]').textContent = formatVideoMemoTime(clip.trimStart);
+      card.querySelector('[data-trim-end-value]').textContent = formatVideoMemoTime(clip.trimEnd);
+      card.querySelector('[data-trim-duration-value]').textContent = formatVideoMemoTime(clip.trimEnd - clip.trimStart);
+    }
+    showVideoMemoClipFrame(index, input.dataset.videoTrim === 'start' ? clip.trimStart : Math.max(clip.trimStart, clip.trimEnd - 0.08)).catch(() => {});
+  }
+
+  function handleVideoMemoClipAction(event) {
+    const deleteBtn = event.target.closest('[data-video-clip-delete]');
+    if (!deleteBtn) return;
+    const index = Number(deleteBtn.dataset.videoClipDelete);
+    const removed = videoMemoClips.splice(index, 1)[0];
+    if (removed?.url) {
+      try { URL.revokeObjectURL(removed.url); } catch (_) {}
+    }
+    stopVideoMemoPreview(false);
+    invalidateRenderedVideoMemo();
+    renderVideoMemoClipEditor();
+    if (videoMemoClips.length) {
+      const nextIndex = Math.min(index, videoMemoClips.length - 1);
+      showVideoMemoClipFrame(nextIndex, videoMemoClips[nextIndex].trimStart).catch(() => {});
+    } else {
+      cleanupVideoMemoEditorState();
+    }
+  }
+
+  function waitForVideoMemoEvent(target, eventName) {
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        target.removeEventListener(eventName, onSuccess);
+        target.removeEventListener('error', onError);
+      };
+      const onSuccess = () => { cleanup(); resolve(); };
+      const onError = () => { cleanup(); reject(new Error(`VIDEO_${eventName.toUpperCase()}_FAILED`)); };
+      target.addEventListener(eventName, onSuccess, { once: true });
+      target.addEventListener('error', onError, { once: true });
+    });
+  }
+
+  async function seekVideoMemoElement(video, seconds) {
+    const safeTime = Math.max(0, Math.min(Number.isFinite(video.duration) ? video.duration : seconds, seconds));
+    if (Math.abs((video.currentTime || 0) - safeTime) < 0.04) return;
+    const seeked = waitForVideoMemoEvent(video, 'seeked');
+    video.currentTime = safeTime;
+    await seeked;
+  }
+
+  async function showVideoMemoClipFrame(index, seconds) {
+    const clip = videoMemoClips[index];
+    const preview = getVideoMemoPreviewElement();
+    if (!clip || !preview) return;
+    if (preview.dataset.clipId !== clip.id) {
+      preview.pause();
+      preview.src = clip.url;
+      preview.dataset.clipId = clip.id;
+      preview.load();
+      if (preview.readyState < 1) await waitForVideoMemoEvent(preview, 'loadedmetadata');
+    }
+    await seekVideoMemoElement(preview, seconds);
+    preview.style.display = 'block';
+    const placeholder = document.getElementById('video-memo-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+    const timer = document.getElementById('video-memo-timer');
+    if (timer) {
+      timer.style.display = 'block';
+      timer.textContent = `${formatVideoMemoTime(seconds)} / ${formatVideoMemoTime(clip.trimEnd)}`;
+    }
+  }
+
+  async function playVideoMemoSegment(index) {
+    if (!videoMemoPreviewing) return;
+    if (index >= videoMemoClips.length) {
+      stopVideoMemoPreview(false);
+      const status = document.getElementById('video-memo-status');
+      if (status) status.textContent = t('편집본 미리보기가 완료되었습니다.', 'Edited preview finished.', '編集版のプレビューが完了しました。');
+      return;
+    }
+    const clip = videoMemoClips[index];
+    const preview = getVideoMemoPreviewElement();
+    if (!preview) return;
+    videoMemoPreviewIndex = index;
+    await showVideoMemoClipFrame(index, clip.trimStart);
+    try {
+      await preview.play();
+    } catch (error) {
+      videoMemoPreviewing = false;
+      updateVideoMemoButtons();
+      window.TravelogApp?.showToast(t('영상의 재생 버튼을 눌러 미리보기를 시작해 주세요.', 'Tap the video play control to start preview.', '動画の再生ボタンを押してプレビューを開始してください。'));
+      return;
+    }
+    const monitor = () => {
+      if (!videoMemoPreviewing || videoMemoPreviewIndex !== index) return;
+      const timer = document.getElementById('video-memo-timer');
+      if (timer) timer.textContent = `${formatVideoMemoTime(preview.currentTime)} / ${formatVideoMemoTime(clip.trimEnd)}`;
+      if (preview.ended || preview.currentTime >= clip.trimEnd - 0.04) {
+        preview.pause();
+        playVideoMemoSegment(index + 1).catch(() => stopVideoMemoPreview(false));
+        return;
+      }
+      videoMemoPreviewRaf = requestAnimationFrame(monitor);
+    };
+    videoMemoPreviewRaf = requestAnimationFrame(monitor);
+  }
+
+  function openVideoMemoModal() {
+    cleanupVideoMemoEditorState();
+    const modal = document.getElementById('video-memo-modal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+    videoMemoChunks = [];
+    videoMemoBlob = null;
+    videoMemoSeconds = 0;
+    const status = document.getElementById('video-memo-status');
+    if (status) status.textContent = t('녹화 버튼을 누르면 스마트폰 카메라가 열립니다.', 'Press Record to open the phone camera.', '録画ボタンでスマートフォンのカメラを開きます。');
+    const videoTitleInput = document.getElementById('video-memo-title-input');
+    if (videoTitleInput) videoTitleInput.value = '';
+    const recordBtn = document.getElementById('video-memo-record');
+    if (recordBtn) recordBtn.disabled = false;
+    updateVideoMemoButtons();
+  }
+
+  function startVideoMemoRecording() {
+    if (videoMemoRenderInProgress) return;
+    stopVideoMemoPreview(false);
+    videoMemoCaptureMode = 'replace';
+    const cameraInput = document.getElementById('video-memo-camera-input');
+    if (cameraInput) {
+      cameraInput.value = '';
+      cameraInput.click();
+    }
+    const status = document.getElementById('video-memo-status');
+    if (status) status.textContent = t('스마트폰 카메라에서 촬영을 마치면 이 화면으로 돌아옵니다.', 'Finish recording in the phone camera, then return here.', 'スマートフォンのカメラで撮影後、この画面に戻ります。');
+  }
+
+  function stopVideoMemoRecording() {
+    stopVideoMemoPreview(true);
+    const status = document.getElementById('video-memo-status');
+    if (status && videoMemoClips.length) status.textContent = t('미리보기를 정지했습니다.', 'Preview stopped.', 'プレビューを停止しました。');
+  }
+
+  function playVideoMemoRecording() {
+    if (!videoMemoClips.length || videoMemoRenderInProgress) return;
+    stopVideoMemoPreview(false);
+    videoMemoPreviewing = true;
+    updateVideoMemoButtons();
+    const status = document.getElementById('video-memo-status');
+    if (status) status.textContent = t('자르기·붙이기가 적용된 편집본을 재생 중입니다.', 'Playing the trimmed and joined edit.', 'トリミング・結合した編集版を再生中です。');
+    playVideoMemoSegment(0).catch((error) => {
+      console.warn('Video memo edited preview failed.', error);
+      stopVideoMemoPreview(false);
+    });
+  }
+
+  function resetVideoMemoRecording() {
+    if (videoMemoRenderInProgress) return;
+    cleanupVideoMemoEditorState();
+    startVideoMemoRecording();
+  }
+
+  function chooseVideoMemoOutputMimeType() {
+    const candidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+      'video/mp4'
+    ];
+    return candidates.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || '';
+  }
+
+  function videoMemoExtensionForType(mimeType) {
+    const type = String(mimeType || '').toLowerCase();
+    if (type.includes('mp4')) return 'mp4';
+    if (type.includes('quicktime')) return 'mov';
+    return 'webm';
+  }
+
+  async function loadVideoMemoRenderSource(video, clip) {
+    video.pause();
+    video.src = clip.url;
+    video.load();
+    if (video.readyState < 1) await waitForVideoMemoEvent(video, 'loadedmetadata');
+    await seekVideoMemoElement(video, clip.trimStart);
+  }
+
+  async function renderJoinedVideoMemo(onProgress) {
+    const testCanvas = document.createElement('canvas');
+    if (!window.MediaRecorder || typeof testCanvas.captureStream !== 'function') {
+      throw new Error('VIDEO_EDIT_EXPORT_UNSUPPORTED');
+    }
+    const segments = videoMemoClips.filter((clip) => clip.trimEnd > clip.trimStart);
+    if (!segments.length) throw new Error('VIDEO_EDIT_EMPTY');
+
+    const renderVideo = document.createElement('video');
+    renderVideo.playsInline = true;
+    renderVideo.preload = 'auto';
+    renderVideo.style.cssText = 'position:fixed;width:2px;height:2px;left:-10px;bottom:-10px;opacity:.01;pointer-events:none;';
+    document.body.appendChild(renderVideo);
+    await loadVideoMemoRenderSource(renderVideo, segments[0]);
+
+    const firstWidth = renderVideo.videoWidth || segments[0].width || 720;
+    const firstHeight = renderVideo.videoHeight || segments[0].height || 1280;
+    const scale = Math.min(1, 720 / Math.max(firstWidth, firstHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(2, Math.round((firstWidth * scale) / 2) * 2);
+    canvas.height = Math.max(2, Math.round((firstHeight * scale) / 2) * 2);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('VIDEO_EDIT_CANVAS_FAILED');
+    const canvasStream = canvas.captureStream(30);
+
+    let audioContext = null;
+    let audioDestination = null;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioContext = new AudioContextClass();
+        await audioContext.resume();
+        const source = audioContext.createMediaElementSource(renderVideo);
+        audioDestination = audioContext.createMediaStreamDestination();
+        source.connect(audioDestination);
+      }
+    } catch (error) {
+      console.warn('Video editor audio pipeline unavailable; exporting video track only.', error);
+    }
+
+    const outputStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...(audioDestination ? audioDestination.stream.getAudioTracks() : [])
+    ]);
+    const outputType = chooseVideoMemoOutputMimeType();
+    const recorder = outputType ? new MediaRecorder(outputStream, { mimeType: outputType }) : new MediaRecorder(outputStream);
+    const outputChunks = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size) outputChunks.push(event.data);
+    };
+    const stopped = new Promise((resolve, reject) => {
+      recorder.onstop = resolve;
+      recorder.onerror = () => reject(recorder.error || new Error('VIDEO_EDIT_RECORD_FAILED'));
+    });
+    // The same promise is awaited on the success path. This additional handler
+    // prevents an unhandled rejection if rendering aborts before that await.
+    stopped.catch(() => {});
+
+    const totalDuration = segments.reduce((sum, clip) => sum + (clip.trimEnd - clip.trimStart), 0);
+    let completedDuration = 0;
+    let drawRaf = null;
+    const drawFrame = () => {
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      const sourceWidth = renderVideo.videoWidth || canvas.width;
+      const sourceHeight = renderVideo.videoHeight || canvas.height;
+      const fit = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight);
+      const drawWidth = sourceWidth * fit;
+      const drawHeight = sourceHeight * fit;
+      context.drawImage(renderVideo, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
+    };
+
+    try {
+      recorder.start(500);
+      for (let index = 0; index < segments.length; index += 1) {
+        const clip = segments[index];
+        if (index > 0) await loadVideoMemoRenderSource(renderVideo, clip);
+        await renderVideo.play();
+        await new Promise((resolve, reject) => {
+          const monitor = () => {
+            try {
+              drawFrame();
+              const elapsed = Math.max(0, Math.min(clip.trimEnd - clip.trimStart, renderVideo.currentTime - clip.trimStart));
+              onProgress?.((completedDuration + elapsed) / totalDuration);
+              if (renderVideo.ended || renderVideo.currentTime >= clip.trimEnd - 0.035) {
+                renderVideo.pause();
+                resolve();
+                return;
+              }
+              drawRaf = requestAnimationFrame(monitor);
+            } catch (error) {
+              reject(error);
+            }
+          };
+          drawRaf = requestAnimationFrame(monitor);
+        });
+        completedDuration += clip.trimEnd - clip.trimStart;
+        onProgress?.(completedDuration / totalDuration);
+      }
+      if (recorder.state === 'recording') {
+        recorder.requestData();
+        recorder.stop();
+      }
+      await stopped;
+      const mimeType = recorder.mimeType || outputType || 'video/webm';
+      const blob = new Blob(outputChunks, { type: mimeType });
+      if (!blob.size) throw new Error('VIDEO_EDIT_OUTPUT_EMPTY');
+      return blob;
+    } finally {
+      if (drawRaf) cancelAnimationFrame(drawRaf);
+      renderVideo.pause();
+      if (recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch (_) {}
+      }
+      renderVideo.remove();
+      outputStream.getTracks().forEach((track) => track.stop());
+      canvasStream.getTracks().forEach((track) => track.stop());
+      if (audioContext) audioContext.close().catch(() => {});
+    }
+  }
+
+  async function buildEditedVideoMemoBlob(onProgress) {
+    if (!videoMemoClips.length) throw new Error('VIDEO_MEMO_EMPTY');
+    const clip = videoMemoClips[0];
+    const firstClipIsUntouched = videoMemoClips.length === 1
+      && clip.trimStart <= 0.05
+      && clip.trimEnd >= clip.duration - 0.05;
+    if (firstClipIsUntouched) {
+      onProgress?.(1);
+      return clip.blob;
+    }
+    return renderJoinedVideoMemo(onProgress);
+  }
+
+  async function completeVideoMemoRecording() {
+    if (!videoMemoClips.length || videoMemoRenderInProgress) return;
+    stopVideoMemoPreview(false);
+    videoMemoRenderInProgress = true;
+    updateVideoMemoButtons();
+    const status = document.getElementById('video-memo-status');
+    const completeBtn = document.getElementById('video-memo-complete');
+    const closeBtn = document.getElementById('video-memo-close-btn');
+    if (completeBtn) completeBtn.disabled = true;
+    if (closeBtn) closeBtn.disabled = true;
+
+    let lastProgress = -1;
+    try {
+      videoMemoBlob = await buildEditedVideoMemoBlob((ratio) => {
+        const progress = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+        if (progress !== lastProgress && status) {
+          lastProgress = progress;
+          status.textContent = t(`편집본을 만드는 중입니다... ${progress}%`, `Creating edited video... ${progress}%`, `編集版を作成中です... ${progress}%`);
+        }
+      });
+    } catch (error) {
+      console.warn('Video memo edit export failed.', error);
+      videoMemoRenderInProgress = false;
+      if (closeBtn) closeBtn.disabled = false;
+      updateVideoMemoButtons();
+      if (status) status.textContent = t('이 브라우저에서는 영상 합치기 저장을 완료하지 못했습니다. 삼성 인터넷 또는 Chrome 최신 버전에서 다시 시도해 주세요.', 'This browser could not export the joined video. Try the latest Chrome or Samsung Internet.', 'このブラウザでは結合動画を保存できません。最新版のChromeまたはSamsung Internetでお試しください。');
+      return;
+    }
+
+    const editSegments = videoMemoClips.map((clip, index) => ({
+      order: index,
+      fileName: clip.fileName,
+      start: Number(clip.trimStart.toFixed(2)),
+      end: Number(clip.trimEnd.toFixed(2)),
+      duration: Number((clip.trimEnd - clip.trimStart).toFixed(2))
+    }));
+    const editedDuration = getVideoMemoEditedDuration();
+    videoMemoRenderInProgress = false;
+    if (closeBtn) closeBtn.disabled = false;
+    document.getElementById('video-memo-modal').classList.remove('active');
+
+    const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
+    const memoTitle = getMemoTitleInputValue('video-memo-title-input', t('영상 메모', 'Video Memo', '動画メモ'));
+    const memoFileBase = safeFileName(memoTitle, `video_memo_${cleanTourName}`);
+    const extension = videoMemoExtensionForType(videoMemoBlob.type);
+    const filename = `video_memo_${memoFileBase}_${Date.now()}.${extension}`;
+
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, '');
+    }
+    const customPins = window.TravelogApp.getState().customCreatedPins;
+    const newStopIdx = customPins.length - 1;
+    const videoMemoEntry = {
+      id: Date.now(), name: filename, fileName: filename, title: memoTitle,
+      displayTitle: memoTitle, memoTitle, blob: videoMemoBlob,
+      mimeType: videoMemoBlob.type || 'video/webm', duration: editedDuration,
+      editSegments, stopIndex: newStopIdx, pinId: customPins[newStopIdx]?.id || ''
+    };
+    try { videoMemoEntry.objectUrl = URL.createObjectURL(videoMemoBlob); } catch (_) {}
+    recordedVideos.push(videoMemoEntry);
+    blobToDataUrl(videoMemoBlob).then((dataUrl) => { videoMemoEntry.dataUrl = dataUrl; }).catch(() => {});
+
+    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
+      window.TravelogDeviceStorage.saveGeneratedFile('Video', filename, videoMemoBlob, {
+        source: 'field-video-memo', title: memoTitle, memoTitle, stopIndex: newStopIdx,
+        lat: tempPinLat, lng: tempPinLng, editSegments
+      }).then(() => {
+        window.TravelogApp.showToast(t('편집된 영상 메모가 Video 폴더에 저장되었습니다.', 'Edited video memo saved to the Video folder.', '編集した動画メモをVideoフォルダに保存しました。'));
+      }).catch((error) => {
+        console.warn('[Travelog Device Storage] Video memo save failed:', error);
+        window.TravelogApp.showToast(t('편집 영상은 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'The edit is kept in the app, but device write failed.', '編集動画はアプリに保持されましたが端末保存に失敗しました。'));
+      });
+    } else {
+      window.TravelogApp.showToast(t('편집된 영상 메모가 앱에 저장되었습니다.', 'Edited video memo saved in the app.', '編集した動画メモをアプリに保存しました。'));
+    }
+
+    cleanupVideoMemoEditorState();
+    markPublishDraftDirty();
+    renderCoordinatesList();
+    renderVideoList();
+    updatePublishPanelCounts();
+  }
 
   // 3) Photo Field Capture
   let photoMemoMode = 'draw';

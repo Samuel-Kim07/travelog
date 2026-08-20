@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1053">
+  <link rel="stylesheet" href="index.css?v=1054">
 </head>
 <body>
 
@@ -1299,31 +1299,46 @@
 
   <!-- 3) 영상 메모 팝업 -->
   <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
+    <div class="profile-manager-card glass-panel video-memo-recorder-card">
       <button class="btn-circle" id="video-memo-close-btn" type="button" aria-label="영상 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
-      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-video" style="color: var(--accent-blue);"></i> 영상 가이드 녹화기</h3>
-      <p id="video-memo-status" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px;">카메라 권한 획득 완료 · 녹화 대기 중</p>
-      <label for="video-memo-title-input" style="display:block;text-align:left;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">비디오 메모 제목</label>
-      <input type="text" id="video-memo-title-input" maxlength="60" placeholder="예: 골목 입구 영상 안내" style="width:100%;background:var(--bg-tertiary);border:1px solid var(--glass-border);border-radius:var(--radius-sm);color:#373737 !important;padding:10px 12px;font-size:13px;outline:none;margin-bottom:16px;">
-      
-      <div style="background: #000; width: 100%; height: 160px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); margin-bottom: 24px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-        <video id="video-memo-webcam" style="width: 100%; height: 100%; object-fit: cover; display: none;" autoplay playsinline muted></video>
-        <div id="video-memo-placeholder" style="color: var(--text-muted); text-align: center; font-size: 11px;">
-          <i class="fa-solid fa-camera" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
-          카메라 미리보기 꺼짐
+      <h3 class="video-memo-heading"><img class="video-memo-title-icon" src="assets/icons/video-memo/video-title.svg" alt="" aria-hidden="true">영상 가이드 녹화기</h3>
+      <p id="video-memo-status" class="video-memo-status" aria-live="polite">녹화 버튼을 누르면 스마트폰 카메라가 열립니다.</p>
+      <label for="video-memo-title-input" class="video-memo-title-label">비디오 메모 제목</label>
+      <input type="text" id="video-memo-title-input" class="video-memo-title-input" maxlength="60" placeholder="예: 골목 입구 영상 안내">
+
+      <input type="file" id="video-memo-camera-input" accept="video/*" capture="environment" hidden>
+      <input type="file" id="video-memo-append-input" accept="video/*" capture="environment" hidden>
+
+      <div class="video-memo-preview-shell">
+        <video id="video-memo-webcam" class="video-memo-preview" controls playsinline preload="metadata"></video>
+        <div id="video-memo-placeholder" class="video-memo-placeholder">
+          <img src="assets/icons/video-memo/video-placeholder.svg" alt="" aria-hidden="true">
+          <span>촬영된 영상이 여기에 표시됩니다.</span>
         </div>
-        <div id="video-memo-timer" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #ff2e63; font-weight: bold; display: none;">00:00 REC</div>
+        <div id="video-memo-timer" class="video-memo-timer">00:00</div>
       </div>
 
-      <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 24px;">
-        <button class="btn-circle" id="video-memo-play" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-play"></i></button>
-        <button class="btn-circle" id="video-memo-record" style="width: 58px; height: 58px; font-size: 20px; background: var(--accent-blue); border-color: var(--accent-blue); color: white;"><i class="fa-solid fa-video"></i></button>
-        <button class="btn-circle" id="video-memo-stop" style="width: 48px; height: 48px; font-size: 16px;" disabled><i class="fa-solid fa-square"></i></button>
+      <div class="video-memo-main-controls">
+        <button class="btn-circle video-memo-control-btn" id="video-memo-play" type="button" aria-label="편집본 재생" disabled><img src="assets/icons/video-memo/video-play.svg" alt="" aria-hidden="true"></button>
+        <button class="btn-circle video-memo-control-btn video-memo-record-btn" id="video-memo-record" type="button" aria-label="스마트폰 카메라로 영상 촬영"><img src="assets/icons/video-memo/video-record.svg" alt="" aria-hidden="true"></button>
+        <button class="btn-circle video-memo-control-btn" id="video-memo-stop" type="button" aria-label="미리보기 정지" disabled><img src="assets/icons/video-memo/video-stop.svg" alt="" aria-hidden="true"></button>
       </div>
 
-      <div style="display: flex; gap: 10px; width: 100%;">
-        <button class="btn-rect secondary" id="video-memo-reset" style="flex: 1; justify-content: center;" disabled><i class="fa-solid fa-rotate-right"></i> 다시 녹화</button>
-        <button class="btn-rect" id="video-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 완료</button>
+      <section id="video-memo-editor" class="video-memo-editor" hidden>
+        <div class="video-memo-editor-head">
+          <strong>간단 영상 편집</strong>
+          <span>각 영상의 시작·끝을 자르고 순서대로 붙입니다.</span>
+        </div>
+        <div class="video-memo-editor-toolbar">
+          <button type="button" class="btn-rect secondary video-memo-editor-btn" id="video-memo-append-btn"><img src="assets/icons/video-memo/video-append.svg" alt="" aria-hidden="true">영상 촬영·붙이기</button>
+          <button type="button" class="btn-rect secondary video-memo-editor-btn" id="video-memo-preview-edited"><img src="assets/icons/video-memo/video-preview.svg" alt="" aria-hidden="true">편집본 미리보기</button>
+        </div>
+        <div id="video-memo-clip-list" class="video-memo-clip-list"></div>
+      </section>
+
+      <div class="video-memo-action-row">
+        <button class="btn-rect secondary video-memo-action-btn" id="video-memo-reset" disabled><img src="assets/icons/video-memo/video-reset.svg" alt="" aria-hidden="true">다시 녹화</button>
+        <button class="btn-rect video-memo-action-btn video-memo-complete-btn" id="video-memo-complete" disabled><img src="assets/icons/video-memo/video-complete.svg" alt="" aria-hidden="true">완료</button>
       </div>
     </div>
   </div>
@@ -1561,7 +1576,7 @@
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
-  <script src="creator.js?v=1017" defer></script>
+  <script src="creator.js?v=1018" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
   <script src="app.js?v=1034" defer></script>
