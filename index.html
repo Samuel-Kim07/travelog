@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1050">
+  <link rel="stylesheet" href="index.css?v=1051">
 </head>
 <body>
 
@@ -1239,22 +1239,22 @@
   <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
       <button class="btn-circle" id="btn-close-pin-type-select-x" type="button" aria-label="핀 생성 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
-      <div style="font-size: 40px; color: var(--accent-pink); margin-bottom: 12px;"><i class="fa-solid fa-map-pin"></i></div>
+      <div class="memo-type-main-icon-wrap"><img class="memo-type-main-icon" src="assets/icons/memo-type/memo-guide-pin.svg" alt="" aria-hidden="true"></div>
       <h3 style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
       <p style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
       
       <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-        <button class="btn-rect" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.1); border-color: var(--accent-pink); color: #373737 !important;">
-          <i class="fa-solid fa-microphone"></i> 음성 메모 생성하기
+        <button class="btn-rect memo-type-select-btn" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.1); border-color: var(--accent-pink); color: #373737 !important;">
+          <img class="memo-type-select-icon" src="assets/icons/memo-type/memo-audio.svg" alt="" aria-hidden="true"> 음성 메모 생성하기
         </button>
-        <button class="btn-rect" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.1); border-color: var(--accent-blue); color: #373737 !important;">
-          <i class="fa-solid fa-video"></i> 영상 메모 생성하기
+        <button class="btn-rect memo-type-select-btn" id="btn-select-video-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 173, 181, 0.1); border-color: var(--accent-blue); color: #373737 !important;">
+          <img class="memo-type-select-icon" src="assets/icons/memo-type/memo-video.svg" alt="" aria-hidden="true"> 영상 메모 생성하기
         </button>
-        <button class="btn-rect" id="btn-select-photo-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(52, 168, 83, 0.1); border-color: #34a853; color: #373737 !important;">
-          <i class="fa-solid fa-camera-retro"></i> 사진 메모 생성하기
+        <button class="btn-rect memo-type-select-btn" id="btn-select-photo-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(52, 168, 83, 0.1); border-color: #34a853; color: #373737 !important;">
+          <img class="memo-type-select-icon" src="assets/icons/memo-type/memo-photo.svg" alt="" aria-hidden="true"> 사진 메모 생성하기
         </button>
-        <button class="btn-rect" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 0, 0, 0.03); border-color: var(--glass-border); color: #373737 !important;">
-          <i class="fa-solid fa-pen-to-square"></i> 텍스트 메모 생성하기
+        <button class="btn-rect memo-type-select-btn" id="btn-select-text-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(0, 0, 0, 0.03); border-color: var(--glass-border); color: #373737 !important;">
+          <img class="memo-type-select-icon" src="assets/icons/memo-type/memo-text.svg" alt="" aria-hidden="true"> 텍스트 메모 생성하기
         </button>
         <button class="btn-rect secondary" id="btn-close-type-select" style="justify-content: center; height: 40px; margin-top: 10px;">
           취소

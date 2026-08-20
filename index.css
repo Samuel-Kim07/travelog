@@ -1776,6 +1776,32 @@ nav.bottom-nav {
   object-fit: contain;
 }
 
+/* Guide pin memo type selector local SVG icons */
+.memo-type-main-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.memo-type-main-icon {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.memo-type-select-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.memo-type-select-icon {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  object-fit: contain;
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;
