@@ -465,6 +465,9 @@ const TravelogCreatorModule = (() => {
   let voiceMemoBlob = null;
   let voiceMemoSeconds = 0;
   let voiceMemoInterval = null;
+  let voiceMemoPlaybackAudio = null;
+  let voiceMemoPlaybackUrl = '';
+  let voiceMemoPlaybackInterval = null;
 
   // Field Video Memo States
   let videoMemoChunks = [];
@@ -3529,6 +3532,7 @@ const TravelogCreatorModule = (() => {
     videoRecordSeconds = 0;
 
     if (voiceMemoInterval) clearInterval(voiceMemoInterval);
+    disposeVoiceMemoPlayback(true);
     if (voiceMemoStream) {
       voiceMemoStream.getTracks().forEach(track => track.stop());
       voiceMemoStream = null;
@@ -3686,6 +3690,7 @@ const TravelogCreatorModule = (() => {
 
   function closeVoiceMemoModal() {
     clearInterval(voiceMemoInterval);
+    disposeVoiceMemoPlayback(true);
     if (voiceMemoRecorder && voiceMemoRecorder.state !== 'inactive') {
       try { voiceMemoRecorder.stop(); } catch (_) {}
     }
@@ -3804,6 +3809,7 @@ const TravelogCreatorModule = (() => {
 
   // 1) Audio Field Capture
   function openVoiceMemoModal() {
+    disposeVoiceMemoPlayback(true);
     const modal = document.getElementById('voice-memo-modal');
     if (modal) {
       modal.classList.add('active');
@@ -3828,6 +3834,7 @@ const TravelogCreatorModule = (() => {
   }
 
   async function startVoiceMemoRecording() {
+    disposeVoiceMemoPlayback(true);
     document.getElementById('voice-memo-record').disabled = true;
     document.getElementById('voice-memo-stop').disabled = false;
     document.getElementById('voice-memo-status').textContent = t('음성을 녹음 중입니다...', 'Recording audio...', '録音中...');
@@ -3887,12 +3894,153 @@ const TravelogCreatorModule = (() => {
     }
   }
 
-  function playVoiceMemoRecording() {
-    if (!voiceMemoBlob) return;
-    const url = URL.createObjectURL(voiceMemoBlob);
-    const audio = new Audio(url);
-    audio.play();
-    window.TravelogApp.showToast(t('녹음된 가이드 음성을 재생합니다...', 'Playing guide audio...', '録音されたガイド音声を再生します...'));
+  function formatVoiceMemoClock(seconds) {
+    const safeSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+    const min = Math.floor(safeSeconds / 60);
+    const sec = safeSeconds % 60;
+    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+
+  function setVoiceMemoPlaybackVisualState(isPlaying) {
+    const screen = document.querySelector('#voice-memo-modal .voice-memo-cassette-screen');
+    const playBtn = document.getElementById('voice-memo-play');
+    const playIcon = playBtn?.querySelector('.voice-memo-control-icon');
+    const leftWheel = document.getElementById('tape-wheel-left');
+    const rightWheel = document.getElementById('tape-wheel-right');
+
+    screen?.classList.toggle('is-playing', isPlaying);
+    playBtn?.classList.toggle('is-playing', isPlaying);
+    playBtn?.setAttribute('aria-pressed', isPlaying ? 'true' : 'false');
+    playBtn?.setAttribute('aria-label', isPlaying ? t('재생 일시정지', 'Pause playback', '再生を一時停止') : t('녹음 재생', 'Play recording', '録音を再生'));
+    if (playIcon) {
+      playIcon.src = isPlaying
+        ? 'assets/icons/voice-memo/voice-pause.svg'
+        : 'assets/icons/voice-memo/voice-play.svg';
+    }
+    if (leftWheel) leftWheel.style.animation = isPlaying ? 'spin 1.15s linear infinite' : 'none';
+    if (rightWheel) rightWheel.style.animation = isPlaying ? 'spin 1.15s linear infinite reverse' : 'none';
+  }
+
+  function updateVoiceMemoPlaybackTimer() {
+    const timer = document.getElementById('voice-memo-timer');
+    if (!timer || !voiceMemoPlaybackAudio) return;
+    const current = voiceMemoPlaybackAudio.currentTime || 0;
+    const duration = Number.isFinite(voiceMemoPlaybackAudio.duration) && voiceMemoPlaybackAudio.duration > 0
+      ? voiceMemoPlaybackAudio.duration
+      : voiceMemoSeconds;
+    timer.textContent = `${formatVoiceMemoClock(current)} / ${formatVoiceMemoClock(duration)}`;
+  }
+
+  function clearVoiceMemoPlaybackTicker() {
+    if (voiceMemoPlaybackInterval) {
+      clearInterval(voiceMemoPlaybackInterval);
+      voiceMemoPlaybackInterval = null;
+    }
+  }
+
+  function startVoiceMemoPlaybackTicker() {
+    clearVoiceMemoPlaybackTicker();
+    updateVoiceMemoPlaybackTimer();
+    voiceMemoPlaybackInterval = setInterval(updateVoiceMemoPlaybackTimer, 200);
+  }
+
+  function disposeVoiceMemoPlayback(resetTimer = false) {
+    clearVoiceMemoPlaybackTicker();
+    if (voiceMemoPlaybackAudio) {
+      voiceMemoPlaybackAudio.pause();
+      voiceMemoPlaybackAudio.removeAttribute('src');
+      voiceMemoPlaybackAudio.load();
+      voiceMemoPlaybackAudio = null;
+    }
+    if (voiceMemoPlaybackUrl) {
+      URL.revokeObjectURL(voiceMemoPlaybackUrl);
+      voiceMemoPlaybackUrl = '';
+    }
+    setVoiceMemoPlaybackVisualState(false);
+    if (resetTimer) {
+      const timer = document.getElementById('voice-memo-timer');
+      if (timer) timer.textContent = '00:00';
+    }
+  }
+
+  async function playVoiceMemoRecording() {
+    const status = document.getElementById('voice-memo-status');
+
+    if (voiceMemoPlaybackAudio && !voiceMemoPlaybackAudio.paused) {
+      voiceMemoPlaybackAudio.pause();
+      clearVoiceMemoPlaybackTicker();
+      setVoiceMemoPlaybackVisualState(false);
+      if (status) status.textContent = t('재생이 일시정지되었습니다. 플레이 버튼을 누르면 이어서 재생합니다.', 'Playback paused. Press Play to resume.', '再生を一時停止しました。再生ボタンで続けます。');
+      return;
+    }
+
+    if (voiceMemoPlaybackAudio && voiceMemoPlaybackAudio.paused && !voiceMemoPlaybackAudio.ended && voiceMemoPlaybackAudio.currentTime > 0) {
+      try {
+        await voiceMemoPlaybackAudio.play();
+        setVoiceMemoPlaybackVisualState(true);
+        startVoiceMemoPlaybackTicker();
+        if (status) status.textContent = t('녹음된 가이드 음성을 재생 중입니다...', 'Playing guide audio...', '録音したガイド音声を再生中です...');
+      } catch (error) {
+        console.warn('Voice memo playback resume failed.', error);
+        setVoiceMemoPlaybackVisualState(false);
+      }
+      return;
+    }
+
+    const playableBlob = voiceMemoBlob instanceof Blob ? voiceMemoBlob : await waitForFieldMemoBlob('audio');
+    if (!(playableBlob instanceof Blob) || !String(playableBlob.type || '').startsWith('audio/')) {
+      if (status) status.textContent = t('재생할 수 있는 음성 데이터가 없습니다.', 'No playable audio data is available.', '再生できる音声データがありません。');
+      return;
+    }
+
+    disposeVoiceMemoPlayback(false);
+    voiceMemoPlaybackUrl = URL.createObjectURL(playableBlob);
+    const playbackAudio = new Audio(voiceMemoPlaybackUrl);
+    voiceMemoPlaybackAudio = playbackAudio;
+    playbackAudio.preload = 'metadata';
+    playbackAudio.addEventListener('loadedmetadata', () => {
+      if (voiceMemoPlaybackAudio === playbackAudio) updateVoiceMemoPlaybackTimer();
+    });
+    playbackAudio.addEventListener('timeupdate', () => {
+      if (voiceMemoPlaybackAudio === playbackAudio) updateVoiceMemoPlaybackTimer();
+    });
+    playbackAudio.addEventListener('play', () => {
+      if (voiceMemoPlaybackAudio !== playbackAudio) return;
+      setVoiceMemoPlaybackVisualState(true);
+      startVoiceMemoPlaybackTicker();
+    });
+    playbackAudio.addEventListener('pause', () => {
+      if (voiceMemoPlaybackAudio === playbackAudio && !playbackAudio.ended) {
+        clearVoiceMemoPlaybackTicker();
+        setVoiceMemoPlaybackVisualState(false);
+      }
+    });
+    playbackAudio.addEventListener('ended', () => {
+      if (voiceMemoPlaybackAudio !== playbackAudio) return;
+      clearVoiceMemoPlaybackTicker();
+      updateVoiceMemoPlaybackTimer();
+      setVoiceMemoPlaybackVisualState(false);
+      const screen = document.querySelector('#voice-memo-modal .voice-memo-cassette-screen');
+      screen?.classList.add('playback-finished');
+      window.setTimeout(() => screen?.classList.remove('playback-finished'), 650);
+      if (status) status.textContent = t('재생이 완료되었습니다.', 'Playback finished.', '再生が完了しました。');
+    });
+    playbackAudio.addEventListener('error', () => {
+      if (voiceMemoPlaybackAudio !== playbackAudio) return;
+      clearVoiceMemoPlaybackTicker();
+      setVoiceMemoPlaybackVisualState(false);
+      if (status) status.textContent = t('음성을 재생하지 못했습니다. 다시 녹음해 주세요.', 'Could not play the audio. Please record again.', '音声を再生できませんでした。録音し直してください。');
+    });
+
+    try {
+      await playbackAudio.play();
+      if (status) status.textContent = t('녹음된 가이드 음성을 재생 중입니다...', 'Playing guide audio...', '録音したガイド音声を再生中です...');
+      window.TravelogApp.showToast(t('녹음된 가이드 음성을 재생합니다...', 'Playing guide audio...', '録音されたガイド音声を再生します...'));
+    } catch (error) {
+      console.warn('Voice memo playback failed.', error);
+      setVoiceMemoPlaybackVisualState(false);
+      if (status) status.textContent = t('재생을 시작하지 못했습니다. 플레이 버튼을 다시 눌러 주세요.', 'Playback could not start. Press Play again.', '再生を開始できませんでした。もう一度再生ボタンを押してください。');
+    }
   }
 
   function resetVoiceMemoRecording() {
@@ -3900,6 +4048,7 @@ const TravelogCreatorModule = (() => {
   }
 
   async function completeVoiceMemoRecording() {
+    disposeVoiceMemoPlayback(false);
     const completeBtn = document.getElementById('voice-memo-complete');
     if (completeBtn) completeBtn.disabled = true;
     const audioBlobToSave = await waitForFieldMemoBlob('audio');

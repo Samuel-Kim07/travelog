@@ -1823,6 +1823,51 @@ nav.bottom-nav {
   height: 30px;
 }
 
+.voice-memo-cassette-screen {
+  transition: background .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+
+.voice-memo-cassette-screen.is-playing {
+  background: linear-gradient(145deg, #45565e, #34454d);
+  box-shadow: inset 0 0 0 2px rgba(158, 215, 227, .24), 0 0 18px rgba(112, 162, 183, .34);
+}
+
+.voice-memo-cassette-screen.is-playing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 20%, rgba(255,255,255,.08) 48%, transparent 76%);
+  animation: voice-playback-sheen 1.8s linear infinite;
+  pointer-events: none;
+}
+
+.voice-memo-cassette-screen.playback-finished {
+  animation: voice-playback-finished .65s ease;
+}
+
+.voice-memo-play-btn.is-playing {
+  border-color: rgba(79, 135, 156, .78);
+  background: linear-gradient(180deg, #b9dce3, #83b8c4);
+  box-shadow: 0 0 0 4px rgba(112, 162, 183, .16), 0 5px 12px rgba(79, 135, 156, .25);
+}
+
+@keyframes voice-playback-sheen {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes voice-playback-finished {
+  0%, 100% { box-shadow: none; }
+  45% { box-shadow: inset 0 0 0 2px rgba(175, 212, 153, .55), 0 0 22px rgba(175, 212, 153, .5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-memo-cassette-screen.is-playing::before,
+  .voice-memo-cassette-screen.playback-finished {
+    animation: none;
+  }
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;
