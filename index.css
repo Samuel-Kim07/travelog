@@ -1802,6 +1802,27 @@ nav.bottom-nav {
   object-fit: contain;
 }
 
+/* Voice memo recorder local SVG icons */
+.voice-memo-title-icon {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  object-fit: contain;
+}
+
+.voice-memo-control-icon {
+  display: block;
+  width: 25px;
+  height: 25px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.voice-memo-record-icon {
+  width: 30px;
+  height: 30px;
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;

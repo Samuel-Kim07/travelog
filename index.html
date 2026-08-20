@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1051">
+  <link rel="stylesheet" href="index.css?v=1052">
 </head>
 <body>
 
@@ -1268,7 +1268,7 @@
     <div class="voice-memo-recorder-card" role="dialog" aria-modal="true" aria-labelledby="voice-memo-recorder-title">
       <button class="voice-memo-close-x" id="voice-memo-close-btn" type="button" aria-label="음성 메모 팝업 닫기"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <h3 id="voice-memo-recorder-title" class="voice-memo-recorder-title">
-        <i class="fa-solid fa-microphone-lines" aria-hidden="true"></i>
+        <img class="voice-memo-title-icon" src="assets/icons/voice-memo/voice-title.svg" alt="" aria-hidden="true">
         음성 가이드 녹음기
       </h3>
       <input type="text" id="voice-memo-title-input" class="voice-memo-title-field" maxlength="60" placeholder="광장 앞 거리" aria-label="오디오 메모 제목">
@@ -1285,9 +1285,9 @@
       <p id="voice-memo-status" class="voice-memo-status-text">마이크 버튼을 눌러 녹음 시작</p>
 
       <div class="voice-memo-control-strip" aria-label="음성 메모 녹음 컨트롤">
-        <button class="voice-memo-control-btn voice-memo-stop-btn" id="voice-memo-stop" type="button" aria-label="녹음 정지" disabled><i class="fa-solid fa-square"></i></button>
-        <button class="voice-memo-control-btn voice-memo-record-btn" id="voice-memo-record" type="button" aria-label="녹음 시작"><i class="fa-solid fa-circle"></i></button>
-        <button class="voice-memo-control-btn voice-memo-play-btn" id="voice-memo-play" type="button" aria-label="녹음 재생" disabled><i class="fa-solid fa-play"></i></button>
+        <button class="voice-memo-control-btn voice-memo-stop-btn" id="voice-memo-stop" type="button" aria-label="녹음 정지" disabled><img class="voice-memo-control-icon" src="assets/icons/voice-memo/voice-stop.svg" alt="" aria-hidden="true"></button>
+        <button class="voice-memo-control-btn voice-memo-record-btn" id="voice-memo-record" type="button" aria-label="녹음 시작"><img class="voice-memo-control-icon voice-memo-record-icon" src="assets/icons/voice-memo/voice-record.svg" alt="" aria-hidden="true"></button>
+        <button class="voice-memo-control-btn voice-memo-play-btn" id="voice-memo-play" type="button" aria-label="녹음 재생" disabled><img class="voice-memo-control-icon" src="assets/icons/voice-memo/voice-play.svg" alt="" aria-hidden="true"></button>
       </div>
 
       <div class="voice-memo-action-row">
