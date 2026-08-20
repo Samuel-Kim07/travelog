@@ -3500,6 +3500,8 @@ const TravelogCreatorModule = (() => {
 
     const textMemoInput = document.getElementById('text-memo-input');
     if (textMemoInput) textMemoInput.value = '';
+    const textMemoTitleInput = document.getElementById('text-memo-title-input');
+    if (textMemoTitleInput) textMemoTitleInput.value = '';
     const voiceMemoTitleInput = document.getElementById('voice-memo-title-input');
     if (voiceMemoTitleInput) voiceMemoTitleInput.value = '';
     const videoMemoTitleInput = document.getElementById('video-memo-title-input');
@@ -3746,6 +3748,8 @@ const TravelogCreatorModule = (() => {
   function closeTextMemoModal() {
     const input = document.getElementById('text-memo-input');
     if (input) input.value = '';
+    const titleInput = document.getElementById('text-memo-title-input');
+    if (titleInput) titleInput.value = '';
     setModalHidden('text-memo-modal', true);
   }
 
@@ -5244,6 +5248,8 @@ const TravelogCreatorModule = (() => {
       modal.setAttribute('aria-hidden', 'false');
     }
     document.getElementById('text-memo-input').value = '';
+    const titleInput = document.getElementById('text-memo-title-input');
+    if (titleInput) titleInput.value = '';
   }
 
   function completeTextMemoRecording() {
@@ -5252,21 +5258,25 @@ const TravelogCreatorModule = (() => {
       window.TravelogApp.showToast(t('메모 내용을 입력해 주세요!', 'Please enter some text description!', '메모 내용을 입력해주세요!'));
       return;
     }
+    const memoTitle = getMemoTitleInputValue('text-memo-title-input', t('텍스트 메모', 'Text Memo', 'テキストメモ'));
 
     document.getElementById('text-memo-modal').classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
-      const textPinName = memoVal.length > 18 ? `${memoVal.slice(0, 18)}...` : memoVal;
-      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, textPinName, memoVal);
+      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, memoVal);
     }
 
     const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
-    const filename = `text_memo_${cleanTourName}_${Date.now()}.txt`;
+    const memoFileBase = safeFileName(memoTitle, `text_memo_${cleanTourName}`);
+    const filename = `text_memo_${memoFileBase}_${Date.now()}.txt`;
     const textBlobToSave = new Blob([memoVal], { type: 'text/plain;charset=utf-8' });
 
     if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
       window.TravelogDeviceStorage.saveGeneratedFile('Text', filename, textBlobToSave, {
         source: 'field-text-memo',
+        title: memoTitle,
+        memoTitle,
+        memoText: memoVal,
         lat: tempPinLat,
         lng: tempPinLng
       }).then(() => {
@@ -5279,6 +5289,7 @@ const TravelogCreatorModule = (() => {
       window.TravelogApp.showToast(t("텍스트 메모가 앱에 저장되었습니다.", "Text memo saved in the app.", 'テキストメモをアプリに保存しました。'));
     }
 
+    markPublishDraftDirty();
     renderCoordinatesList();
     updatePublishPanelCounts();
   }

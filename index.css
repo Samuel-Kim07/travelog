@@ -1873,6 +1873,55 @@ nav.bottom-nav {
   padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
 }
 
+/* Text memo modal */
+.text-memo-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.text-memo-title-icon {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  object-fit: contain;
+}
+
+.text-memo-field-label {
+  display: block;
+  margin: 0 0 6px;
+  color: #373737 !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.text-memo-title-input {
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--bg-tertiary);
+  color: #373737 !important;
+  font-size: 13px;
+}
+
+.text-memo-complete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.text-memo-complete-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
 .video-memo-recorder-card {
   width: min(640px, calc(100vw - 24px));
   max-width: 640px;

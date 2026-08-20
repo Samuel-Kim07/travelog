@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1054">
+  <link rel="stylesheet" href="index.css?v=1055">
 </head>
 <body>
 
@@ -1394,14 +1394,18 @@
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel" style="max-width: 450px; padding: 30px; position: relative;">
       <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
-      <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><i class="fa-solid fa-pen-to-square" style="color: var(--color-cloud);"></i> 텍스트 가이드 메모</h3>
+      <h3 class="text-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><img class="text-memo-title-icon" src="assets/icons/text-memo/text-memo-title.svg" alt="" aria-hidden="true">텍스트 가이드 메모</h3>
       <p style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
-      
-      <textarea id="text-memo-input" placeholder="이 장소에서 도슨트 음성이나 화면 안내창으로 띄워줄 스크립트를 입력하세요..." style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: #373737 !important; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
+
+      <label class="text-memo-field-label" for="text-memo-title-input">텍스트 메모 제목</label>
+      <input class="text-memo-title-input" type="text" id="text-memo-title-input" maxlength="60" placeholder="예: 광장 앞 거리 안내">
+
+      <label class="text-memo-field-label" for="text-memo-input">메모 내용</label>
+      <textarea id="text-memo-input" maxlength="2000" placeholder="여기에 메모를 남겨 주세요" style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: #373737 !important; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
 
       <div style="display: flex; gap: 10px; width: 100%;">
         <button class="btn-rect secondary" id="text-memo-cancel" style="flex: 1; justify-content: center;">취소</button>
-        <button class="btn-rect" id="text-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);"><i class="fa-solid fa-circle-check"></i> 메모 완료</button>
+        <button class="btn-rect text-memo-complete-btn" id="text-memo-complete" style="flex: 1; justify-content: center; background: var(--grad-pink-purple);"><img class="text-memo-complete-icon" src="assets/icons/text-memo/text-memo-complete.svg" alt="" aria-hidden="true">메모 완료</button>
       </div>
     </div>
   </div>
@@ -1576,7 +1580,7 @@
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
-  <script src="creator.js?v=1018" defer></script>
+  <script src="creator.js?v=1019" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
   <script src="app.js?v=1034" defer></script>
