@@ -1742,6 +1742,40 @@ nav.bottom-nav {
   object-fit: contain;
 }
 
+/* Photo guide memo local SVG icons */
+.photo-memo-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.photo-memo-title-icon {
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  object-fit: contain;
+}
+
+.photo-memo-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.photo-memo-tool-icon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  object-fit: contain;
+}
+
+.photo-memo-complete-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  object-fit: contain;
+}
+
 /* Right: Pinterest Blogs */
 .blog-section {
   flex: 1.9;

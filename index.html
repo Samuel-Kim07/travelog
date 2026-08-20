@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1049">
+  <link rel="stylesheet" href="index.css?v=1050">
 </head>
 <body>
 
@@ -1333,7 +1333,7 @@
     <div class="profile-manager-card glass-panel" style="max-width: 640px; width: 94%; max-height: 92vh; overflow-y: auto; text-align: left; padding: 24px; position: relative;">
       <button class="btn-circle" id="photo-memo-close-btn" type="button" aria-label="사진 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <div style="padding-right: 42px; margin-bottom: 14px;">
-        <h3 style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><i class="fa-solid fa-camera-retro" style="color:#34a853;"></i> 사진 가이드 메모</h3>
+        <h3 class="photo-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><img class="photo-memo-title-icon" src="assets/icons/photo-memo/photo-memo-title.svg" alt="" aria-hidden="true"> 사진 가이드 메모</h3>
         <p id="photo-memo-status" style="font-size: 12px; color: #555555 !important; margin: 0;">카메라 촬영 또는 사진추가로 이미지를 넣고 간단히 편집하세요.</p>
       </div>
 
@@ -1343,11 +1343,11 @@
       <input type="file" id="photo-memo-camera-input" accept="image/*" capture="environment" style="display:none;">
       <input type="file" id="photo-memo-gallery-input" accept="image/*" style="display:none;">
       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
-        <button type="button" class="btn-rect secondary" id="photo-memo-camera-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-camera"></i> 카메라</button>
-        <button type="button" class="btn-rect secondary" id="photo-memo-gallery-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-image"></i> 사진추가</button>
-        <button type="button" class="btn-rect secondary" id="photo-memo-draw-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-pen"></i> 그리기</button>
-        <button type="button" class="btn-rect secondary" id="photo-memo-erase-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-eraser"></i> 지우개</button>
-        <button type="button" class="btn-rect secondary" id="photo-memo-undo-btn" style="padding:8px 12px; border-radius:12px;"><i class="fa-solid fa-rotate-left"></i> 되돌리기</button>
+        <button type="button" class="btn-rect secondary photo-memo-tool-btn" id="photo-memo-camera-btn" style="padding:8px 12px; border-radius:12px;"><img class="photo-memo-tool-icon" src="assets/icons/photo-memo/photo-camera.svg" alt="" aria-hidden="true"> 카메라</button>
+        <button type="button" class="btn-rect secondary photo-memo-tool-btn" id="photo-memo-gallery-btn" style="padding:8px 12px; border-radius:12px;"><img class="photo-memo-tool-icon" src="assets/icons/photo-memo/photo-gallery-add.svg" alt="" aria-hidden="true"> 사진추가</button>
+        <button type="button" class="btn-rect secondary photo-memo-tool-btn" id="photo-memo-draw-btn" style="padding:8px 12px; border-radius:12px;"><img class="photo-memo-tool-icon" src="assets/icons/photo-memo/photo-draw.svg" alt="" aria-hidden="true"> 그리기</button>
+        <button type="button" class="btn-rect secondary photo-memo-tool-btn" id="photo-memo-erase-btn" style="padding:8px 12px; border-radius:12px;"><img class="photo-memo-tool-icon" src="assets/icons/photo-memo/photo-eraser.svg" alt="" aria-hidden="true"> 지우개</button>
+        <button type="button" class="btn-rect secondary photo-memo-tool-btn" id="photo-memo-undo-btn" style="padding:8px 12px; border-radius:12px;"><img class="photo-memo-tool-icon" src="assets/icons/photo-memo/photo-undo.svg" alt="" aria-hidden="true"> 되돌리기</button>
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 120px; gap:10px; align-items:start; margin-bottom:12px;">
@@ -1370,7 +1370,7 @@
 
       <div style="display:flex; gap:10px; width:100%;">
         <button class="btn-rect secondary" id="photo-memo-cancel" style="flex:1; justify-content:center;">취소</button>
-        <button class="btn-rect" id="photo-memo-complete" style="flex:1; justify-content:center; background:var(--grad-pink-purple);" disabled><i class="fa-solid fa-circle-check"></i> 메모 완료</button>
+        <button class="btn-rect" id="photo-memo-complete" style="flex:1; justify-content:center; background:var(--grad-pink-purple);" disabled><img class="photo-memo-complete-icon" src="assets/icons/photo-memo/photo-complete.svg" alt="" aria-hidden="true"> 메모 완료</button>
       </div>
     </div>
   </div>
