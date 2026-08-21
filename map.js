@@ -1509,9 +1509,35 @@ const TravelogMapModule = (() => {
     return '';
   }
 
-  function buildMemoPinPopup(pin) {
+  function getMemoPinColor(pin) {
+    if (pin?.memoType === 'photo') return '#34a853';
+    if (pin?.memoType === 'video') return '#00adb5';
+    if (pin?.memoType === 'audio') return '#ff2e63';
+    return '#ffb703';
+  }
+
+  function groupMemoPinsByLocation(pins, maxDistanceMeters = 6) {
+    const groups = [];
+    (pins || [])
+      .filter(pin => Number.isFinite(Number(pin.lat)) && Number.isFinite(Number(pin.lng)))
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .forEach((pin) => {
+        const lat = Number(pin.lat);
+        const lng = Number(pin.lng);
+        let group = groups.find(item => getDistanceInMeters(lat, lng, item.lat, item.lng) <= maxDistanceMeters);
+        if (!group) {
+          group = { lat, lng, pins: [] };
+          groups.push(group);
+        }
+        group.pins.push(pin);
+      });
+    return groups.map(group => ({ ...group, count: group.pins.length, primary: group.pins[0] }));
+  }
+
+  function buildMemoPinPopup(pin, options = {}) {
     const content = pin.content ? `<p style="margin:5px 0 6px;font-size:12px;line-height:1.45;color:#666;">${escapeHtml(pin.content)}</p>` : '';
     const owner = pin.ownerName ? `<small style="display:block;color:#70878f;margin-bottom:5px;font-weight:700;">${t('작성자: ', 'Author: ', '作成者: ')}${escapeHtml(pin.ownerName)}</small>` : '';
+    const backButton = options.showListBack ? `<button type="button" data-memo-pin-list-back style="display:inline-flex;align-items:center;gap:4px;margin:0 0 8px;padding:5px 9px;border:1px solid rgba(112,162,183,.28);border-radius:9px;background:#edf7f8;color:#406d7e;font-size:11px;font-weight:800;cursor:pointer;">← ${t('메모 목록', 'Memo list', 'メモ一覧')}</button>` : '';
     const actions = pin.isOwner ? `
       <div class="memo-pin-popup-actions">
         <button type="button" onclick="TravelogMapModule.openMemoPinExtension('${pin.id}')">${t('연장하기', 'Extend', '延長')}</button>
@@ -1519,6 +1545,7 @@ const TravelogMapModule = (() => {
       </div>` : '';
     return `
       <div class="memo-popup" style="padding:4px;min-width:220px;">
+        ${backButton}
         <h4 style="margin:0 0 3px;font-size:14px;font-weight:800;color:#373737 !important;">${escapeHtml(pin.title)}</h4>
         ${owner}
         <span style="font-size:10px;color:#78909a;">${getMemoTypeLabel(pin.memoType)}</span>
@@ -1527,6 +1554,43 @@ const TravelogMapModule = (() => {
         <span class="memo-pin-popup-expiry" data-memo-pin-expiry="${escapeHtml(pin.expiresAt)}">${t('남은 시간: ', 'Time remaining: ', '残り時間: ')}${formatMemoPinRemaining(pin.expiresAt)}</span>
         ${actions}
       </div>`;
+  }
+
+  function buildMemoPinListPopup(pins) {
+    const safePins = Array.isArray(pins) ? pins : [];
+    return `
+      <div class="memo-popup" style="padding:6px;min-width:230px;">
+        <h4 style="margin:0 0 4px;font-size:14px;font-weight:800;color:#373737 !important;">${t('이 위치의 메모 목록', 'Memos at this location', 'この位置のメモ一覧')}</h4>
+        <small style="display:block;margin-bottom:9px;color:#78909a;">${t(`총 ${safePins.length}개의 메모`, `${safePins.length} memos`, `メモ${safePins.length}件`)}</small>
+        <div style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;">
+          ${safePins.map((pin, index) => `
+            <button type="button" data-memo-pin-list-index="${index}" style="width:100%;text-align:left;border:1px solid rgba(112,162,183,.24);background:#fff;border-radius:11px;padding:9px 10px;cursor:pointer;color:#373737;">
+              <strong style="display:block;font-size:12px;line-height:1.35;">${index + 1}. ${escapeHtml(pin.title)}</strong>
+              <span style="display:block;margin-top:3px;font-size:10px;color:#78909a;">${escapeHtml(getMemoTypeLabel(pin.memoType))}${pin.ownerName ? ` · ${escapeHtml(pin.ownerName)}` : ''} · ${escapeHtml(formatMemoPinRemaining(pin.expiresAt))}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  function bindMemoPinGroupPopup(marker, pins) {
+    const popupEl = marker?.getPopup?.()?.getElement?.();
+    if (!popupEl) return;
+    popupEl.querySelectorAll('[data-memo-pin-list-index]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const pin = pins[Number(button.getAttribute('data-memo-pin-list-index'))];
+        if (!pin) return;
+        marker.setPopupContent(buildMemoPinPopup(pin, { showListBack: true }));
+        marker.getPopup()?.update?.();
+        bindMemoPinGroupPopup(marker, pins);
+        refreshMemoPinExpiryLabels();
+      }, { once: true });
+    });
+    popupEl.querySelector('[data-memo-pin-list-back]')?.addEventListener('click', () => {
+      marker.setPopupContent(buildMemoPinListPopup(pins));
+      marker.getPopup()?.update?.();
+      bindMemoPinGroupPopup(marker, pins);
+    }, { once: true });
   }
 
   async function loadMemoPins(options = {}) {
@@ -1693,15 +1757,26 @@ const TravelogMapModule = (() => {
     });
 
     memoPinItems = memoPinItems.filter(pin => new Date(pin.expiresAt).getTime() > Date.now());
-    memoPinItems.forEach((pin) => {
-      if (!Number.isFinite(Number(pin.lat)) || !Number.isFinite(Number(pin.lng))) return;
-      const marker = L.marker([Number(pin.lat), Number(pin.lng)], {
-        icon: createHtmlIcon('fa-solid fa-note-sticky', pin.memoType === 'photo' ? '#34a853' : pin.memoType === 'video' ? '#00adb5' : pin.memoType === 'audio' ? '#ff2e63' : '#ffb703')
+    groupMemoPinsByLocation(memoPinItems).forEach((group) => {
+      const markerColor = getMemoPinColor(group.primary);
+      const marker = L.marker([group.lat, group.lng], {
+        icon: group.count > 1
+          ? createCountIcon(group.count, markerColor)
+          : createHtmlIcon('fa-solid fa-note-sticky', markerColor)
       });
-      marker.bindPopup(buildMemoPinPopup(pin), { maxWidth: 290 });
-      marker.on('popupopen', refreshMemoPinExpiryLabels);
+      if (group.count > 1) {
+        marker.bindPopup(buildMemoPinListPopup(group.pins), { maxWidth: 310 });
+        marker.on('popupopen', () => {
+          bindMemoPinGroupPopup(marker, group.pins);
+          refreshMemoPinExpiryLabels();
+        });
+        marker.on('popupclose', () => marker.setPopupContent(buildMemoPinListPopup(group.pins)));
+      } else {
+        marker.bindPopup(buildMemoPinPopup(group.primary), { maxWidth: 290 });
+        marker.on('popupopen', refreshMemoPinExpiryLabels);
+      }
       memoMarkersLayer.addLayer(marker);
-      applyColorFilterToMarker(marker, pin.memoType === 'photo' ? '#34a853' : pin.memoType === 'video' ? '#00adb5' : pin.memoType === 'audio' ? '#ff2e63' : '#ffb703');
+      if (group.count === 1) applyColorFilterToMarker(marker, markerColor);
     });
     updateMapOverview();
   }
