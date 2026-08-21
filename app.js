@@ -2537,6 +2537,202 @@ let passwordRecoveryActive = false;
 let passwordRecoverySessionReady = false;
 let passwordRecoverySubmitting = false;
 let passwordRecoverySubscription = null;
+const ACCESS_REGION_PREFS_KEY = 'travelog_access_region_preferences_v1';
+const ACCESS_REGION_PROMPT_RETRY_DAYS = 7;
+let accessRegionRecordBusy = false;
+let accessRegionPromptTimer = 0;
+
+function readAccessRegionPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ACCESS_REGION_PREFS_KEY) || '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function getAccessRegionUserId() {
+  return String(TravelogState.userProfile?.supabaseUserId || '').trim();
+}
+
+function getAccessRegionPreference() {
+  const userId = getAccessRegionUserId();
+  return userId ? readAccessRegionPreferences()[userId] || null : null;
+}
+
+function saveAccessRegionPreference(patch = {}) {
+  const userId = getAccessRegionUserId();
+  if (!userId) return null;
+  const all = readAccessRegionPreferences();
+  all[userId] = { ...(all[userId] || {}), ...patch, userId };
+  try { localStorage.setItem(ACCESS_REGION_PREFS_KEY, JSON.stringify(all)); } catch (_) {}
+  updateAccessRegionSettingUi();
+  return all[userId];
+}
+
+function setAccessRegionFeedback(message, type = 'info') {
+  const feedback = document.getElementById('access-region-consent-feedback');
+  if (!feedback) return;
+  feedback.textContent = String(message || '');
+  feedback.classList.remove('success', 'error', 'info');
+  feedback.classList.add(type === 'success' ? 'success' : type === 'error' ? 'error' : 'info');
+  feedback.style.display = message ? 'block' : 'none';
+}
+
+function updateAccessRegionSettingUi() {
+  const preference = getAccessRegionPreference();
+  const enabled = preference?.status === 'granted';
+  const checkbox = document.getElementById('profile-access-region-toggle');
+  const status = document.getElementById('profile-access-region-status');
+  if (checkbox) checkbox.checked = enabled;
+  if (status) {
+    status.textContent = enabled
+      ? localizedText('기록 중 · 하루 한 번, 약 1km 단위', 'Enabled · once daily, approximately 1 km precision', '記録中・1日1回、約1km単位')
+      : localizedText('기록하지 않음', 'Not recording', '記録しない');
+  }
+}
+
+function closeAccessRegionConsentModal(options = {}) {
+  const modal = document.getElementById('access-region-consent-modal');
+  modal?.classList.remove('active');
+  modal?.setAttribute('aria-hidden', 'true');
+  setAccessRegionFeedback('', 'info');
+  if (options.dismissed === true) {
+    saveAccessRegionPreference({ status: 'dismissed', dismissedAt: new Date().toISOString() });
+  }
+}
+
+function showAccessRegionConsentModal() {
+  const modal = document.getElementById('access-region-consent-modal');
+  if (!modal || !getAccessRegionUserId()) return;
+  setAccessRegionFeedback('', 'info');
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function getAccessRegionErrorMessage(error) {
+  const code = String(error?.code || error?.name || '').toUpperCase();
+  const message = String(error?.message || error || '').toUpperCase();
+  if (code === '1' || code === 'PERMISSION_DENIED') {
+    return localizedText('위치 권한이 거부되었습니다. 브라우저 사이트 권한에서 위치를 허용한 뒤 다시 시도해 주세요.', 'Location permission was denied. Allow location in the browser site settings and try again.', '位置情報の権限が拒否されました。ブラウザのサイト設定で許可して再試行してください。');
+  }
+  if (code === '2' || code === 'POSITION_UNAVAILABLE') {
+    return localizedText('현재 위치를 확인할 수 없습니다. GPS 또는 네트워크 상태를 확인해 주세요.', 'Your location is unavailable. Check GPS or network status.', '現在地を確認できません。GPSまたはネットワークを確認してください。');
+  }
+  if (code === '3' || code === 'TIMEOUT') {
+    return localizedText('위치 확인 시간이 초과되었습니다. 다시 시도해 주세요.', 'Location lookup timed out. Please try again.', '位置情報の取得がタイムアウトしました。再試行してください。');
+  }
+  if (message.includes('USER_ACCESS_REGIONS') || message.includes('PGRST205') || message.includes('SCHEMA CACHE')) {
+    return localizedText('접속 지역 저장용 Supabase SQL을 먼저 실행해 주세요.', 'Run the Supabase access-region setup SQL first.', '接続地域保存用のSupabase SQLを先に実行してください。');
+  }
+  return localizedText('접속 지역을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'Could not save the access region. Try again shortly.', '接続地域を保存できませんでした。しばらくしてから再試行してください。');
+}
+
+function getBrowserPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      const error = new Error('GEOLOCATION_NOT_SUPPORTED');
+      error.code = 'GEOLOCATION_NOT_SUPPORTED';
+      reject(error);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 12000,
+      maximumAge: 300000
+    });
+  });
+}
+
+async function recordConsentedAccessRegion(options = {}) {
+  if (accessRegionRecordBusy || !getAccessRegionUserId()) return false;
+  if (!window.TravelogSupabase?.recordAccessRegion) return false;
+  accessRegionRecordBusy = true;
+  const allowButton = document.getElementById('access-region-consent-allow');
+  if (allowButton) allowButton.disabled = true;
+  if (!options.silent) {
+    setAccessRegionFeedback(localizedText('현재 접속 지역을 확인하고 있습니다...', 'Checking your current access region...', '現在の接続地域を確認しています...'), 'info');
+  }
+  try {
+    const position = await getBrowserPosition();
+    saveAccessRegionPreference({ status: 'granted', grantedAt: new Date().toISOString() });
+    await window.TravelogSupabase.recordAccessRegion({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      locale: navigator.language
+    });
+    saveAccessRegionPreference({
+      status: 'granted',
+      lastRecordedDate: new Date().toISOString().slice(0, 10),
+      lastRecordedAt: new Date().toISOString()
+    });
+    if (!options.silent) {
+      setAccessRegionFeedback(localizedText('접속 지역을 안전하게 기록했습니다.', 'Your access region was recorded.', '接続地域を安全に記録しました。'), 'success');
+      window.setTimeout(() => closeAccessRegionConsentModal(), 650);
+    }
+    return true;
+  } catch (error) {
+    console.warn('[Travelog Access Region] Record failed:', error);
+    if (String(error?.code || '') === '1') {
+      saveAccessRegionPreference({ status: 'denied', deniedAt: new Date().toISOString() });
+    }
+    if (!options.silent) setAccessRegionFeedback(getAccessRegionErrorMessage(error), 'error');
+    return false;
+  } finally {
+    accessRegionRecordBusy = false;
+    if (allowButton) allowButton.disabled = false;
+    updateAccessRegionSettingUi();
+  }
+}
+
+function maybePromptAccessRegionConsent() {
+  if (!TravelogState.userProfile?.isOnboarded || !getAccessRegionUserId()) return;
+  const preference = getAccessRegionPreference();
+  const today = new Date().toISOString().slice(0, 10);
+  if (preference?.status === 'granted') {
+    if (preference.lastRecordedDate !== today) recordConsentedAccessRegion({ silent: true });
+    return;
+  }
+  if (preference?.status === 'denied' || preference?.status === 'revoked') return;
+  if (preference?.status === 'dismissed' && preference.dismissedAt) {
+    const retryAt = new Date(preference.dismissedAt).getTime() + ACCESS_REGION_PROMPT_RETRY_DAYS * 86400000;
+    if (Date.now() < retryAt) return;
+  }
+  showAccessRegionConsentModal();
+}
+
+function scheduleAccessRegionConsentCheck(delay = 700) {
+  if (accessRegionPromptTimer) window.clearTimeout(accessRegionPromptTimer);
+  accessRegionPromptTimer = window.setTimeout(() => {
+    accessRegionPromptTimer = 0;
+    maybePromptAccessRegionConsent();
+  }, delay);
+}
+
+function bindAccessRegionControls() {
+  const modal = document.getElementById('access-region-consent-modal');
+  const allowButton = document.getElementById('access-region-consent-allow');
+  const laterButton = document.getElementById('access-region-consent-later');
+  const closeButton = document.getElementById('access-region-consent-close');
+  const toggle = document.getElementById('profile-access-region-toggle');
+  allowButton?.addEventListener('click', () => recordConsentedAccessRegion({ silent: false }));
+  laterButton?.addEventListener('click', () => closeAccessRegionConsentModal({ dismissed: true }));
+  closeButton?.addEventListener('click', () => closeAccessRegionConsentModal({ dismissed: true }));
+  modal?.addEventListener('click', (event) => {
+    if (event.target === modal) closeAccessRegionConsentModal({ dismissed: true });
+  });
+  toggle?.addEventListener('change', () => {
+    if (toggle.checked) {
+      showAccessRegionConsentModal();
+    } else {
+      saveAccessRegionPreference({ status: 'revoked', revokedAt: new Date().toISOString() });
+      closeAccessRegionConsentModal();
+    }
+  });
+  updateAccessRegionSettingUi();
+}
 
 function setPasswordRecoveryFeedback(message, type = 'info') {
   const feedback = document.getElementById('password-recovery-feedback');
@@ -2795,6 +2991,7 @@ function initOnboarding(options = {}) {
     showPasswordRecoveryScreen();
   } else if (TravelogState.userProfile.isOnboarded) {
     hideOnboardingOverlay(true);
+    scheduleAccessRegionConsentCheck(700);
   } else {
     clearOnboardingLoginFeedback();
     showOnboardingScreen('login');
@@ -3613,6 +3810,7 @@ async function verifyProfileManagerNicknameChange() {
 }
 
 function bindProfileManagerEvents() {
+  bindAccessRegionControls();
   const widget = document.getElementById('user-profile-widget');
   if (widget) {
     widget.addEventListener('click', openProfileManagerModal);
@@ -3721,6 +3919,7 @@ function openProfileManagerModal() {
   renderProfileSampleAvatars();
   updateProfileManagerPreview();
   setProfileNicknameEditMode(false, { restoreOriginal: false });
+  updateAccessRegionSettingUi();
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
 }
@@ -3888,6 +4087,8 @@ async function applySupabaseProfileToLocal(remoteProfile, options = {}) {
     });
   }
 
+  scheduleAccessRegionConsentCheck(700);
+
   return true;
 }
 
@@ -4036,6 +4237,7 @@ async function completeOnboarding() {
   renderUserProfileWidget();
   renderHomeTab();
   hideOnboardingOverlay(false);
+  scheduleAccessRegionConsentCheck(700);
 
   window.setTimeout(() => {
     if (window.TravelogMapModule && typeof window.TravelogMapModule.invalidateSize === 'function') {

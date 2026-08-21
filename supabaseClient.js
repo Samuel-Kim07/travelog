@@ -1794,6 +1794,43 @@ const TravelogSupabase = (() => {
     return true;
   }
 
+  async function recordAccessRegion(payload = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const session = await getSession();
+    const userId = session?.user?.id || '';
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+
+    const latitude = Number(payload.latitude);
+    const longitude = Number(payload.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90
+      || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new Error('INVALID_ACCESS_REGION_COORDINATES');
+    }
+
+    const accuracy = Math.max(0, Number(payload.accuracy) || 0);
+    const row = {
+      user_id: userId,
+      access_date: new Date().toISOString().slice(0, 10),
+      latitude_rounded: Math.round(latitude * 100) / 100,
+      longitude_rounded: Math.round(longitude * 100) / 100,
+      accuracy_bucket_m: Math.min(50000, Math.ceil(accuracy / 100) * 100),
+      timezone: String(payload.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC').slice(0, 80),
+      locale: String(payload.locale || navigator.language || 'unknown').slice(0, 35),
+      consent_version: 'travelog-access-region-v1',
+      captured_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('user_access_regions')
+      .upsert(row, { onConflict: 'user_id,access_date' })
+      .select('id, user_id, access_date, latitude_rounded, longitude_rounded, accuracy_bucket_m, timezone, locale, captured_at')
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
   async function signOut() {
     const supabase = getClient();
     if (!supabase) return true;
@@ -1834,6 +1871,7 @@ const TravelogSupabase = (() => {
     createMemoPin,
     extendMemoPin,
     deleteMemoPin,
+    recordAccessRegion,
     publishGuidePackage,
     fetchPublishedGuideCards,
     purchaseGuide,
