@@ -1644,10 +1644,14 @@ const TravelogSupabase = (() => {
   function normalizeMemoPinRow(row, currentUserId = '') {
     if (!row) return null;
     const profile = row.profiles || row.owner_profile || null;
+    const isOwner = !!currentUserId && row.owner_id === currentUserId;
+    const currentNickname = isOwner
+      ? String(window.TravelogApp?.getState?.()?.userProfile?.nickname || '').trim()
+      : '';
     return {
       id: row.id,
       ownerId: row.owner_id,
-      ownerName: profile?.display_name || '',
+      ownerName: String(profile?.display_name || row.metadata?.owner_nickname || currentNickname || '').trim(),
       title: row.title || t('메모 핀', 'Memo Pin', 'メモピン'),
       memoType: row.memo_type || 'text',
       content: row.content || '',
@@ -1662,7 +1666,7 @@ const TravelogSupabase = (() => {
       createdAt: row.created_at || '',
       updatedAt: row.updated_at || '',
       expiresAt: row.expires_at || '',
-      isOwner: !!currentUserId && row.owner_id === currentUserId,
+      isOwner,
       isRemote: true
     };
   }
@@ -1746,7 +1750,10 @@ const TravelogSupabase = (() => {
       media_path: mediaPath || null,
       media_mime_type: blob?.type || null,
       media_size_bytes: blob?.size || null,
-      metadata: payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}
+      metadata: {
+        ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}),
+        owner_nickname: String(window.TravelogApp?.getState?.()?.userProfile?.nickname || '').trim()
+      }
     };
 
     const { data, error } = await supabase.from('memo_pins').insert(row).select().single();

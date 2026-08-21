@@ -1511,7 +1511,7 @@ const TravelogMapModule = (() => {
 
   function buildMemoPinPopup(pin) {
     const content = pin.content ? `<p style="margin:5px 0 6px;font-size:12px;line-height:1.45;color:#666;">${escapeHtml(pin.content)}</p>` : '';
-    const owner = pin.ownerName ? `<small style="display:block;color:#8b9aa0;margin-bottom:5px;">${escapeHtml(pin.ownerName)}</small>` : '';
+    const owner = pin.ownerName ? `<small style="display:block;color:#70878f;margin-bottom:5px;font-weight:700;">${t('작성자: ', 'Author: ', '作成者: ')}${escapeHtml(pin.ownerName)}</small>` : '';
     const actions = pin.isOwner ? `
       <div class="memo-pin-popup-actions">
         <button type="button" onclick="TravelogMapModule.openMemoPinExtension('${pin.id}')">${t('연장하기', 'Extend', '延長')}</button>
@@ -1624,10 +1624,18 @@ const TravelogMapModule = (() => {
       window.TravelogApp?.showToast(t(`${memoPinExtensionBlocks * 7}일 연장되었습니다.`, `Extended by ${memoPinExtensionBlocks * 7} days.`, `${memoPinExtensionBlocks * 7}日延長しました。`));
     } catch (error) {
       console.warn('[Travelog Memo Pin] Extension failed:', error);
-      const message = String(error?.message || '').toUpperCase();
-      if (feedback) feedback.textContent = message.includes('INSUFFICIENT_COINS')
-        ? t('Supabase 코인 잔액이 부족합니다.', 'Your Supabase coin balance is too low.', 'Supabaseのコイン残高が不足しています。')
-        : t('연장하지 못했습니다. SQL 설치와 네트워크 상태를 확인해 주세요.', 'Could not extend the pin. Check SQL setup and the network.', '延長できませんでした。SQL設定とネットワークを確認してください。');
+      const message = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''}`.toUpperCase();
+      let userMessage = t('연장하지 못했습니다. 잠시 후 다시 시도해 주세요.', 'Could not extend the pin. Please try again shortly.', '延長できませんでした。しばらくしてから再度お試しください。');
+      if (message.includes('INSUFFICIENT_COINS')) {
+        userMessage = t('Supabase 코인 잔액이 부족합니다.', 'Your Supabase coin balance is too low.', 'Supabaseのコイン残高が不足しています。');
+      } else if (message.includes('PGRST202') || message.includes('EXTEND_MEMO_PIN') || message.includes('AMBIGUOUS')) {
+        userMessage = t('메모 연장 기능을 업데이트해야 합니다. 제공된 복구 SQL을 한 번 실행해 주세요.', 'The memo extension function needs an update. Run the supplied repair SQL once.', 'メモ延長機能の更新が必要です。提供された修復SQLを一度実行してください。');
+      } else if (message.includes('MEMO_PIN_NOT_FOUND_OR_NOT_OWNER')) {
+        userMessage = t('메모를 찾을 수 없거나 연장 권한이 없습니다.', 'The memo was not found or you do not have permission to extend it.', 'メモが見つからないか、延長権限がありません。');
+      } else if (message.includes('PROFILE_NOT_FOUND')) {
+        userMessage = t('Supabase 프로필을 찾을 수 없습니다. 다시 로그인해 주세요.', 'Your Supabase profile was not found. Please sign in again.', 'Supabaseプロフィールが見つかりません。再度ログインしてください。');
+      }
+      if (feedback) feedback.textContent = userMessage;
       renderMemoPinExtensionUi();
     }
   }
