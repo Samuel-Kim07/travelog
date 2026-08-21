@@ -37,6 +37,7 @@ const TravelogCreatorModule = (() => {
   let tempPinLat = 0;
   let tempPinLng = 0;
   let pinCreationMode = 'guide';
+  let textMemoViewportFrame = 0;
 
   const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
   const DRIVE_PARENT_FOLDER_URL = 'https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link';
@@ -610,6 +611,7 @@ const TravelogCreatorModule = (() => {
     // 4) 텍스트 메모 모달 바인딩
     const textComplete = document.getElementById('text-memo-complete');
     if (textComplete) {
+      initTextMemoKeyboardFocusTracking();
       document.getElementById('text-memo-cancel').addEventListener('click', closeTextMemoModal);
       const textCloseBtn = document.getElementById('text-memo-close-btn');
       if (textCloseBtn) textCloseBtn.addEventListener('click', closeTextMemoModal);
@@ -3792,7 +3794,91 @@ const TravelogCreatorModule = (() => {
     if (input) input.value = '';
     const titleInput = document.getElementById('text-memo-title-input');
     if (titleInput) titleInput.value = '';
+    resetTextMemoKeyboardFocus();
     setModalHidden('text-memo-modal', true);
+  }
+
+  function resetTextMemoKeyboardFocus() {
+    if (textMemoViewportFrame) {
+      window.cancelAnimationFrame(textMemoViewportFrame);
+      textMemoViewportFrame = 0;
+    }
+    const modal = document.getElementById('text-memo-modal');
+    const card = modal?.querySelector('.text-memo-editor-card');
+    modal?.classList.remove('text-memo-keyboard-active');
+    if (modal) {
+      modal.style.removeProperty('top');
+      modal.style.removeProperty('bottom');
+      modal.style.removeProperty('height');
+      modal.style.removeProperty('max-height');
+    }
+    if (card) {
+      card.style.removeProperty('transform');
+      card.scrollTop = 0;
+    }
+  }
+
+  function centerTextMemoFocusedField() {
+    const modal = document.getElementById('text-memo-modal');
+    if (!modal?.classList.contains('active')) return;
+    const activeField = document.activeElement;
+    if (!activeField || !modal.contains(activeField) || !activeField.matches('input, textarea')) return;
+
+    const viewport = window.visualViewport;
+    const visibleTop = Math.max(0, Number(viewport?.offsetTop || 0));
+    const visibleHeight = Math.max(240, Number(viewport?.height || window.innerHeight || 0));
+    const card = modal.querySelector('.text-memo-editor-card');
+    if (!card) return;
+
+    modal.classList.add('text-memo-keyboard-active');
+    modal.style.top = `${visibleTop}px`;
+    modal.style.bottom = 'auto';
+    modal.style.height = `${visibleHeight}px`;
+    modal.style.maxHeight = `${visibleHeight}px`;
+    card.style.transform = 'translateY(0px)';
+
+    const maxScroll = Math.max(0, card.scrollHeight - card.clientHeight);
+    const desiredScroll = activeField.offsetTop + (activeField.offsetHeight / 2) - (card.clientHeight / 2);
+    card.scrollTop = Math.max(0, Math.min(maxScroll, desiredScroll));
+
+    const modalRect = modal.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const fieldRect = activeField.getBoundingClientRect();
+    const safeTop = modalRect.top + 10;
+    const safeBottom = modalRect.bottom - 10;
+    const targetCenter = safeTop + ((safeBottom - safeTop) * 0.5);
+    let shift = targetCenter - (fieldRect.top + (fieldRect.height / 2));
+
+    if (cardRect.height <= safeBottom - safeTop) {
+      const minimumShift = safeTop - cardRect.top;
+      const maximumShift = safeBottom - cardRect.bottom;
+      shift = Math.max(minimumShift, Math.min(maximumShift, shift));
+      card.style.transform = `translateY(${Math.round(shift)}px)`;
+    }
+  }
+
+  function scheduleTextMemoFocusedFieldCenter() {
+    if (textMemoViewportFrame) window.cancelAnimationFrame(textMemoViewportFrame);
+    textMemoViewportFrame = window.requestAnimationFrame(() => {
+      textMemoViewportFrame = 0;
+      centerTextMemoFocusedField();
+    });
+  }
+
+  function initTextMemoKeyboardFocusTracking() {
+    const modal = document.getElementById('text-memo-modal');
+    if (!modal || modal.dataset.keyboardFocusBound === 'true') return;
+    modal.dataset.keyboardFocusBound = 'true';
+    modal.addEventListener('focusin', scheduleTextMemoFocusedFieldCenter);
+    modal.addEventListener('input', scheduleTextMemoFocusedFieldCenter);
+    modal.addEventListener('focusout', () => {
+      window.setTimeout(() => {
+        if (!modal.contains(document.activeElement)) resetTextMemoKeyboardFocus();
+      }, 80);
+    });
+    window.visualViewport?.addEventListener('resize', scheduleTextMemoFocusedFieldCenter, { passive: true });
+    window.visualViewport?.addEventListener('scroll', scheduleTextMemoFocusedFieldCenter, { passive: true });
+    window.addEventListener('orientationchange', () => window.setTimeout(scheduleTextMemoFocusedFieldCenter, 250), { passive: true });
   }
 
   function waitForFieldMemoBlob(kind) {
@@ -5353,6 +5439,7 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
+    resetTextMemoKeyboardFocus();
     document.getElementById('text-memo-modal').classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
