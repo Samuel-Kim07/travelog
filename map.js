@@ -1534,10 +1534,9 @@ const TravelogMapModule = (() => {
     return groups.map(group => ({ ...group, count: group.pins.length, primary: group.pins[0] }));
   }
 
-  function buildMemoPinPopup(pin, options = {}) {
+  function buildMemoPinPopup(pin) {
     const content = pin.content ? `<p style="margin:5px 0 6px;font-size:12px;line-height:1.45;color:#666;">${escapeHtml(pin.content)}</p>` : '';
     const owner = pin.ownerName ? `<small style="display:block;color:#70878f;margin-bottom:5px;font-weight:700;">${t('작성자: ', 'Author: ', '作成者: ')}${escapeHtml(pin.ownerName)}</small>` : '';
-    const backButton = options.showListBack ? `<button type="button" data-memo-pin-list-back style="display:inline-flex;align-items:center;gap:4px;margin:0 0 8px;padding:5px 9px;border:1px solid rgba(112,162,183,.28);border-radius:9px;background:#edf7f8;color:#406d7e;font-size:11px;font-weight:800;cursor:pointer;">← ${t('메모 목록', 'Memo list', 'メモ一覧')}</button>` : '';
     const actions = pin.isOwner ? `
       <div class="memo-pin-popup-actions">
         <button type="button" onclick="TravelogMapModule.openMemoPinExtension('${pin.id}')">${t('연장하기', 'Extend', '延長')}</button>
@@ -1545,7 +1544,6 @@ const TravelogMapModule = (() => {
       </div>` : '';
     return `
       <div class="memo-popup" style="padding:4px;min-width:220px;">
-        ${backButton}
         <h4 style="margin:0 0 3px;font-size:14px;font-weight:800;color:#373737 !important;">${escapeHtml(pin.title)}</h4>
         ${owner}
         <span style="font-size:10px;color:#78909a;">${getMemoTypeLabel(pin.memoType)}</span>
@@ -1554,6 +1552,45 @@ const TravelogMapModule = (() => {
         <span class="memo-pin-popup-expiry" data-memo-pin-expiry="${escapeHtml(pin.expiresAt)}">${t('남은 시간: ', 'Time remaining: ', '残り時間: ')}${formatMemoPinRemaining(pin.expiresAt)}</span>
         ${actions}
       </div>`;
+  }
+
+  function closeMemoPinDetailOverlay() {
+    const modal = document.getElementById('memo-pin-detail-overlay');
+    if (!modal) return;
+    modal.querySelectorAll('audio, video').forEach((media) => {
+      try { media.pause(); } catch (_) {}
+    });
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openMemoPinDetailOverlay(pin) {
+    if (!pin) return;
+    let modal = document.getElementById('memo-pin-detail-overlay');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'memo-pin-detail-overlay';
+      modal.className = 'profile-manager-modal';
+      modal.style.zIndex = '2600';
+      modal.innerHTML = `
+        <div class="profile-manager-card glass-panel" role="dialog" aria-modal="true" aria-label="${t('메모 상세 내용', 'Memo details', 'メモ詳細')}" style="width:min(390px,calc(100vw - 28px));max-height:calc(var(--app-visual-height,100dvh) - 28px);padding:48px 20px 22px;position:relative;overflow-y:auto;">
+          <button class="btn-circle" id="memo-pin-detail-close" type="button" aria-label="${t('메모 상세 닫기', 'Close memo details', 'メモ詳細を閉じる')}" style="position:absolute;top:12px;right:12px;width:34px;height:34px;">
+            <img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true">
+          </button>
+          <div id="memo-pin-detail-content"></div>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('#memo-pin-detail-close')?.addEventListener('click', closeMemoPinDetailOverlay);
+      modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeMemoPinDetailOverlay();
+      });
+    }
+    const contentEl = modal.querySelector('#memo-pin-detail-content');
+    if (contentEl) contentEl.innerHTML = buildMemoPinPopup(pin);
+    modal.dataset.memoPinId = String(pin.id || '');
+    modal.classList.add('active');
+    modal.setAttribute('aria-hidden', 'false');
+    window.requestAnimationFrame(refreshMemoPinExpiryLabels);
   }
 
   function buildMemoPinListPopup(pins) {
@@ -1577,20 +1614,14 @@ const TravelogMapModule = (() => {
     const popupEl = marker?.getPopup?.()?.getElement?.();
     if (!popupEl) return;
     popupEl.querySelectorAll('[data-memo-pin-list-index]').forEach((button) => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
         const pin = pins[Number(button.getAttribute('data-memo-pin-list-index'))];
         if (!pin) return;
-        marker.setPopupContent(buildMemoPinPopup(pin, { showListBack: true }));
-        marker.getPopup()?.update?.();
-        bindMemoPinGroupPopup(marker, pins);
-        refreshMemoPinExpiryLabels();
+        openMemoPinDetailOverlay(pin);
       }, { once: true });
     });
-    popupEl.querySelector('[data-memo-pin-list-back]')?.addEventListener('click', () => {
-      marker.setPopupContent(buildMemoPinListPopup(pins));
-      marker.getPopup()?.update?.();
-      bindMemoPinGroupPopup(marker, pins);
-    }, { once: true });
   }
 
   async function loadMemoPins(options = {}) {
@@ -1727,6 +1758,7 @@ const TravelogMapModule = (() => {
     try {
       await window.TravelogSupabase.deleteMemoPin(pin);
       memoPinItems = memoPinItems.filter(item => String(item.id) !== String(pinId));
+      closeMemoPinDetailOverlay();
       renderUserMemoMarkers();
       window.TravelogApp?.showToast(t('메모 핀을 삭제했습니다.', 'Memo pin deleted.', 'メモピンを削除しました。'));
     } catch (error) {
