@@ -1,0 +1,106 @@
+Travelog 일반 메모 핀 Supabase 적용 안내
+=========================================
+
+1. 왜 SQL이 필요한가요?
+----------------------
+일반 메모 핀은 가이드 제작용 핀과 수명·결제 규칙이 다릅니다.
+따라서 가이드 테이블에 섞지 않고 public.memo_pins 테이블로 별도 관리합니다.
+
+- 최초 생성: 서버 시각 기준 3일 유지
+- 연장 단위: 7일
+- 연장 가격: 7일마다 500코인
+- 예: 14일 선택 = 2블록 = 1,000코인
+- 만료된 핀: 데이터 조회와 지도 표시에서 자동 제외
+- 미디어: 비공개 memo-pin-media Storage 버킷에 저장
+
+2. Supabase에서 실행하는 순서
+----------------------------
+1) Supabase Dashboard에 로그인합니다.
+2) 해당 Travelog 프로젝트를 선택합니다.
+3) 왼쪽 메뉴의 SQL Editor를 엽니다.
+4) New query를 누릅니다.
+5) MEMO_PIN_SUPABASE_SETUP.sql 파일 내용을 전부 복사해 붙여 넣습니다.
+6) Run을 누릅니다.
+7) 맨 아래 확인 결과에 다음 3개가 표시되는지 확인합니다.
+   - table: memo_pins
+   - function: extend_memo_pin(uuid,integer)
+   - bucket: memo-pin-media
+
+3. Dashboard에서 추가로 확인할 곳
+---------------------------------
+- Table Editor > memo_pins
+  메모를 만들면 행이 추가되고 expires_at이 created_at보다 약 3일 뒤인지 확인합니다.
+
+- Storage > memo-pin-media
+  음성·영상·사진 메모를 만들면 사용자 UUID/메모 UUID/파일 구조로 저장됩니다.
+
+- Table Editor > profiles
+  연장 전후 coin_balance가 500 × 선택 블록 수만큼 감소하는지 확인합니다.
+
+4. 연장이 안전하게 처리되는 방식
+-------------------------------
+브라우저가 코인을 먼저 빼고 날짜를 따로 바꾸지 않습니다.
+extend_memo_pin RPC가 데이터베이스 내부 한 트랜잭션에서 다음을 함께 처리합니다.
+
+1) 로그인 사용자와 메모 핀 소유자가 같은지 확인
+2) 선택 블록 수가 1~52인지 확인
+3) profiles.coin_balance 행 잠금
+4) 코인 부족 여부 확인
+5) 코인 차감
+6) expires_at에 7일 × 블록 수 추가
+
+중간에 하나라도 실패하면 코인 차감과 날짜 연장이 모두 취소됩니다.
+
+5. RLS 보안 규칙
+----------------
+- 로그인 사용자는 본인이 만든 만료 전 메모 핀만 조회할 수 있습니다.
+- 새 핀은 로그인한 본인 owner_id로만 생성할 수 있습니다.
+- 생성 시 만료일을 임의로 3일 이상 늘릴 수 없습니다.
+- 일반 UPDATE는 차단되어 있으며 연장은 RPC로만 가능합니다.
+- profiles의 일반 프로필 수정은 유지하면서 coin_balance 직접 수정만 보호 트리거가 차단합니다.
+- 삭제는 소유자만 가능합니다.
+- 미디어 업로드·삭제는 Storage 경로 첫 폴더가 본인 UUID일 때만 가능합니다.
+- 미디어 읽기도 소유자에게만 허용되며 앱에서 1시간 signed URL로 재생합니다.
+
+6. 테스트 순서
+--------------
+1) Travelog에 Supabase 이메일 계정으로 로그인합니다.
+2) 스튜디오 > 지도에서 코스 핀&미디어 추가하러 가기를 누릅니다.
+3) 지도 핀 버튼을 눌러 제목이 "내 위치에 가이드 핀 생성"인지 확인합니다.
+4) 하단 내 위치 버튼으로 일반 내 위치 화면에 들어갑니다.
+5) 지도 핀 버튼을 눌러 제목이 "메모 핀 생성"인지 확인합니다.
+6) 텍스트 또는 사진 메모를 하나 생성합니다.
+7) 지도 핀 팝업에서 남은 시간이 약 3일인지 확인합니다.
+8) 연장하기를 누르고 + 버튼으로 14일을 선택합니다.
+9) 필요 코인이 1,000 COIN인지 확인한 뒤 연장합니다.
+10) profiles.coin_balance가 1,000 감소하고 memo_pins.expires_at이 14일 증가했는지 확인합니다.
+
+7. 꼭 알아둘 점
+---------------
+- 화면에 보이는 코인이 아니라 Supabase profiles.coin_balance가 실제 결제 기준입니다.
+- 현재 광고 충전·유료 충전 화면이 로컬 값만 바꾸는 단계라면, 운영 전에는 그 충전 기능도 서버 RPC나 결제 검증 서버와 연결해야 합니다.
+- 추후 다른 서버 RPC에서 coin_balance를 변경할 때도 같은 트랜잭션 안에서 set_config('travelog.allow_coin_update','on',true)를 먼저 호출해야 합니다.
+- 만료된 행은 지도에서 보이지 않지만 기록과 Storage 파일은 자동 물리 삭제되지 않습니다.
+- Storage 파일을 SQL로 직접 삭제하면 안 됩니다. 운영 시에는 Supabase Edge Function에서 Storage API로 파일을 삭제한 뒤 만료 행을 정리하는 일일 작업을 추가하는 것을 권장합니다.
+- service_role 키는 절대로 index.html이나 JavaScript에 넣지 마세요.
+
+Supabase 공식 참고 문서
+----------------------
+- Row Level Security: https://supabase.com/docs/guides/database/postgres/row-level-security
+- Database Functions: https://supabase.com/docs/guides/database/functions
+- JavaScript RPC: https://supabase.com/docs/reference/javascript/rpc
+- Storage Access Control: https://supabase.com/docs/guides/storage/security/access-control
+- Storage Schema 주의사항: https://supabase.com/docs/guides/storage/schema/design
+
+8. 테스트용 코인이 부족할 때만 사용하는 관리자 SQL
+--------------------------------------------------
+아래 값의 <USER_UUID>를 Authentication > Users에서 확인한 사용자 UUID로 바꾼 뒤
+SQL Editor에서 실행합니다. 실제 결제 운영에서는 이 방식을 사용자에게 노출하면 안 됩니다.
+
+begin;
+select set_config('travelog.allow_coin_update', 'on', true);
+update public.profiles
+set coin_balance = 2000,
+    updated_at = now()
+where id = '<USER_UUID>'::uuid;
+commit;

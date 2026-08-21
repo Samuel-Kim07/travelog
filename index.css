@@ -1922,6 +1922,176 @@ nav.bottom-nav {
   object-fit: contain;
 }
 
+/* Temporary memo pin extension */
+.memo-pin-extension-card {
+  position: relative;
+  width: min(430px, calc(100vw - 28px));
+  max-width: 430px;
+  padding: 28px;
+  text-align: center;
+}
+
+#memo-pin-extension-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  background: rgba(255,255,255,.94);
+}
+
+.memo-pin-extension-card h3 {
+  margin: 10px 42px 4px;
+  color: #37474f;
+  font-size: 21px;
+}
+
+.memo-pin-extension-name {
+  margin: 0 0 16px;
+  color: #60747c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.memo-pin-remaining-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(112,162,183,.26);
+  border-radius: 14px;
+  background: rgba(234,244,246,.72);
+}
+
+.memo-pin-remaining-panel span {
+  color: #66787f;
+  font-size: 11px;
+}
+
+.memo-pin-remaining-panel strong {
+  color: #4f879c;
+  font-size: 18px;
+}
+
+.memo-pin-extension-rule {
+  margin: 0 0 12px;
+  color: #66787f;
+  font-size: 12px;
+}
+
+.memo-pin-extension-stepper {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.memo-pin-extension-stepper button {
+  width: 48px;
+  height: 44px;
+  border: 1px solid rgba(112,162,183,.35);
+  border-radius: 13px;
+  background: #fff;
+  color: #4f879c;
+  font-size: 24px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.memo-pin-extension-stepper button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.memo-pin-extension-stepper strong {
+  color: #37474f;
+  font-size: 20px;
+}
+
+.memo-pin-extension-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.memo-pin-extension-summary span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.72);
+  color: #66787f;
+  font-size: 11px;
+}
+
+.memo-pin-extension-summary b {
+  color: #37474f;
+  font-size: 13px;
+}
+
+.memo-pin-extension-feedback {
+  min-height: 18px;
+  margin: 4px 0 10px;
+  color: #c65b68;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.memo-pin-extension-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.memo-pin-extension-actions .btn-rect {
+  justify-content: center;
+}
+
+.memo-pin-popup-media {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  max-height: 180px;
+  margin: 8px 0;
+  border-radius: 10px;
+  background: #111;
+  object-fit: contain;
+}
+
+.memo-pin-popup-expiry {
+  display: block;
+  margin: 7px 0;
+  color: #4f879c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.memo-pin-popup-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.memo-pin-popup-actions button {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid rgba(112,162,183,.28);
+  border-radius: 9px;
+  background: #edf7f8;
+  color: #406d7e;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+@media (max-width: 420px) {
+  .memo-pin-extension-card { padding: 24px 18px; }
+  .memo-pin-extension-summary { grid-template-columns: 1fr; }
+}
+
 .video-memo-recorder-card {
   width: min(640px, calc(100vw - 24px));
   max-width: 640px;

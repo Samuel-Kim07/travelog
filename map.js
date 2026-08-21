@@ -33,6 +33,9 @@ const TravelogMapModule = (() => {
   let lastTrackingToastAt = 0;
   let memoDraftLocation = null;
   let userMemoItems = [];
+  let memoPinItems = [];
+  let memoPinExtensionTargetId = '';
+  let memoPinExtensionBlocks = 1;
   let customCreatedMarkers = {};
   let creatorRouteConnected = false;
   let creatorPreviewPackage = null;
@@ -228,7 +231,7 @@ const TravelogMapModule = (() => {
     const activeGuide = window.TravelogApp ? window.TravelogApp.getState().activeGuide : null;
     const memoCount = activeGuide?.isPublishedGuide
       ? Number(activeGuide.memoCount || nodes.filter(node => node.type === 'memo' || node.desc).length || 0)
-      : userMemoItems.length;
+      : userMemoItems.length + memoPinItems.filter(pin => new Date(pin.expiresAt).getTime() > Date.now()).length;
     updateMapText('map-stop-count', String(nodes.length));
     updateMapText('map-memo-count', String(memoCount));
     updateMapText('map-gps-mode', isRealtimeTracking ? 'ON' : (hasRealGpsLocation ? 'FIX' : 'OFF'));
@@ -675,6 +678,8 @@ const TravelogMapModule = (() => {
     window.visualViewport?.addEventListener('scroll', positionActiveGuidePreviewControls, { passive: true });
 
     initMemoModalEvents();
+    initMemoPinExtensionControls();
+    window.setInterval(refreshMemoPinExpiryLabels, 60000);
     
     // Floating HUD Button actions
     const introBtn = document.getElementById('play-guide-intro-btn');
@@ -697,6 +702,8 @@ const TravelogMapModule = (() => {
     renderTour();
     loadUserMemos();
     renderUserMemoMarkers();
+    loadMemoPins({ requireSession: false }).catch(() => {});
+    window.setInterval(() => loadMemoPins({ requireSession: false }).catch(() => {}), 50 * 60 * 1000);
     updateMapOverview();
   }
 
@@ -850,6 +857,11 @@ const TravelogMapModule = (() => {
 
     const mapMode = window.TravelogApp ? window.TravelogApp.getState().mapMode : 'explore';
     const isCreatorMode = (mapMode === 'create');
+
+    if (memoMarkersLayer && map) {
+      if (isCreatorMode && map.hasLayer(memoMarkersLayer)) map.removeLayer(memoMarkersLayer);
+      if (!isCreatorMode && !map.hasLayer(memoMarkersLayer)) memoMarkersLayer.addTo(map);
+    }
 
     if (isCreatorMode) {
       // 1. Draw ONLY Custom Created Pins on the map
@@ -1349,7 +1361,8 @@ const TravelogMapModule = (() => {
   function handleCreatePinAtGpsClick() {
     const loc = getCurrentLatLng();
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
-      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng);
+      const mapMode = window.TravelogApp?.getState?.()?.mapMode;
+      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng, { mode: mapMode === 'create' ? 'guide' : 'memo' });
     } else {
       console.warn('TravelogCreatorModule or openPinTypeSelectModal not loaded.');
     }
@@ -1358,7 +1371,7 @@ const TravelogMapModule = (() => {
   function handleMemoButtonClick() {
     const loc = getCurrentLatLng();
     if (window.TravelogCreatorModule && typeof window.TravelogCreatorModule.openPinTypeSelectModal === 'function') {
-      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng);
+      window.TravelogCreatorModule.openPinTypeSelectModal(loc.lat, loc.lng, { mode: 'memo' });
     } else {
       console.warn('TravelogCreatorModule or openPinTypeSelectModal not loaded.');
     }
@@ -1461,6 +1474,195 @@ const TravelogMapModule = (() => {
     window.TravelogApp.showToast(t('현재 위치에 메모를 저장했습니다.', 'Memo saved at your current location.', '現在地にメモを保存しました。'));
   }
 
+  function formatMemoPinRemaining(expiresAt) {
+    const remainingMs = new Date(expiresAt).getTime() - Date.now();
+    if (!Number.isFinite(remainingMs) || remainingMs <= 0) return t('만료됨', 'Expired', '期限切れ');
+    const totalMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+    if (days > 0) return t(`${days}일 ${hours}시간`, `${days}d ${hours}h`, `${days}日 ${hours}時間`);
+    if (hours > 0) return t(`${hours}시간 ${minutes}분`, `${hours}h ${minutes}m`, `${hours}時間 ${minutes}分`);
+    return t(`${minutes}분`, `${minutes}m`, `${minutes}分`);
+  }
+
+  function refreshMemoPinExpiryLabels() {
+    const activePins = memoPinItems.filter(pin => new Date(pin.expiresAt).getTime() > Date.now());
+    if (activePins.length !== memoPinItems.length) {
+      memoPinItems = activePins;
+      renderUserMemoMarkers();
+      return;
+    }
+    document.querySelectorAll('[data-memo-pin-expiry]').forEach((element) => {
+      element.textContent = t('남은 시간: ', 'Time remaining: ', '残り時間: ') + formatMemoPinRemaining(element.dataset.memoPinExpiry);
+    });
+    const extensionModal = document.getElementById('memo-pin-extension-modal');
+    if (extensionModal?.classList.contains('active')) renderMemoPinExtensionUi();
+  }
+
+  function buildMemoPinMediaHtml(pin) {
+    if (!pin.mediaUrl) return '';
+    const safeUrl = escapeHtml(pin.mediaUrl);
+    if (pin.memoType === 'audio') return `<audio class="memo-pin-popup-media" controls preload="metadata" src="${safeUrl}"></audio>`;
+    if (pin.memoType === 'video') return `<video class="memo-pin-popup-media" controls playsinline preload="metadata" src="${safeUrl}"></video>`;
+    if (pin.memoType === 'photo') return `<img class="memo-pin-popup-media" src="${safeUrl}" alt="${escapeHtml(pin.title)}">`;
+    return '';
+  }
+
+  function buildMemoPinPopup(pin) {
+    const content = pin.content ? `<p style="margin:5px 0 6px;font-size:12px;line-height:1.45;color:#666;">${escapeHtml(pin.content)}</p>` : '';
+    const owner = pin.ownerName ? `<small style="display:block;color:#8b9aa0;margin-bottom:5px;">${escapeHtml(pin.ownerName)}</small>` : '';
+    const actions = pin.isOwner ? `
+      <div class="memo-pin-popup-actions">
+        <button type="button" onclick="TravelogMapModule.openMemoPinExtension('${pin.id}')">${t('연장하기', 'Extend', '延長')}</button>
+        <button type="button" onclick="TravelogMapModule.deleteRemoteMemoPin('${pin.id}')">${t('삭제', 'Delete', '削除')}</button>
+      </div>` : '';
+    return `
+      <div class="memo-popup" style="padding:4px;min-width:220px;">
+        <h4 style="margin:0 0 3px;font-size:14px;font-weight:800;color:#373737 !important;">${escapeHtml(pin.title)}</h4>
+        ${owner}
+        <span style="font-size:10px;color:#78909a;">${getMemoTypeLabel(pin.memoType)}</span>
+        ${content}
+        ${buildMemoPinMediaHtml(pin)}
+        <span class="memo-pin-popup-expiry" data-memo-pin-expiry="${escapeHtml(pin.expiresAt)}">${t('남은 시간: ', 'Time remaining: ', '残り時間: ')}${formatMemoPinRemaining(pin.expiresAt)}</span>
+        ${actions}
+      </div>`;
+  }
+
+  async function loadMemoPins(options = {}) {
+    if (!window.TravelogSupabase?.fetchActiveMemoPins) return [];
+    try {
+      const pins = await window.TravelogSupabase.fetchActiveMemoPins(options);
+      memoPinItems = Array.isArray(pins) ? pins : [];
+      renderUserMemoMarkers();
+      return memoPinItems;
+    } catch (error) {
+      console.warn('[Travelog Memo Pin] Could not load active pins. Apply MEMO_PIN_SUPABASE_SETUP.sql first.', error);
+      return [];
+    }
+  }
+
+  function upsertMemoPin(pin) {
+    if (!pin?.id) return;
+    memoPinItems = [pin, ...memoPinItems.filter(item => String(item.id) !== String(pin.id))];
+    renderUserMemoMarkers();
+    if (map && Number.isFinite(pin.lat) && Number.isFinite(pin.lng)) {
+      map.setView([pin.lat, pin.lng], Math.max(map.getZoom(), 17));
+    }
+  }
+
+  function closeMemoPinExtension() {
+    const modal = document.getElementById('memo-pin-extension-modal');
+    modal?.classList.remove('active');
+    modal?.setAttribute('aria-hidden', 'true');
+    memoPinExtensionTargetId = '';
+    const feedback = document.getElementById('memo-pin-extension-feedback');
+    if (feedback) feedback.textContent = '';
+  }
+
+  function renderMemoPinExtensionUi() {
+    const pin = memoPinItems.find(item => String(item.id) === String(memoPinExtensionTargetId));
+    if (!pin) return;
+    const days = memoPinExtensionBlocks * 7;
+    const cost = memoPinExtensionBlocks * 500;
+    const balance = Number(window.TravelogApp?.getState?.()?.coins || 0);
+    const name = document.getElementById('memo-pin-extension-name');
+    const remaining = document.getElementById('memo-pin-extension-remaining');
+    const daysEl = document.getElementById('memo-pin-extension-days');
+    const costEl = document.getElementById('memo-pin-extension-cost');
+    const balanceEl = document.getElementById('memo-pin-extension-balance');
+    const minus = document.getElementById('memo-pin-extension-minus');
+    const confirm = document.getElementById('memo-pin-extension-confirm');
+    if (name) name.textContent = pin.title;
+    if (remaining) remaining.textContent = formatMemoPinRemaining(pin.expiresAt);
+    if (daysEl) daysEl.textContent = `${days}일`;
+    if (costEl) costEl.textContent = `${cost.toLocaleString()} COIN`;
+    if (balanceEl) balanceEl.textContent = `${balance.toLocaleString()} COIN`;
+    if (minus) minus.disabled = memoPinExtensionBlocks <= 1;
+    if (confirm) confirm.disabled = balance < cost;
+  }
+
+  async function openMemoPinExtension(pinId) {
+    const pin = memoPinItems.find(item => String(item.id) === String(pinId));
+    if (!pin?.isOwner) return;
+    memoPinExtensionTargetId = pin.id;
+    memoPinExtensionBlocks = 1;
+    const modal = document.getElementById('memo-pin-extension-modal');
+    modal?.classList.add('active');
+    modal?.setAttribute('aria-hidden', 'false');
+    renderMemoPinExtensionUi();
+    try {
+      const profile = await window.TravelogSupabase?.fetchCurrentProfile?.({ requireSession: true });
+      const remoteBalance = Number(profile?.coinBalance ?? profile?.coin_balance);
+      if (Number.isFinite(remoteBalance)) window.TravelogApp?.setCoins?.(remoteBalance);
+      renderMemoPinExtensionUi();
+    } catch (error) {
+      console.warn('[Travelog Memo Pin] Remote coin balance refresh skipped:', error);
+    }
+  }
+
+  async function confirmMemoPinExtension() {
+    const pin = memoPinItems.find(item => String(item.id) === String(memoPinExtensionTargetId));
+    const feedback = document.getElementById('memo-pin-extension-feedback');
+    const confirm = document.getElementById('memo-pin-extension-confirm');
+    if (!pin || !window.TravelogSupabase?.extendMemoPin) return;
+    const cost = memoPinExtensionBlocks * 500;
+    const balance = Number(window.TravelogApp?.getState?.()?.coins || 0);
+    if (balance < cost) {
+      if (feedback) feedback.textContent = t('코인이 부족합니다.', 'Not enough coins.', 'コインが不足しています。');
+      return;
+    }
+    if (confirm) confirm.disabled = true;
+    if (feedback) feedback.textContent = t('코인 차감과 기간 연장을 처리하는 중입니다...', 'Extending the pin and charging coins...', 'コイン決済と期間延長を処理しています...');
+    try {
+      const result = await window.TravelogSupabase.extendMemoPin(pin.id, memoPinExtensionBlocks);
+      pin.expiresAt = result?.new_expires_at || pin.expiresAt;
+      const nextBalance = Number(result?.coin_balance);
+      if (Number.isFinite(nextBalance)) window.TravelogApp?.setCoins?.(nextBalance);
+      renderUserMemoMarkers();
+      closeMemoPinExtension();
+      window.TravelogApp?.showToast(t(`${memoPinExtensionBlocks * 7}일 연장되었습니다.`, `Extended by ${memoPinExtensionBlocks * 7} days.`, `${memoPinExtensionBlocks * 7}日延長しました。`));
+    } catch (error) {
+      console.warn('[Travelog Memo Pin] Extension failed:', error);
+      const message = String(error?.message || '').toUpperCase();
+      if (feedback) feedback.textContent = message.includes('INSUFFICIENT_COINS')
+        ? t('Supabase 코인 잔액이 부족합니다.', 'Your Supabase coin balance is too low.', 'Supabaseのコイン残高が不足しています。')
+        : t('연장하지 못했습니다. SQL 설치와 네트워크 상태를 확인해 주세요.', 'Could not extend the pin. Check SQL setup and the network.', '延長できませんでした。SQL設定とネットワークを確認してください。');
+      renderMemoPinExtensionUi();
+    }
+  }
+
+  function initMemoPinExtensionControls() {
+    const modal = document.getElementById('memo-pin-extension-modal');
+    document.getElementById('memo-pin-extension-close')?.addEventListener('click', closeMemoPinExtension);
+    document.getElementById('memo-pin-extension-cancel')?.addEventListener('click', closeMemoPinExtension);
+    document.getElementById('memo-pin-extension-minus')?.addEventListener('click', () => {
+      memoPinExtensionBlocks = Math.max(1, memoPinExtensionBlocks - 1);
+      renderMemoPinExtensionUi();
+    });
+    document.getElementById('memo-pin-extension-plus')?.addEventListener('click', () => {
+      memoPinExtensionBlocks = Math.min(52, memoPinExtensionBlocks + 1);
+      renderMemoPinExtensionUi();
+    });
+    document.getElementById('memo-pin-extension-confirm')?.addEventListener('click', confirmMemoPinExtension);
+    modal?.addEventListener('click', (event) => { if (event.target === modal) closeMemoPinExtension(); });
+  }
+
+  async function deleteRemoteMemoPin(pinId) {
+    const pin = memoPinItems.find(item => String(item.id) === String(pinId));
+    if (!pin?.isOwner || !window.TravelogSupabase?.deleteMemoPin) return;
+    if (!window.confirm(t('이 메모 핀을 삭제할까요?', 'Delete this memo pin?', 'このメモピンを削除しますか？'))) return;
+    try {
+      await window.TravelogSupabase.deleteMemoPin(pin);
+      memoPinItems = memoPinItems.filter(item => String(item.id) !== String(pinId));
+      renderUserMemoMarkers();
+      window.TravelogApp?.showToast(t('메모 핀을 삭제했습니다.', 'Memo pin deleted.', 'メモピンを削除しました。'));
+    } catch (error) {
+      console.warn('[Travelog Memo Pin] Delete failed:', error);
+      window.TravelogApp?.showToast(t('메모 핀을 삭제하지 못했습니다.', 'Could not delete the memo pin.', 'メモピンを削除できませんでした。'));
+    }
+  }
+
   function renderUserMemoMarkers() {
     updateMapOverview();
     if (!memoMarkersLayer || typeof L === 'undefined') return;
@@ -1481,6 +1683,19 @@ const TravelogMapModule = (() => {
       memoMarkersLayer.addLayer(marker);
       applyColorFilterToMarker(marker, 'pin-memo');
     });
+
+    memoPinItems = memoPinItems.filter(pin => new Date(pin.expiresAt).getTime() > Date.now());
+    memoPinItems.forEach((pin) => {
+      if (!Number.isFinite(Number(pin.lat)) || !Number.isFinite(Number(pin.lng))) return;
+      const marker = L.marker([Number(pin.lat), Number(pin.lng)], {
+        icon: createHtmlIcon('fa-solid fa-note-sticky', pin.memoType === 'photo' ? '#34a853' : pin.memoType === 'video' ? '#00adb5' : pin.memoType === 'audio' ? '#ff2e63' : '#ffb703')
+      });
+      marker.bindPopup(buildMemoPinPopup(pin), { maxWidth: 290 });
+      marker.on('popupopen', refreshMemoPinExpiryLabels);
+      memoMarkersLayer.addLayer(marker);
+      applyColorFilterToMarker(marker, pin.memoType === 'photo' ? '#34a853' : pin.memoType === 'video' ? '#00adb5' : pin.memoType === 'audio' ? '#ff2e63' : '#ffb703');
+    });
+    updateMapOverview();
   }
 
   function deleteMemo(id) {
@@ -2311,6 +2526,10 @@ const TravelogMapModule = (() => {
     stopRealtimeLocationTracking: stopRealtimeLocationTracking,
     toggleRealtimeLocationTracking: toggleRealtimeLocationTracking,
     deleteMemo: deleteMemo,
+    loadMemoPins: loadMemoPins,
+    upsertMemoPin: upsertMemoPin,
+    openMemoPinExtension: openMemoPinExtension,
+    deleteRemoteMemoPin: deleteRemoteMemoPin,
     teleportUser: (lat, lng) => {
       if (userMarker) {
         userMarker.setLatLng([lat, lng]);

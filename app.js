@@ -3875,6 +3875,12 @@ async function applySupabaseProfileToLocal(remoteProfile, options = {}) {
   renderUserProfileWidget();
   renderHomeTab();
   updatePointsDisplay();
+  const memoPinRefresh = window.TravelogMapModule?.loadMemoPins?.({ requireSession: false });
+  if (memoPinRefresh && typeof memoPinRefresh.catch === 'function') {
+    memoPinRefresh.catch(error => {
+      console.warn('[Travelog Memo Pin] Refresh after profile restore skipped:', error);
+    });
+  }
 
   if (typeof refreshSupabaseSocialData === 'function') {
     refreshSupabaseSocialData({ requireSession: false }).catch(error => {
@@ -4249,6 +4255,7 @@ window.updateMapLayoutForMode = function(mode) {
 
     // 2. Focus on User's Current Location
     if (window.TravelogMapModule && typeof window.TravelogMapModule.centerToUser === 'function') {
+      window.TravelogMapModule.renderTour?.();
       setTimeout(() => {
         window.TravelogMapModule.centerToUser();
       }, 100);
@@ -4426,6 +4433,14 @@ window.TravelogApp = {
     const price = Number(amount) || 0;
     if (TravelogState.coins < price) return false;
     TravelogState.coins -= price;
+    saveHomePersistentState();
+    renderHomeTab();
+    return true;
+  },
+  setCoins: (amount) => {
+    const nextBalance = Number(amount);
+    if (!Number.isFinite(nextBalance)) return false;
+    TravelogState.coins = Math.max(0, nextBalance);
     saveHomePersistentState();
     renderHomeTab();
     return true;

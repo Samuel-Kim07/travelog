@@ -9,6 +9,7 @@ const TravelogSupabase = (() => {
   const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jvbxOVx6-qeeftz04og9vA_RUHGylCZ';
   const PUBLIC_BUCKET = 'guide-public';
   const MEDIA_BUCKET = 'guide-media';
+  const MEMO_PIN_MEDIA_BUCKET = 'memo-pin-media';
   const OFFLINE_DB_NAME = 'travelog_offline_guides_v1';
   const OFFLINE_DB_VERSION = 1;
   const OFFLINE_STORE = 'guides';
@@ -1640,6 +1641,152 @@ const TravelogSupabase = (() => {
     return true;
   }
 
+  function normalizeMemoPinRow(row, currentUserId = '') {
+    if (!row) return null;
+    const profile = row.profiles || row.owner_profile || null;
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      ownerName: profile?.display_name || '',
+      title: row.title || t('메모 핀', 'Memo Pin', 'メモピン'),
+      memoType: row.memo_type || 'text',
+      content: row.content || '',
+      lat: Number(row.latitude),
+      lng: Number(row.longitude),
+      mediaBucket: row.media_bucket || '',
+      mediaPath: row.media_path || '',
+      mediaMimeType: row.media_mime_type || '',
+      mediaSizeBytes: Number(row.media_size_bytes || 0),
+      mediaUrl: row.media_url || '',
+      metadata: row.metadata || {},
+      createdAt: row.created_at || '',
+      updatedAt: row.updated_at || '',
+      expiresAt: row.expires_at || '',
+      isOwner: !!currentUserId && row.owner_id === currentUserId,
+      isRemote: true
+    };
+  }
+
+  async function attachMemoPinSignedUrl(row, currentUserId = '') {
+    const normalized = normalizeMemoPinRow(row, currentUserId);
+    if (!normalized?.mediaBucket || !normalized.mediaPath) return normalized;
+    const supabase = getClient();
+    const { data, error } = await supabase.storage
+      .from(normalized.mediaBucket)
+      .createSignedUrl(normalized.mediaPath, 3600);
+    if (!error) normalized.mediaUrl = data?.signedUrl || '';
+    return normalized;
+  }
+
+  async function fetchActiveMemoPins(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return [];
+    let session = await getSession();
+    if (!session?.user && options.requireSession === true) {
+      session = await ensureSession({
+        displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+        interactiveLogin: options.interactiveLogin === true
+      });
+    }
+    const userId = session?.user?.id || '';
+    if (!userId) return [];
+
+    const { data, error } = await supabase
+      .from('memo_pins')
+      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, metadata, created_at, updated_at, expires_at')
+      .eq('owner_id', userId)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return Promise.all((data || []).map(row => attachMemoPinSignedUrl(row, userId)));
+  }
+
+  function makeMemoPinId() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
+  }
+
+  async function createMemoPin(payload = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const session = await ensureSession({
+      displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+      interactiveLogin: true
+    });
+    const userId = session?.user?.id;
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+
+    const pinId = makeMemoPinId();
+    const memoType = ['audio', 'video', 'photo', 'text'].includes(payload.memoType) ? payload.memoType : 'text';
+    const title = String(payload.title || '').trim().slice(0, 60) || t('메모 핀', 'Memo Pin', 'メモピン');
+    const content = String(payload.content || '').trim().slice(0, 2000);
+    const blob = payload.blob instanceof Blob ? payload.blob : null;
+    let mediaPath = '';
+
+    if (blob) {
+      const extension = guessExtension(blob.type, memoType === 'photo' ? 'png' : memoType === 'video' ? 'webm' : 'webm');
+      const fileName = safeStorageSegment(`${memoType}_${Date.now()}.${extension}`, `${memoType}.${extension}`);
+      mediaPath = `${userId}/${pinId}/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from(MEMO_PIN_MEDIA_BUCKET)
+        .upload(mediaPath, blob, { contentType: blob.type || 'application/octet-stream', upsert: false });
+      if (uploadError) throw uploadError;
+    }
+
+    const row = {
+      id: pinId,
+      owner_id: userId,
+      title,
+      memo_type: memoType,
+      content,
+      latitude: Number(payload.lat),
+      longitude: Number(payload.lng),
+      media_bucket: mediaPath ? MEMO_PIN_MEDIA_BUCKET : null,
+      media_path: mediaPath || null,
+      media_mime_type: blob?.type || null,
+      media_size_bytes: blob?.size || null,
+      metadata: payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}
+    };
+
+    const { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    if (error) {
+      if (mediaPath) {
+        try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
+      }
+      throw error;
+    }
+    return attachMemoPinSignedUrl(data, userId);
+  }
+
+  async function extendMemoPin(memoPinId, blocks) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const session = await ensureSession({
+      displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+      interactiveLogin: true
+    });
+    if (!session?.user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const safeBlocks = Math.max(1, Math.min(52, Math.floor(Number(blocks) || 1)));
+    const { data, error } = await supabase.rpc('extend_memo_pin', {
+      p_memo_pin_id: memoPinId,
+      p_blocks: safeBlocks
+    });
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] : data;
+  }
+
+  async function deleteMemoPin(memoPin) {
+    const supabase = getClient();
+    if (!supabase || !memoPin?.id) return false;
+    const { error } = await supabase.from('memo_pins').delete().eq('id', memoPin.id);
+    if (error) throw error;
+    if (memoPin.mediaBucket && memoPin.mediaPath) {
+      await supabase.storage.from(memoPin.mediaBucket).remove([memoPin.mediaPath]).catch(() => {});
+    }
+    return true;
+  }
+
   async function signOut() {
     const supabase = getClient();
     if (!supabase) return true;
@@ -1676,6 +1823,10 @@ const TravelogSupabase = (() => {
     fetchMessages,
     markMessageRead,
     deleteMessage,
+    fetchActiveMemoPins,
+    createMemoPin,
+    extendMemoPin,
+    deleteMemoPin,
     publishGuidePackage,
     fetchPublishedGuideCards,
     purchaseGuide,
@@ -1685,7 +1836,8 @@ const TravelogSupabase = (() => {
     constants: {
       SUPABASE_URL,
       PUBLIC_BUCKET,
-      MEDIA_BUCKET
+      MEDIA_BUCKET,
+      MEMO_PIN_MEDIA_BUCKET
     }
   };
 })();

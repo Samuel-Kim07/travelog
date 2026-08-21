@@ -36,6 +36,7 @@ const TravelogCreatorModule = (() => {
   // Temporary coordinate caching for field captures
   let tempPinLat = 0;
   let tempPinLng = 0;
+  let pinCreationMode = 'guide';
 
   const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
   const DRIVE_PARENT_FOLDER_URL = 'https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link';
@@ -3686,6 +3687,47 @@ const TravelogCreatorModule = (() => {
   // ==========================================
   // Field Capture Modals Logic
   // ==========================================
+  function isStandaloneMemoPinMode() {
+    return pinCreationMode === 'memo';
+  }
+
+  function getMemoPinSaveErrorMessage(error) {
+    const message = String(error?.message || error?.code || '').toUpperCase();
+    if (message.includes('MEMO_PINS') || message.includes('MEMO-PIN-MEDIA') || message.includes('BUCKET')) {
+      return t('Supabase 메모 핀 SQL이 아직 적용되지 않았습니다. 동봉된 MEMO_PIN_SUPABASE_SETUP.sql을 먼저 실행해 주세요.', 'Memo pin storage is not configured. Run MEMO_PIN_SUPABASE_SETUP.sql in Supabase first.', 'SupabaseのメモピンSQLを先に実行してください。');
+    }
+    if (message.includes('AUTH')) {
+      return t('메모 핀을 저장하려면 Supabase 로그인이 필요합니다.', 'Sign in to Supabase to save a memo pin.', 'メモピンの保存にはSupabaseログインが必要です。');
+    }
+    return t('메모 핀을 저장하지 못했습니다. 네트워크와 Supabase 설정을 확인해 주세요.', 'Could not save the memo pin. Check the network and Supabase setup.', 'メモピンを保存できませんでした。ネットワークとSupabase設定を確認してください。');
+  }
+
+  async function saveStandaloneMemoPinCapture({ memoType, title, content = '', blob = null, metadata = {} }) {
+    if (!window.TravelogSupabase || typeof window.TravelogSupabase.createMemoPin !== 'function') {
+      window.TravelogApp?.showToast(getMemoPinSaveErrorMessage(new Error('MEMO_PINS_CLIENT_MISSING')));
+      return null;
+    }
+    window.TravelogApp?.showToast(t('메모 핀을 Supabase에 저장하는 중입니다...', 'Saving the memo pin to Supabase...', 'メモピンをSupabaseに保存しています...'));
+    try {
+      const savedPin = await window.TravelogSupabase.createMemoPin({
+        memoType,
+        title,
+        content,
+        blob,
+        metadata,
+        lat: tempPinLat,
+        lng: tempPinLng
+      });
+      window.TravelogMapModule?.upsertMemoPin?.(savedPin);
+      window.TravelogApp?.showToast(t('메모 핀이 생성되었습니다. 기본 유지 기간은 3일입니다.', 'Memo pin created. It will remain for 3 days by default.', 'メモピンを作成しました。基本保持期間は3日です。'));
+      return savedPin;
+    } catch (error) {
+      console.warn('[Travelog Memo Pin] Save failed:', error);
+      window.TravelogApp?.showToast(getMemoPinSaveErrorMessage(error));
+      return null;
+    }
+  }
+
   function setModalHidden(modalId, hidden = true) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -3794,9 +3836,19 @@ const TravelogCreatorModule = (() => {
     });
   }
 
-  function openPinTypeSelectModal(lat, lng) {
+  function openPinTypeSelectModal(lat, lng, options = {}) {
     tempPinLat = lat;
     tempPinLng = lng;
+    const requestedMode = typeof options === 'string' ? options : options.mode;
+    pinCreationMode = requestedMode === 'memo' ? 'memo' : 'guide';
+    const heading = document.getElementById('pin-type-select-heading');
+    const description = document.getElementById('pin-type-select-description');
+    if (heading) heading.textContent = isStandaloneMemoPinMode()
+      ? t('메모 핀 생성', 'Create Memo Pin', 'メモピン作成')
+      : t('내 위치에 가이드 핀 생성', 'Create a Guide Pin Here', '現在地にガイドピンを作成');
+    if (description) description.textContent = isStandaloneMemoPinMode()
+      ? t('메모 유형을 선택하세요. 생성된 핀은 기본 3일 동안 지도에 표시됩니다.', 'Choose a memo type. The pin stays on the map for 3 days by default.', 'メモ形式を選択してください。ピンは基本3日間表示されます。')
+      : t('이 핀 좌표에 연동할 미디어 유형을 선택하세요.', 'Choose the media type linked to this guide pin.', 'このガイドピンに連携するメディア形式を選択してください。');
     const modal = document.getElementById('pin-type-select-modal');
     if (modal) {
       modal.classList.add('active');
@@ -4055,12 +4107,23 @@ const TravelogCreatorModule = (() => {
     const completeBtn = document.getElementById('voice-memo-complete');
     if (completeBtn) completeBtn.disabled = true;
     const audioBlobToSave = await waitForFieldMemoBlob('audio');
-    document.getElementById('voice-memo-modal').classList.remove('active');
 
     const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
     const memoTitle = getMemoTitleInputValue('voice-memo-title-input', t('음성 메모', 'Audio Memo', '音声メモ'));
     const memoFileBase = safeFileName(memoTitle, `voice_memo_${cleanTourName}`);
     const filename = `voice_memo_${memoFileBase}_${Date.now()}.${audioBlobToSave && audioBlobToSave.type.includes('text') ? 'txt' : 'webm'}`;
+
+    if (isStandaloneMemoPinMode()) {
+      const savedPin = await saveStandaloneMemoPinCapture({ memoType: 'audio', title: memoTitle, blob: audioBlobToSave });
+      if (!savedPin) {
+        if (completeBtn) completeBtn.disabled = false;
+        return;
+      }
+      closeVoiceMemoModal();
+      return;
+    }
+
+    document.getElementById('voice-memo-modal').classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
       window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, '');
@@ -4885,13 +4948,29 @@ const TravelogCreatorModule = (() => {
     const editedDuration = getVideoMemoEditedDuration();
     videoMemoRenderInProgress = false;
     if (closeBtn) closeBtn.disabled = false;
-    document.getElementById('video-memo-modal').classList.remove('active');
 
     const cleanTourName = (document.getElementById('new-tour-name')?.value || 'Tour').replace(/[^a-zA-Z0-9가-힣]/g, '_');
     const memoTitle = getMemoTitleInputValue('video-memo-title-input', t('영상 메모', 'Video Memo', '動画メモ'));
     const memoFileBase = safeFileName(memoTitle, `video_memo_${cleanTourName}`);
     const extension = videoMemoExtensionForType(videoMemoBlob.type);
     const filename = `video_memo_${memoFileBase}_${Date.now()}.${extension}`;
+
+    if (isStandaloneMemoPinMode()) {
+      const savedPin = await saveStandaloneMemoPinCapture({
+        memoType: 'video',
+        title: memoTitle,
+        blob: videoMemoBlob,
+        metadata: { duration: editedDuration, editSegments }
+      });
+      if (!savedPin) {
+        updateVideoMemoButtons();
+        return;
+      }
+      closeVideoMemoModal();
+      return;
+    }
+
+    document.getElementById('video-memo-modal').classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
       window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, '');
@@ -5186,6 +5265,13 @@ const TravelogCreatorModule = (() => {
     const memoFileBase = safeFileName(memoTitle, 'photo_memo');
     const filename = `photo_memo_${memoFileBase}_${Date.now()}.png`;
 
+    if (isStandaloneMemoPinMode()) {
+      const savedPin = await saveStandaloneMemoPinCapture({ memoType: 'photo', title: memoTitle, content: memoText, blob: photoBlob });
+      if (!savedPin) return;
+      closePhotoMemoModal();
+      return;
+    }
+
     document.getElementById('photo-memo-modal')?.classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
@@ -5252,13 +5338,20 @@ const TravelogCreatorModule = (() => {
     if (titleInput) titleInput.value = '';
   }
 
-  function completeTextMemoRecording() {
+  async function completeTextMemoRecording() {
     const memoVal = document.getElementById('text-memo-input').value.trim();
     if (!memoVal) {
       window.TravelogApp.showToast(t('메모 내용을 입력해 주세요!', 'Please enter some text description!', '메모 내용을 입력해주세요!'));
       return;
     }
     const memoTitle = getMemoTitleInputValue('text-memo-title-input', t('텍스트 메모', 'Text Memo', 'テキストメモ'));
+
+    if (isStandaloneMemoPinMode()) {
+      const savedPin = await saveStandaloneMemoPinCapture({ memoType: 'text', title: memoTitle, content: memoVal });
+      if (!savedPin) return;
+      closeTextMemoModal();
+      return;
+    }
 
     document.getElementById('text-memo-modal').classList.remove('active');
 
