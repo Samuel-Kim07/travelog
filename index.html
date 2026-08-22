@@ -1561,18 +1561,21 @@
       <div class="tour-intro-body">
         <div class="tour-intro-main">
           <section class="tour-intro-description-block">
-            <h3><span class="tour-intro-section-dot" aria-hidden="true"></span>투어 소개</h3>
+            <h3><img class="tour-intro-section-icon" src="assets/icons/guide-intro/tour-description.svg" alt="" aria-hidden="true">투어 소개</h3>
             <p id="home-guide-intro-description">소개글이 없습니다.</p>
           </section>
           <div id="home-guide-intro-media" class="tour-intro-media"></div>
           <section class="tour-intro-pin-section">
-            <h3><i class="fa-solid fa-thumbtack" aria-hidden="true"></i>투어내용 핀 리스트</h3>
-            <div id="home-guide-intro-pin-list" class="tour-intro-list tour-intro-pin-list"></div>
+            <button class="btn-rect tour-pin-list-open-btn" id="home-guide-pin-list-open-btn" type="button">
+              <img src="assets/icons/guide-intro/tour-pin-list.svg" alt="" aria-hidden="true">
+              <span>투어핀 리스트 보기</span>
+              <strong id="home-guide-pin-list-count">0</strong>
+            </button>
           </section>
         </div>
         <aside class="tour-intro-side">
           <section class="tour-intro-coupon-section">
-            <h3><i class="fa-solid fa-ticket" aria-hidden="true"></i>포함된 쿠폰</h3>
+            <h3><img class="tour-intro-section-icon" src="assets/icons/guide-intro/included-coupon.svg" alt="" aria-hidden="true">포함된 쿠폰</h3>
             <div id="home-guide-intro-coupon-list" class="tour-intro-list tour-intro-coupon-list"></div>
           </section>
           <div class="tour-intro-price" aria-label="가이드 가격">
@@ -1583,6 +1586,20 @@
           <button class="btn-rect tour-intro-action tour-intro-preview" id="home-guide-intro-preview-btn" type="button">미리보기</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Tour Pin List Modal -->
+  <div id="home-guide-pin-list-modal" class="profile-manager-modal tour-pin-list-modal" style="z-index: 3250;" aria-hidden="true">
+    <div class="profile-manager-card glass-panel tour-pin-list-card" role="dialog" aria-modal="true" aria-labelledby="home-guide-pin-list-title">
+      <header class="tour-pin-list-header">
+        <div>
+          <h2 id="home-guide-pin-list-title"><img src="assets/icons/guide-intro/tour-pin-list.svg" alt="" aria-hidden="true">투어핀 리스트</h2>
+          <p id="home-guide-pin-list-meta">등록된 핀 0개</p>
+        </div>
+        <button class="btn-circle" id="home-guide-pin-list-close-btn" type="button" aria-label="투어핀 리스트 닫기"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
+      </header>
+      <div id="home-guide-intro-pin-list" class="tour-intro-list tour-intro-pin-list tour-pin-list-scroll"></div>
     </div>
   </div>
 

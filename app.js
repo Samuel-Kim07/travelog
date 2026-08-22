@@ -1969,6 +1969,9 @@ function initHomeGuideIntroModals() {
   const previewClose = document.getElementById('home-guide-preview-close-btn');
   const previewBtn = document.getElementById('home-guide-intro-preview-btn');
   const purchaseBtn = document.getElementById('home-guide-intro-purchase-btn');
+  const pinListOpenBtn = document.getElementById('home-guide-pin-list-open-btn');
+  const pinListCloseBtn = document.getElementById('home-guide-pin-list-close-btn');
+  const pinListModal = document.getElementById('home-guide-pin-list-modal');
 
   if (introClose && !introClose.dataset.bound) {
     introClose.dataset.bound = 'true';
@@ -1990,7 +1993,36 @@ function initHomeGuideIntroModals() {
       if (currentIntroGuideId) purchaseCurrentIntroGuide();
     });
   }
+  if (pinListOpenBtn && !pinListOpenBtn.dataset.bound) {
+    pinListOpenBtn.dataset.bound = 'true';
+    pinListOpenBtn.addEventListener('click', window.openHomeGuidePinListModal);
+  }
+  if (pinListCloseBtn && !pinListCloseBtn.dataset.bound) {
+    pinListCloseBtn.dataset.bound = 'true';
+    pinListCloseBtn.addEventListener('click', window.closeHomeGuidePinListModal);
+  }
+  if (pinListModal && !pinListModal.dataset.bound) {
+    pinListModal.dataset.bound = 'true';
+    pinListModal.addEventListener('click', (event) => {
+      if (event.target === pinListModal) window.closeHomeGuidePinListModal();
+    });
+  }
 }
+
+window.openHomeGuidePinListModal = function() {
+  const modal = document.getElementById('home-guide-pin-list-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  document.getElementById('home-guide-pin-list-close-btn')?.focus();
+};
+
+window.closeHomeGuidePinListModal = function() {
+  const modal = document.getElementById('home-guide-pin-list-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+};
 
 function renderIntroMedia(activeGuide) {
   const mediaBox = document.getElementById('home-guide-intro-media');
@@ -2002,14 +2034,14 @@ function renderIntroMedia(activeGuide) {
   if (video && video.dataUrl) {
     mediaItems.push(`
       <div style="border:1px solid var(--glass-border); border-radius:14px; padding:10px; background:rgba(0,0,0,.04);">
-        <strong style="font-size:12px;"><i class="fa-solid fa-video"></i> 투어소개 영상</strong>
+        <strong class="tour-intro-media-title"><img src="assets/icons/guide-intro/intro-video.svg" alt="" aria-hidden="true"> 투어소개 영상</strong>
         <video controls playsinline preload="metadata" src="${video.dataUrl}" style="width:100%; max-height:220px; margin-top:8px; border-radius:12px; background:#000;"></video>
       </div>`);
   }
   if (audio && audio.dataUrl) {
     mediaItems.push(`
       <div style="border:1px solid var(--glass-border); border-radius:14px; padding:10px; background:rgba(112,162,183,.07);">
-        <strong style="font-size:12px;"><i class="fa-solid fa-volume-high"></i> 투어소개 음성</strong>
+        <strong class="tour-intro-media-title"><img src="assets/icons/guide-intro/intro-audio.svg" alt="" aria-hidden="true"> 투어소개 음성</strong>
         <audio controls preload="metadata" src="${audio.dataUrl}" style="width:100%; margin-top:8px;"></audio>
       </div>`);
   }
@@ -2144,6 +2176,11 @@ window.openGuideIntroFromHome = function(guideId) {
 
   renderIntroMedia(activeGuide);
 
+  const pinListCount = document.getElementById('home-guide-pin-list-count');
+  if (pinListCount) pinListCount.textContent = stops.length.toLocaleString();
+  const pinListMeta = document.getElementById('home-guide-pin-list-meta');
+  if (pinListMeta) pinListMeta.textContent = `등록된 핀 ${stops.length.toLocaleString()}개`;
+
   const pinList = document.getElementById('home-guide-intro-pin-list');
   if (pinList) {
     pinList.innerHTML = stops.length ? stops.map((pin, index) => {
@@ -2172,6 +2209,7 @@ window.openGuideIntroFromHome = function(guideId) {
 };
 
 window.closeHomeGuideIntroModal = function() {
+  window.closeHomeGuidePinListModal?.();
   const modal = document.getElementById('home-guide-intro-modal');
   if (modal) {
     modal.classList.remove('active');
