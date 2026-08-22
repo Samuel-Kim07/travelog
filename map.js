@@ -702,8 +702,14 @@ const TravelogMapModule = (() => {
     renderTour();
     loadUserMemos();
     renderUserMemoMarkers();
-    loadMemoPins({ requireSession: false }).catch(() => {});
-    window.setInterval(() => loadMemoPins({ requireSession: false }).catch(() => {}), 50 * 60 * 1000);
+    const refreshPublicMemoPins = () => loadMemoPins({ requireSession: false }).catch(() => {});
+    refreshPublicMemoPins();
+    window.setInterval(refreshPublicMemoPins, 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshPublicMemoPins();
+    });
+    window.addEventListener('pageshow', refreshPublicMemoPins);
+    window.addEventListener('focus', refreshPublicMemoPins);
     updateMapOverview();
   }
 

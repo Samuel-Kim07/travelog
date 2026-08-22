@@ -1698,7 +1698,6 @@ const TravelogSupabase = (() => {
     const { data, error } = await supabase
       .from('memo_pins')
       .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, metadata, created_at, updated_at, expires_at')
-      .eq('owner_id', userId)
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(500);
