@@ -149,7 +149,21 @@
         .select('id, expires_at')
         .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        const updateMessage = `${updateError?.code || ''} ${updateError?.message || ''} ${updateError?.details || ''}`.toUpperCase();
+        if (
+          updateMessage.includes('42501') ||
+          updateMessage.includes('ROW LEVEL SECURITY') ||
+          updateMessage.includes('RLS') ||
+          updateMessage.includes('PERMISSION DENIED')
+        ) {
+          throw makeError(
+            'PGRST202',
+            'EXTEND_MEMO_PIN_RLS_REQUIRED: Supabase memo_pins UPDATE policy is missing.'
+          );
+        }
+        throw updateError;
+      }
       if (!updated?.id) {
         throw makeError(
           'MEMO_PIN_EXTENSION_UPDATE_FAILED',
@@ -167,7 +181,7 @@
       };
     };
 
-    console.info('[Travelog Memo Extension Fix] Local coin balance protection enabled.');
+    console.info('[Travelog Memo Extension Fix V2] Coin protection + RLS diagnostics enabled.');
     return true;
   }
 

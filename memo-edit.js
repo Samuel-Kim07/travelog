@@ -450,7 +450,13 @@
     const supabase = window.TravelogSupabase?.getClient?.();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
 
-    const session = await window.TravelogSupabase?.getSession?.();
+    let session = await window.TravelogSupabase?.getSession?.();
+    if (!session?.user?.id && typeof window.TravelogSupabase?.ensureSession === 'function') {
+      session = await window.TravelogSupabase.ensureSession({
+        displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+        interactiveLogin: true
+      });
+    }
     const userId = session?.user?.id || '';
     if (!userId || userId !== target.ownerId) throw new Error('MEMO_EDIT_NOT_OWNER');
 
@@ -606,7 +612,7 @@
       if (message.includes('ROW LEVEL SECURITY') || message.includes('42501') || message.includes('RLS')) {
         setFeedback(
           t(
-            'Supabase 수정 권한(RLS)이 아직 없습니다. 함께 제공된 SQL을 Supabase SQL Editor에서 한 번 실행해 주세요.',
+            'Supabase 수정 권한(RLS)이 없습니다. TRAVELOG_MEMO_PERMISSION_FIX_V2.sql을 Supabase SQL Editor에서 한 번 실행해 주세요.',
             'Supabase update permission (RLS) is missing. Run the included SQL once.',
             'Supabaseの更新権限(RLS)がありません。同梱SQLを一度実行してください。'
           ),
