@@ -7607,6 +7607,36 @@ nav.bottom-nav {
   background: rgba(255,255,255,.94);
 }
 
+.tour-intro-like {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 64px;
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 999px;
+  background: rgba(255,255,255,.92);
+  color: #5c6870;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 6px 18px rgba(0,0,0,.2);
+  cursor: pointer;
+}
+
+.tour-intro-like[hidden] { display: none; }
+.tour-intro-like img { width: 21px; height: 21px; object-fit: contain; filter: grayscale(1); opacity: .58; }
+.tour-intro-like.is-liked { border-color: rgba(255,46,99,.42); background: #fff0f4; color: #db2857; }
+.tour-intro-like.is-liked img { filter: none; opacity: 1; }
+.tour-intro-like:disabled { cursor: wait; opacity: .65; }
+.tour-intro-hero.has-like .tour-intro-heading { right: 96px; }
+
 .tour-intro-heading {
   position: absolute;
   left: 22px;
@@ -7910,6 +7940,16 @@ nav.bottom-nav {
     width: 34px;
     height: 34px;
   }
+
+  .tour-intro-like {
+    right: 12px;
+    bottom: 12px;
+    min-width: 60px;
+    min-height: 38px;
+    padding: 6px 9px;
+  }
+
+  .tour-intro-hero.has-like .tour-intro-heading { right: 88px; }
 
   .tour-intro-heading {
     left: 20px;
