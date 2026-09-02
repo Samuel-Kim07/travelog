@@ -37,6 +37,9 @@ const TravelogCreatorModule = (() => {
   let tempPinLat = 0;
   let tempPinLng = 0;
   let pinCreationMode = 'guide';
+  let memoVisibility = 'public';
+  let memoVisibilityFriends = [];
+  let memoVisibilityFriendIds = new Set();
   let textMemoViewportFrame = 0;
 
   const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
@@ -74,6 +77,58 @@ const TravelogCreatorModule = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function renderMemoVisibilityFriends() {
+    const list = document.getElementById('memo-visibility-friend-list');
+    const feedback = document.getElementById('memo-visibility-feedback');
+    if (!list) return;
+    if (memoVisibilityFriends.length === 0) {
+      list.innerHTML = `<p class="memo-visibility-empty">${t('수락된 친구가 없습니다.', 'No accepted friends.', '承認済みの友達がいません。')}</p>`;
+    } else {
+      list.innerHTML = memoVisibilityFriends.map(friend => `
+        <label class="memo-visibility-friend-item">
+          <input type="checkbox" value="${escapeHtml(friend.id)}" ${memoVisibilityFriendIds.has(friend.id) ? 'checked' : ''}>
+          <span>${escapeHtml(friend.name || t('친구', 'Friend', '友達'))}</span>
+        </label>`).join('');
+      list.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', () => {
+          if (input.checked) memoVisibilityFriendIds.add(input.value);
+          else memoVisibilityFriendIds.delete(input.value);
+          if (feedback) feedback.textContent = '';
+        });
+      });
+    }
+    if (feedback && memoVisibility === 'friends' && memoVisibilityFriendIds.size === 0) {
+      feedback.textContent = t('공개할 친구를 한 명 이상 선택해 주세요.', 'Select at least one friend.', '公開する友達を1人以上選択してください。');
+    }
+  }
+
+  function syncMemoVisibilityPanel() {
+    const panel = document.getElementById('memo-visibility-friend-panel');
+    if (panel) panel.hidden = memoVisibility !== 'friends';
+    if (memoVisibility === 'friends') renderMemoVisibilityFriends();
+  }
+
+  async function loadMemoVisibilityFriends() {
+    const list = document.getElementById('memo-visibility-friend-list');
+    if (list) list.innerHTML = `<p class="memo-visibility-empty">${t('친구 목록을 불러오는 중...', 'Loading friends...', '友達を読み込んでいます...')}</p>`;
+    try {
+      memoVisibilityFriends = await window.TravelogSupabase?.fetchFriends?.({ requireSession: true, interactiveLogin: true }) || [];
+    } catch (error) {
+      console.warn('[Travelog Memo Visibility] Could not load friends:', error);
+      memoVisibilityFriends = [];
+      const feedback = document.getElementById('memo-visibility-feedback');
+      if (feedback) feedback.textContent = t('친구 목록을 불러오지 못했습니다.', 'Could not load friends.', '友達を読み込めませんでした。');
+    }
+    renderMemoVisibilityFriends();
+  }
+
+  function canContinueMemoVisibility() {
+    if (!isStandaloneMemoPinMode() || memoVisibility !== 'friends' || memoVisibilityFriendIds.size > 0) return true;
+    renderMemoVisibilityFriends();
+    document.getElementById('memo-visibility-friend-list')?.focus?.();
+    return false;
   }
 
   function safeParseArray(raw, fallback = []) {
@@ -560,23 +615,41 @@ const TravelogCreatorModule = (() => {
     const typeSelectModal = document.getElementById('pin-type-select-modal');
     if (typeSelectModal) {
       document.getElementById('btn-select-audio-memo').addEventListener('click', () => {
+        if (!canContinueMemoVisibility()) return;
         typeSelectModal.classList.remove('active');
         openVoiceMemoModal();
       });
       document.getElementById('btn-select-video-memo').addEventListener('click', () => {
+        if (!canContinueMemoVisibility()) return;
         typeSelectModal.classList.remove('active');
         openVideoMemoModal();
       });
       const photoMemoTypeBtn = document.getElementById('btn-select-photo-memo');
       if (photoMemoTypeBtn) {
         photoMemoTypeBtn.addEventListener('click', () => {
+          if (!canContinueMemoVisibility()) return;
           typeSelectModal.classList.remove('active');
           openPhotoMemoModal();
         });
       }
       document.getElementById('btn-select-text-memo').addEventListener('click', () => {
+        if (!canContinueMemoVisibility()) return;
         typeSelectModal.classList.remove('active');
         openTextMemoModal();
+      });
+      typeSelectModal.querySelectorAll('input[name="memo-visibility"]').forEach(input => {
+        input.addEventListener('change', () => {
+          memoVisibility = input.value;
+          syncMemoVisibilityPanel();
+        });
+      });
+      document.getElementById('memo-visibility-select-all')?.addEventListener('click', () => {
+        memoVisibilityFriendIds = new Set(memoVisibilityFriends.map(friend => friend.id));
+        renderMemoVisibilityFriends();
+      });
+      document.getElementById('memo-visibility-clear-all')?.addEventListener('click', () => {
+        memoVisibilityFriendIds.clear();
+        renderMemoVisibilityFriends();
       });
       document.getElementById('btn-close-type-select').addEventListener('click', closePinTypeSelectModal);
       const pinTypeCloseX = document.getElementById('btn-close-pin-type-select-x');
@@ -3695,6 +3768,9 @@ const TravelogCreatorModule = (() => {
 
   function getMemoPinSaveErrorMessage(error) {
     const message = String(error?.message || error?.code || '').toUpperCase();
+    if (message.includes('MEMO_VIEWER')) {
+      return t('친구 공개 메모는 공개할 친구를 한 명 이상 선택해야 합니다.', 'Select at least one friend for a friends-only memo.', '友達限定メモは公開する友達を1人以上選択してください。');
+    }
     if (message.includes('MEMO_PINS') || message.includes('MEMO-PIN-MEDIA') || message.includes('BUCKET')) {
       return t('Supabase 메모 핀 SQL이 아직 적용되지 않았습니다. 동봉된 MEMO_PIN_SUPABASE_SETUP.sql을 먼저 실행해 주세요.', 'Memo pin storage is not configured. Run MEMO_PIN_SUPABASE_SETUP.sql in Supabase first.', 'SupabaseのメモピンSQLを先に実行してください。');
     }
@@ -3717,6 +3793,8 @@ const TravelogCreatorModule = (() => {
         content,
         blob,
         metadata,
+        visibility: memoVisibility,
+        selectedFriendIds: [...memoVisibilityFriendIds],
         lat: tempPinLat,
         lng: tempPinLng
       });
@@ -3935,6 +4013,16 @@ const TravelogCreatorModule = (() => {
     if (description) description.textContent = isStandaloneMemoPinMode()
       ? t('메모 유형을 선택하세요. 생성된 핀은 기본 3일 동안 지도에 표시됩니다.', 'Choose a memo type. The pin stays on the map for 3 days by default.', 'メモ形式を選択してください。ピンは基本3日間表示されます。')
       : t('이 핀 좌표에 연동할 미디어 유형을 선택하세요.', 'Choose the media type linked to this guide pin.', 'このガイドピンに連携するメディア形式を選択してください。');
+    const visibilitySection = document.getElementById('memo-visibility-section');
+    if (visibilitySection) visibilitySection.hidden = !isStandaloneMemoPinMode();
+    if (isStandaloneMemoPinMode()) {
+      memoVisibility = 'public';
+      memoVisibilityFriendIds.clear();
+      const publicRadio = document.getElementById('memo-visibility-public');
+      if (publicRadio) publicRadio.checked = true;
+      syncMemoVisibilityPanel();
+      loadMemoVisibilityFriends();
+    }
     const modal = document.getElementById('pin-type-select-modal');
     if (modal) {
       modal.classList.add('active');

@@ -6,6 +6,8 @@
 
   let currentTarget = null;
   let replacementFile = null;
+  let visibilityFriends = [];
+  let selectedViewerIds = new Set();
 
   function lang() {
     return String(window.TravelogApp?.getState?.()?.language || 'ko').toLowerCase();
@@ -69,6 +71,22 @@
 
           <div class="travelog-memo-edit-coords" id="travelog-memo-edit-coords"></div>
 
+          <section class="travelog-memo-edit-visibility" id="travelog-memo-edit-visibility" hidden>
+            <strong>${t('공개 범위', 'Visibility', '公開範囲')}</strong>
+            <div class="travelog-memo-edit-visibility-options" role="radiogroup" aria-label="메모 공개 범위">
+              <label><input type="radio" name="travelog-memo-edit-visibility" value="public"><span>${t('전체 공개', 'Public', '全体公開')}</span></label>
+              <label><input type="radio" name="travelog-memo-edit-visibility" value="friends"><span>${t('친구에게만 공개', 'Selected friends', '友達限定')}</span></label>
+              <label><input type="radio" name="travelog-memo-edit-visibility" value="private"><span>${t('비공개', 'Private', '非公開')}</span></label>
+            </div>
+            <div id="travelog-memo-edit-friend-panel" class="travelog-memo-edit-friend-panel" hidden>
+              <div class="travelog-memo-edit-friend-actions">
+                <span>${t('공개할 친구', 'Friends who can view', '公開する友達')}</span>
+                <span><button id="travelog-memo-edit-select-all" type="button">${t('모두 선택', 'Select all', 'すべて選択')}</button><button id="travelog-memo-edit-clear-all" type="button">${t('모두 해제', 'Clear all', 'すべて解除')}</button></span>
+              </div>
+              <div id="travelog-memo-edit-friend-list" class="travelog-memo-edit-friend-list"></div>
+            </div>
+          </section>
+
           <section class="travelog-memo-edit-media-section" id="travelog-memo-edit-media-section" hidden>
             <div class="travelog-memo-edit-section-title">
               <strong>${t('사진·영상·음성', 'Photo / video / audio', '写真・動画・音声')}</strong>
@@ -114,6 +132,15 @@
     });
     modal.querySelector('#travelog-memo-edit-file-clear')?.addEventListener('click', clearReplacementFile);
     modal.querySelector('#travelog-memo-edit-file-input')?.addEventListener('change', handleReplacementFile);
+    modal.querySelectorAll('input[name="travelog-memo-edit-visibility"]').forEach(input => input.addEventListener('change', syncVisibilityEditor));
+    modal.querySelector('#travelog-memo-edit-select-all')?.addEventListener('click', () => {
+      selectedViewerIds = new Set(visibilityFriends.map(friend => friend.id));
+      renderVisibilityFriends();
+    });
+    modal.querySelector('#travelog-memo-edit-clear-all')?.addEventListener('click', () => {
+      selectedViewerIds.clear();
+      renderVisibilityFriends();
+    });
 
     modal.addEventListener('click', (event) => {
       if (event.target === modal) closeEditor();
@@ -198,6 +225,46 @@
     return '';
   }
 
+  function currentVisibility() {
+    return ensureModal().querySelector('input[name="travelog-memo-edit-visibility"]:checked')?.value || 'public';
+  }
+
+  function renderVisibilityFriends() {
+    const list = ensureModal().querySelector('#travelog-memo-edit-friend-list');
+    if (!list) return;
+    if (visibilityFriends.length === 0) {
+      list.innerHTML = `<p>${t('수락된 친구가 없습니다.', 'No accepted friends.', '承認済みの友達がいません。')}</p>`;
+      return;
+    }
+    list.innerHTML = visibilityFriends.map(friend => `
+      <label><input type="checkbox" value="${escapeHtml(friend.id)}" ${selectedViewerIds.has(friend.id) ? 'checked' : ''}><span>${escapeHtml(friend.name || t('친구', 'Friend', '友達'))}</span></label>`).join('');
+    list.querySelectorAll('input[type="checkbox"]').forEach(input => input.addEventListener('change', () => {
+      if (input.checked) selectedViewerIds.add(input.value);
+      else selectedViewerIds.delete(input.value);
+      setFeedback('');
+    }));
+  }
+
+  function syncVisibilityEditor() {
+    const panel = ensureModal().querySelector('#travelog-memo-edit-friend-panel');
+    if (panel) panel.hidden = currentVisibility() !== 'friends';
+    if (currentVisibility() === 'friends') renderVisibilityFriends();
+  }
+
+  async function loadVisibilityFriends() {
+    const list = ensureModal().querySelector('#travelog-memo-edit-friend-list');
+    if (list) list.innerHTML = `<p>${t('친구 목록을 불러오는 중...', 'Loading friends...', '友達を読み込んでいます...')}</p>`;
+    try {
+      visibilityFriends = await window.TravelogSupabase?.fetchFriends?.({ requireSession: true, interactiveLogin: true }) || [];
+      const acceptedIds = new Set(visibilityFriends.map(friend => friend.id));
+      selectedViewerIds = new Set([...selectedViewerIds].filter(id => acceptedIds.has(id)));
+    } catch (error) {
+      console.warn('[Travelog Memo Edit] Could not load friends:', error);
+      visibilityFriends = [];
+    }
+    renderVisibilityFriends();
+  }
+
   function showEditor(target) {
     const modal = ensureModal();
     currentTarget = target;
@@ -214,8 +281,17 @@
     const fileClear = modal.querySelector('#travelog-memo-edit-file-clear');
     const fileName = modal.querySelector('#travelog-memo-edit-file-name');
     const subtitle = modal.querySelector('#travelog-memo-edit-subtitle');
+    const visibilitySection = modal.querySelector('#travelog-memo-edit-visibility');
 
     const isLocal = target.kind === 'local';
+    if (visibilitySection) visibilitySection.hidden = isLocal;
+    selectedViewerIds = new Set(target.selectedFriendIds || []);
+    if (!isLocal) {
+      const visibilityRadio = modal.querySelector(`input[name="travelog-memo-edit-visibility"][value="${target.visibility || 'public'}"]`);
+      if (visibilityRadio) visibilityRadio.checked = true;
+      syncVisibilityEditor();
+      loadVisibilityFriends();
+    }
     if (titleWrap) titleWrap.hidden = isLocal;
     if (titleInput) titleInput.value = target.title || '';
     if (contentInput) contentInput.value = target.content || '';
@@ -272,7 +348,7 @@
 
     const { data, error } = await supabase
       .from('memo_pins')
-      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, metadata, created_at, updated_at, expires_at')
+      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, visibility, metadata, created_at, updated_at, expires_at')
       .eq('id', pinId)
       .single();
 
@@ -286,6 +362,10 @@
         .createSignedUrl(data.media_path, 3600);
       if (!signed.error) mediaUrl = signed.data?.signedUrl || '';
     }
+
+    const selectedFriendIds = data.visibility === 'friends'
+      ? await window.TravelogSupabase?.fetchMemoPinViewerIds?.(data.id, { requireSession: true }) || []
+      : [];
 
     return {
       kind: 'remote',
@@ -301,6 +381,8 @@
       mediaMimeType: data.media_mime_type || '',
       mediaSizeBytes: Number(data.media_size_bytes || 0),
       mediaUrl,
+      visibility: ['public', 'friends', 'private'].includes(data.visibility) ? data.visibility : 'public',
+      selectedFriendIds,
       metadata: data.metadata || {}
     };
   }
@@ -446,7 +528,7 @@
     return type === 'photo' ? 'jpg' : type === 'audio' ? 'webm' : 'webm';
   }
 
-  async function saveRemote(target, title, content) {
+  async function saveRemote(target, title, content, visibility, viewerIds) {
     const supabase = window.TravelogSupabase?.getClient?.();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
 
@@ -459,6 +541,14 @@
     }
     const userId = session?.user?.id || '';
     if (!userId || userId !== target.ownerId) throw new Error('MEMO_EDIT_NOT_OWNER');
+
+    if (typeof window.TravelogSupabase?.setMemoPinVisibility !== 'function') throw new Error('MEMO_VISIBILITY_CLIENT_NOT_READY');
+    await window.TravelogSupabase.setMemoPinVisibility(
+      target.id,
+      visibility,
+      viewerIds,
+      { requireSession: true, interactiveLogin: true }
+    );
 
     const patch = {
       title: title.slice(0, 60),
@@ -562,6 +652,8 @@
     const contentInput = modal.querySelector('#travelog-memo-edit-content-input');
     const title = String(titleInput?.value || '').trim();
     const content = String(contentInput?.value || '').trim();
+    const visibility = currentTarget.kind === 'remote' ? currentVisibility() : 'public';
+    const viewerIds = [...selectedViewerIds];
 
     if (currentTarget.kind === 'remote' && !title) {
       setFeedback(t('메모 제목을 입력해 주세요.', 'Enter a memo title.', 'メモタイトルを入力してください。'), 'error');
@@ -580,13 +672,18 @@
       return;
     }
 
+    if (currentTarget.kind === 'remote' && visibility === 'friends' && viewerIds.length === 0) {
+      setFeedback(t('공개할 친구를 한 명 이상 선택해 주세요.', 'Select at least one friend.', '公開する友達を1人以上選択してください。'), 'error');
+      return;
+    }
+
     modal.dataset.busy = 'true';
     setBusy(true);
     setFeedback(t('수정 내용을 저장하고 있습니다...', 'Saving your changes...', '変更を保存しています...'), 'info');
 
     try {
       if (currentTarget.kind === 'remote') {
-        await saveRemote(currentTarget, title, content);
+        await saveRemote(currentTarget, title, content, visibility, viewerIds);
       } else {
         saveLocal(currentTarget, content);
       }
@@ -620,6 +717,8 @@
         );
       } else if (message.includes('NOT_OWNER')) {
         setFeedback(t('내가 작성한 메모만 수정할 수 있습니다.', 'You can edit only your own memo.', '自分のメモだけ編集できます。'), 'error');
+      } else if (message.includes('MEMO_VIEWER')) {
+        setFeedback(t('친구 공개 메모는 수락된 친구를 한 명 이상 선택해야 합니다.', 'Select at least one accepted friend.', '承認済みの友達を1人以上選択してください。'), 'error');
       } else {
         setFeedback(
           t(
