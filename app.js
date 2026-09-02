@@ -1283,7 +1283,7 @@ function renderFriendList() {
     list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px 0; text-align:center;">아직 등록된 친구가 없습니다. 친구 편집에서 Supabase 닉네임으로 찾아보세요.</div>';
     return;
   }
-  list.innerHTML = friends.slice(0, 4).map(friend => {
+  list.innerHTML = friends.map(friend => {
     const friendId = String(friend.supabaseProfileId || friend.id || '');
     const groupId = friendGroupAssignments.get(friendId) || '';
     const group = friendGroups.find(item => String(item.id) === String(groupId));
