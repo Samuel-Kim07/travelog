@@ -1777,6 +1777,7 @@ const TravelogSupabase = (() => {
       mediaMimeType: row.media_mime_type || '',
       mediaSizeBytes: Number(row.media_size_bytes || 0),
       mediaUrl: row.media_url || '',
+      visibility: ['public', 'friends', 'private'].includes(row.visibility) ? row.visibility : 'public',
       metadata: row.metadata || {},
       createdAt: row.created_at || '',
       updatedAt: row.updated_at || '',
@@ -1812,7 +1813,7 @@ const TravelogSupabase = (() => {
 
     const { data, error } = await supabase
       .from('memo_pins')
-      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, metadata, created_at, updated_at, expires_at')
+      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, visibility, metadata, created_at, updated_at, expires_at')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(500);
@@ -1839,6 +1840,11 @@ const TravelogSupabase = (() => {
     const memoType = ['audio', 'video', 'photo', 'text'].includes(payload.memoType) ? payload.memoType : 'text';
     const title = String(payload.title || '').trim().slice(0, 60) || t('메모 핀', 'Memo Pin', 'メモピン');
     const content = String(payload.content || '').trim().slice(0, 2000);
+    const visibility = ['public', 'friends', 'private'].includes(payload.visibility) ? payload.visibility : 'public';
+    const selectedFriendIds = [...new Set((Array.isArray(payload.selectedFriendIds) ? payload.selectedFriendIds : [])
+      .map(value => String(value || '').trim())
+      .filter(Boolean))];
+    if (visibility === 'friends' && selectedFriendIds.length === 0) throw new Error('MEMO_VIEWER_REQUIRED');
     const blob = payload.blob instanceof Blob ? payload.blob : null;
     let mediaPath = '';
 
@@ -1864,6 +1870,7 @@ const TravelogSupabase = (() => {
       media_path: mediaPath || null,
       media_mime_type: blob?.type || null,
       media_size_bytes: blob?.size || null,
+      visibility,
       metadata: {
         ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}),
         owner_nickname: String(window.TravelogApp?.getState?.()?.userProfile?.nickname || '').trim()
@@ -1877,7 +1884,54 @@ const TravelogSupabase = (() => {
       }
       throw error;
     }
+    if (visibility === 'friends') {
+      const { error: visibilityError } = await supabase.rpc('set_memo_pin_visibility', {
+        p_memo_pin_id: pinId,
+        p_visibility: visibility,
+        p_viewer_ids: selectedFriendIds
+      });
+      if (visibilityError) {
+        try { await supabase.from('memo_pins').delete().eq('id', pinId).eq('owner_id', userId); } catch (_) {}
+        if (mediaPath) {
+          try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
+        }
+        throw visibilityError;
+      }
+    }
     return attachMemoPinSignedUrl(data, userId);
+  }
+
+  async function fetchMemoPinViewerIds(memoPinId, options = {}) {
+    const supabase = getClient();
+    if (!supabase || !memoPinId) return [];
+    const userId = await getCurrentUserId(options);
+    if (!userId) return [];
+    const { data, error } = await supabase
+      .from('memo_pin_viewers')
+      .select('viewer_id')
+      .eq('memo_pin_id', memoPinId);
+    if (error) throw error;
+    return (data || []).map(row => row.viewer_id).filter(Boolean);
+  }
+
+  async function setMemoPinVisibility(memoPinId, visibility, selectedFriendIds = [], options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const safeVisibility = ['public', 'friends', 'private'].includes(visibility) ? visibility : '';
+    const viewerIds = [...new Set((Array.isArray(selectedFriendIds) ? selectedFriendIds : [])
+      .map(value => String(value || '').trim())
+      .filter(Boolean))];
+    if (!safeVisibility) throw new Error('INVALID_MEMO_VISIBILITY');
+    if (safeVisibility === 'friends' && viewerIds.length === 0) throw new Error('MEMO_VIEWER_REQUIRED');
+    const { data, error } = await supabase.rpc('set_memo_pin_visibility', {
+      p_memo_pin_id: memoPinId,
+      p_visibility: safeVisibility,
+      p_viewer_ids: safeVisibility === 'friends' ? viewerIds : []
+    });
+    if (error) throw error;
+    return data;
   }
 
   async function extendMemoPin(memoPinId, blocks) {
@@ -1988,6 +2042,8 @@ const TravelogSupabase = (() => {
     deleteMessage,
     fetchActiveMemoPins,
     createMemoPin,
+    fetchMemoPinViewerIds,
+    setMemoPinVisibility,
     extendMemoPin,
     deleteMemoPin,
     recordAccessRegion,

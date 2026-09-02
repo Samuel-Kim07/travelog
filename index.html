@@ -17,9 +17,9 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1059">
+  <link rel="stylesheet" href="index.css?v=1060">
   <link rel="stylesheet" href="memo-fullscreen.css">
-  <link rel="stylesheet" href="memo-edit.css">
+  <link rel="stylesheet" href="memo-edit.css?v=3">
   <link rel="stylesheet" href="guide-delete-feature.css?v=1">
 </head>
 <body>
@@ -1277,11 +1277,31 @@
 
   <!-- 1) 핀 미디어 타입 선택 모달 -->
   <div id="pin-type-select-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
-    <div class="profile-manager-card glass-panel" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
+    <div class="profile-manager-card glass-panel pin-type-select-card" style="max-width: 400px; text-align: center; padding: 30px; position: relative;">
       <button class="btn-circle" id="btn-close-pin-type-select-x" type="button" aria-label="핀 생성 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <div class="memo-type-main-icon-wrap"><img class="memo-type-main-icon" src="assets/icons/memo-type/memo-guide-pin.svg" alt="" aria-hidden="true"></div>
       <h3 id="pin-type-select-heading" style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
       <p id="pin-type-select-description" style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
+
+      <section id="memo-visibility-section" class="memo-visibility-section" hidden aria-labelledby="memo-visibility-title">
+        <h4 id="memo-visibility-title">공개 범위</h4>
+        <div class="memo-visibility-options" role="radiogroup" aria-label="메모 공개 범위">
+          <label><input id="memo-visibility-public" type="radio" name="memo-visibility" value="public" checked><span>전체 공개</span></label>
+          <label><input id="memo-visibility-friends" type="radio" name="memo-visibility" value="friends"><span>친구에게만 공개</span></label>
+          <label><input id="memo-visibility-private" type="radio" name="memo-visibility" value="private"><span>비공개</span></label>
+        </div>
+        <div id="memo-visibility-friend-panel" class="memo-visibility-friend-panel" hidden>
+          <div class="memo-visibility-friend-actions">
+            <strong>공개할 친구</strong>
+            <span>
+              <button id="memo-visibility-select-all" type="button">모두 선택</button>
+              <button id="memo-visibility-clear-all" type="button">모두 해제</button>
+            </span>
+          </div>
+          <div id="memo-visibility-friend-list" class="memo-visibility-friend-list" aria-label="친구 선택 목록"></div>
+          <p id="memo-visibility-feedback" class="memo-visibility-feedback" aria-live="polite"></p>
+        </div>
+      </section>
       
       <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
         <button class="btn-rect memo-type-select-btn" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.1); border-color: var(--accent-pink); color: #373737 !important;">
@@ -1674,18 +1694,18 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1020" defer></script>
+  <script src="supabaseClient.js?v=1021" defer></script>
   <script src="map.js?v=1017" defer></script>
   <script src="explore.js?v=1004" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
-  <script src="creator.js?v=1021" defer></script>
+  <script src="creator.js?v=1022" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
   <script src="app.js?v=1038" defer></script>
   <script src="memo-fullscreen.js"></script>
-  <script src="memo-edit.js?v=2"></script>
+  <script src="memo-edit.js?v=3"></script>
   <script src="memo-extension-fix.js?v=2"></script>
   <script src="guide-delete-feature.js?v=1"></script>
 </body>
