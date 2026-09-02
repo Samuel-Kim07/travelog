@@ -17,7 +17,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- Core Stylesheet -->
-  <link rel="stylesheet" href="index.css?v=1058">
+  <link rel="stylesheet" href="index.css?v=1059">
   <link rel="stylesheet" href="memo-fullscreen.css">
   <link rel="stylesheet" href="memo-edit.css">
   <link rel="stylesheet" href="guide-delete-feature.css?v=1">
@@ -1529,6 +1529,20 @@
         </button>
       </div>
       <div id="friend-search-results" style="display:none; flex-direction:column; gap:8px; margin-bottom:12px; border:1px solid rgba(112,162,183,.25); border-radius:14px; padding:10px; background:rgba(112,162,183,.08);"></div>
+      <section class="friend-group-manager" aria-labelledby="friend-group-manager-title">
+        <div class="friend-group-manager-heading">
+          <div>
+            <h3 id="friend-group-manager-title">친구 그룹</h3>
+            <p>그룹을 삭제해도 친구는 삭제되지 않습니다.</p>
+          </div>
+        </div>
+        <div class="friend-group-create-row">
+          <input type="text" id="friend-group-name-input" maxlength="40" placeholder="새 그룹 이름" aria-label="새 친구 그룹 이름">
+          <button class="btn-rect friend-group-create-btn" id="friend-group-create-btn" type="button">그룹 만들기</button>
+        </div>
+        <div id="friend-group-list" class="friend-group-list" aria-live="polite"></div>
+      </section>
+      <div class="friend-edit-list-heading">친구별 그룹 지정</div>
       <div id="friend-edit-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; border-top:1px solid var(--glass-border); padding-top:12px;"></div>
     </div>
   </div>
@@ -1660,7 +1674,7 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1019" defer></script>
+  <script src="supabaseClient.js?v=1020" defer></script>
   <script src="map.js?v=1017" defer></script>
   <script src="explore.js?v=1004" defer></script>
   <script src="rewards.js?v=1005" defer></script>
@@ -1669,7 +1683,7 @@
   <script src="creator.js?v=1021" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
-  <script src="app.js?v=1036" defer></script>
+  <script src="app.js?v=1037" defer></script>
   <script src="memo-fullscreen.js"></script>
   <script src="memo-edit.js?v=2"></script>
   <script src="memo-extension-fix.js?v=2"></script>

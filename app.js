@@ -1053,6 +1053,8 @@ let currentMessageFriendId = null;
 let latestFriendSearchResults = [];
 let latestFriendRequests = [];
 let latestFriendFeedback = [];
+let friendGroups = [];
+let friendGroupAssignments = new Map();
 let supabaseFriendSyncInProgress = false;
 let supabaseMessageSyncInProgress = false;
 let currentMessageBoxTab = 'received';
@@ -1151,6 +1153,32 @@ async function syncSupabaseFriends(options = {}) {
   return false;
 }
 
+async function syncSupabaseFriendGroups(options = {}) {
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchFriendGroups !== 'function') return false;
+  try {
+    const result = await window.TravelogSupabase.fetchFriendGroups({
+      requireSession: options.requireSession === true,
+      interactiveLogin: options.interactiveLogin === true
+    });
+    friendGroups = Array.isArray(result?.groups) ? result.groups : [];
+    friendGroupAssignments = new Map(
+      (Array.isArray(result?.assignments) ? result.assignments : [])
+        .filter(item => item?.friendId && item?.groupId)
+        .map(item => [String(item.friendId), String(item.groupId)])
+    );
+    renderFriendGroups();
+    renderFriendList();
+    renderFriendEditList();
+    return true;
+  } catch (error) {
+    console.warn('[Travelog Supabase] Friend group sync failed:', error);
+    if (options.showError) {
+      showToast(localizedText('친구 그룹을 불러오지 못했습니다. SQL 마이그레이션 적용 여부를 확인해 주세요.', 'Could not load friend groups. Check the SQL migration.', '友だちグループを読み込めませんでした。'));
+    }
+    return false;
+  }
+}
+
 async function syncSupabaseMessages(options = {}) {
   if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchMessages !== 'function' || supabaseMessageSyncInProgress) return false;
   supabaseMessageSyncInProgress = true;
@@ -1174,6 +1202,7 @@ async function syncSupabaseMessages(options = {}) {
 
 async function refreshSupabaseSocialData(options = {}) {
   await syncSupabaseFriends(options);
+  await syncSupabaseFriendGroups(options);
   await syncSupabaseMessages(options);
 }
 
@@ -1203,6 +1232,8 @@ function bindFriendUiEvents() {
   const editCloseBtn = document.getElementById('friend-edit-close-btn');
   const addBtn = document.getElementById('friend-add-btn');
   const friendInput = document.getElementById('friend-name-input');
+  const groupCreateBtn = document.getElementById('friend-group-create-btn');
+  const groupNameInput = document.getElementById('friend-group-name-input');
   const messageCloseBtn = document.getElementById('friend-message-close-btn');
   const messageSendBtn = document.getElementById('friend-message-send-btn');
 
@@ -1224,6 +1255,16 @@ function bindFriendUiEvents() {
       if (event.key === 'Enter') addFriendFromInput();
     });
   }
+  if (groupCreateBtn && !groupCreateBtn.dataset.bound) {
+    groupCreateBtn.dataset.bound = 'true';
+    groupCreateBtn.addEventListener('click', createFriendGroupFromInput);
+  }
+  if (groupNameInput && !groupNameInput.dataset.bound) {
+    groupNameInput.dataset.bound = 'true';
+    groupNameInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') createFriendGroupFromInput();
+    });
+  }
   if (messageCloseBtn && !messageCloseBtn.dataset.bound) {
     messageCloseBtn.dataset.bound = 'true';
     messageCloseBtn.addEventListener('click', closeFriendMessageModal);
@@ -1242,19 +1283,25 @@ function renderFriendList() {
     list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); padding:10px 0; text-align:center;">아직 등록된 친구가 없습니다. 친구 편집에서 Supabase 닉네임으로 찾아보세요.</div>';
     return;
   }
-  list.innerHTML = friends.slice(0, 4).map(friend => `
+  list.innerHTML = friends.slice(0, 4).map(friend => {
+    const friendId = String(friend.supabaseProfileId || friend.id || '');
+    const groupId = friendGroupAssignments.get(friendId) || '';
+    const group = friendGroups.find(item => String(item.id) === String(groupId));
+    const subLabel = group?.name || friend.memo || (friend.isSupabaseFriend ? 'Supabase 친구' : '친구');
+    return `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(255,255,255,.62); border:1px solid var(--glass-border); border-radius:14px; padding:8px 10px;">
       <div style="display:flex; align-items:center; gap:8px; min-width:0;">
         <div style="width:30px; height:30px; border-radius:50%; background:var(--grad-hero); display:flex; align-items:center; justify-content:center; color:white; font-weight:900; flex-shrink:0;">${escapeHtml((friend.name || '?').slice(0, 1))}</div>
         <div style="min-width:0;">
           <div style="font-size:13px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.name)}</div>
-          <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(friend.memo || (friend.isSupabaseFriend ? 'Supabase 친구' : '친구'))}</div>
+          <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(subLabel)}</div>
         </div>
       </div>
       <button class="btn-rect secondary home-friend-message-btn" type="button" onclick="window.openFriendMessageModal('${friend.id}')" aria-label="${escapeHtml(friend.name)}에게 쪽지 보내기" title="${escapeHtml(friend.name)}에게 쪽지 보내기">
         <img src="assets/icons/ui/send_post.svg" alt="" aria-hidden="true">
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderFriendRequestsAndFeedback() {
@@ -1295,6 +1342,26 @@ function renderFriendRequestsAndFeedback() {
   }
 }
 
+function renderFriendGroups() {
+  const list = document.getElementById('friend-group-list');
+  if (!list) return;
+  if (friendGroups.length === 0) {
+    list.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:6px 0;">아직 만든 그룹이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = friendGroups.map(group => {
+    const memberCount = [...friendGroupAssignments.values()].filter(groupId => String(groupId) === String(group.id)).length;
+    return `
+      <div class="friend-group-card">
+        <div class="friend-group-card-name">${escapeHtml(group.name)}<span class="friend-group-card-count">${memberCount}명</span></div>
+        <div class="friend-group-card-actions">
+          <button class="btn-rect secondary" type="button" onclick="window.renameFriendGroup('${group.id}')">이름 변경</button>
+          <button class="btn-rect secondary" type="button" onclick="window.deleteFriendGroup('${group.id}')" style="color:var(--accent-pink);">삭제</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function renderFriendEditList() {
   const list = document.getElementById('friend-edit-list');
   if (!list) return;
@@ -1303,21 +1370,35 @@ function renderFriendEditList() {
     list.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px 0;">사용자를 검색해 친구신청을 보내 주세요. 상대방이 수락하면 여기에 표시됩니다.</div>';
     return;
   }
-  list.innerHTML = friends.map(friend => `
-    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; border:1px solid var(--glass-border); border-radius:14px; padding:9px 10px; background:rgba(255,255,255,.72);">
-      <div style="min-width:0;">
+  list.innerHTML = friends.map(friend => {
+    const friendId = String(friend.supabaseProfileId || friend.id || '');
+    const selectedGroupId = friendGroupAssignments.get(friendId) || '';
+    const groupOptions = friendGroups.map(group =>
+      `<option value="${group.id}"${String(group.id) === String(selectedGroupId) ? ' selected' : ''}>${escapeHtml(group.name)}</option>`
+    ).join('');
+    const groupSelect = friend.isSupabaseFriend
+      ? `<select class="friend-group-select" aria-label="${escapeHtml(friend.name)}의 친구 그룹" onchange="window.moveFriendToGroup('${friendId}', this.value)">
+          <option value="">그룹 없음</option>${groupOptions}
+        </select>`
+      : '<select class="friend-group-select" disabled aria-label="Supabase 친구만 그룹 지정 가능"><option>로그인 친구만</option></select>';
+    return `
+    <div class="friend-edit-card">
+      <div class="friend-edit-card-main">
         <div style="font-size:13px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.name)}</div>
         <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(friend.memo || (friend.isSupabaseFriend ? 'Supabase 친구' : '친구'))}</div>
       </div>
-      <div style="display:flex; gap:6px; flex-shrink:0;">
+      <div class="friend-edit-card-actions">
+        ${groupSelect}
         <button class="btn-rect secondary" type="button" onclick="window.openFriendMessageModal('${friend.id}')" style="padding:5px 9px; font-size:11px; border-radius:10px;">쪽지</button>
         <button class="btn-rect secondary" type="button" onclick="window.deleteFriend('${friend.id}')" style="padding:5px 9px; font-size:11px; border-radius:10px; color:var(--accent-pink);">삭제</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function openFriendEditModal() {
   renderFriendSearchResults([]);
+  renderFriendGroups();
   renderFriendEditList();
   const modal = document.getElementById('friend-edit-modal');
   if (modal) {
@@ -1327,6 +1408,7 @@ async function openFriendEditModal() {
   if (isSupabaseFriendFeatureReady()) {
     renderFriendSearchResults([], 'Supabase 친구 목록을 불러오는 중입니다...');
     const synced = await syncSupabaseFriends({ requireSession: true, interactiveLogin: true, showError: true });
+    await syncSupabaseFriendGroups({ requireSession: true, interactiveLogin: true, showError: true });
     renderFriendSearchResults([], synced ? '' : '로그인 세션이 없으면 Supabase 친구 검색을 사용할 수 없습니다.');
   }
 }
@@ -1338,6 +1420,79 @@ function closeFriendEditModal() {
     modal.setAttribute('aria-hidden', 'true');
   }
 }
+
+async function createFriendGroupFromInput() {
+  const input = document.getElementById('friend-group-name-input');
+  const name = String(input?.value || '').trim();
+  if (!name) {
+    showToast(localizedText('그룹 이름을 입력해 주세요.', 'Enter a group name.', 'グループ名を入力してください。'));
+    input?.focus();
+    return;
+  }
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.createFriendGroup !== 'function') return;
+  try {
+    await window.TravelogSupabase.createFriendGroup(name, { interactiveLogin: true });
+    if (input) input.value = '';
+    await syncSupabaseFriendGroups({ requireSession: true, interactiveLogin: true });
+    showToast(localizedText('친구 그룹을 만들었습니다.', 'Friend group created.', '友だちグループを作成しました。'));
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend group create failed:', error);
+    const duplicate = error?.code === '23505';
+    showToast(duplicate
+      ? localizedText('같은 이름의 그룹이 이미 있습니다.', 'A group with that name already exists.', '同じ名前のグループがあります。')
+      : localizedText('친구 그룹을 만들지 못했습니다.', 'Could not create the friend group.', '友だちグループを作成できませんでした。'));
+  }
+}
+
+window.renameFriendGroup = async function(groupId) {
+  const group = friendGroups.find(item => String(item.id) === String(groupId));
+  if (!group || !window.TravelogSupabase || typeof window.TravelogSupabase.renameFriendGroup !== 'function') return;
+  const nextName = window.prompt('새 그룹 이름을 입력해 주세요.', group.name);
+  if (nextName === null) return;
+  const cleanName = nextName.trim();
+  if (!cleanName || cleanName === group.name) return;
+  try {
+    await window.TravelogSupabase.renameFriendGroup(groupId, cleanName, { interactiveLogin: true });
+    await syncSupabaseFriendGroups({ requireSession: true, interactiveLogin: true });
+    showToast(localizedText('그룹 이름을 변경했습니다.', 'Group renamed.', 'グループ名を変更しました。'));
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend group rename failed:', error);
+    showToast(error?.code === '23505'
+      ? localizedText('같은 이름의 그룹이 이미 있습니다.', 'A group with that name already exists.', '同じ名前のグループがあります。')
+      : localizedText('그룹 이름을 변경하지 못했습니다.', 'Could not rename the group.', 'グループ名を変更できませんでした。'));
+  }
+};
+
+window.deleteFriendGroup = async function(groupId) {
+  const group = friendGroups.find(item => String(item.id) === String(groupId));
+  if (!group || !window.TravelogSupabase || typeof window.TravelogSupabase.deleteFriendGroup !== 'function') return;
+  if (!window.confirm(`‘${group.name}’ 그룹을 삭제할까요? 그룹에 속한 친구는 삭제되지 않습니다.`)) return;
+  try {
+    await window.TravelogSupabase.deleteFriendGroup(groupId, { interactiveLogin: true });
+    await syncSupabaseFriendGroups({ requireSession: true, interactiveLogin: true });
+    showToast(localizedText('그룹만 삭제했습니다. 친구 목록은 유지됩니다.', 'Group deleted. Friends were kept.', 'グループのみ削除し、友だちは維持されます。'));
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend group delete failed:', error);
+    showToast(localizedText('친구 그룹을 삭제하지 못했습니다.', 'Could not delete the friend group.', '友だちグループを削除できませんでした。'));
+  }
+};
+
+window.moveFriendToGroup = async function(friendId, groupId) {
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.moveFriendToGroup !== 'function') return;
+  try {
+    await window.TravelogSupabase.moveFriendToGroup(friendId, groupId, { interactiveLogin: true });
+    if (groupId) friendGroupAssignments.set(String(friendId), String(groupId));
+    else friendGroupAssignments.delete(String(friendId));
+    renderFriendGroups();
+    renderFriendList();
+    renderFriendEditList();
+    showToast(localizedText('친구 그룹을 변경했습니다.', 'Friend group updated.', '友だちグループを変更しました。'));
+  } catch (error) {
+    console.error('[Travelog Supabase] Friend group move failed:', error);
+    await syncSupabaseFriendGroups({ requireSession: true, interactiveLogin: true });
+    showToast(localizedText('친구 그룹을 변경하지 못했습니다.', 'Could not update the friend group.', '友だちグループを変更できませんでした。'));
+  }
+};
 
 async function addFriendFromInput() {
   const input = document.getElementById('friend-name-input');
@@ -2893,6 +3048,8 @@ function clearLocalProfileForRequiredLogin() {
   TravelogState.friends = [];
   latestFriendRequests = [];
   latestFriendFeedback = [];
+  friendGroups = [];
+  friendGroupAssignments = new Map();
   TravelogState.messages = [];
   latestFriendSearchResults = [];
   verifiedNickname = '';
@@ -4198,6 +4355,8 @@ async function logoutCurrentProfile() {
   TravelogState.friends = [];
   latestFriendRequests = [];
   latestFriendFeedback = [];
+  friendGroups = [];
+  friendGroupAssignments = new Map();
   TravelogState.messages = [];
   verifiedNickname = '';
   latestFriendSearchResults = [];

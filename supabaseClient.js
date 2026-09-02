@@ -1531,6 +1531,12 @@ const TravelogSupabase = (() => {
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const { error: groupCleanupError } = await supabase
+      .from('friend_group_members')
+      .delete()
+      .eq('owner_id', userId)
+      .eq('friend_id', profileId);
+    if (groupCleanupError) throw groupCleanupError;
     const { error } = await supabase
       .from('friendships')
       .delete()
@@ -1538,6 +1544,115 @@ const TravelogSupabase = (() => {
       .eq('status', 'accepted');
     if (error) throw error;
     return true;
+  }
+
+  async function fetchFriendGroups(options = {}) {
+    const supabase = getClient();
+    if (!supabase) return { groups: [], assignments: [] };
+    const userId = await getCurrentUserId(options);
+    if (!userId) return { groups: [], assignments: [] };
+
+    const [{ data: groups, error: groupError }, { data: assignments, error: assignmentError }] = await Promise.all([
+      supabase
+        .from('friend_groups')
+        .select('id, owner_id, name, created_at, updated_at')
+        .eq('owner_id', userId)
+        .order('name', { ascending: true }),
+      supabase
+        .from('friend_group_members')
+        .select('group_id, owner_id, friend_id, created_at')
+        .eq('owner_id', userId)
+    ]);
+    if (groupError) throw groupError;
+    if (assignmentError) throw assignmentError;
+    return {
+      groups: (groups || []).map(group => ({
+        id: group.id,
+        name: group.name,
+        createdAt: group.created_at || '',
+        updatedAt: group.updated_at || ''
+      })),
+      assignments: (assignments || []).map(item => ({
+        groupId: item.group_id,
+        friendId: item.friend_id,
+        createdAt: item.created_at || ''
+      }))
+    };
+  }
+
+  async function createFriendGroup(name, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const cleanName = String(name || '').trim();
+    if (!cleanName || cleanName.length > 40) throw new Error('INVALID_FRIEND_GROUP_NAME');
+    const { data, error } = await supabase
+      .from('friend_groups')
+      .insert({ owner_id: userId, name: cleanName })
+      .select('id, name, created_at, updated_at')
+      .single();
+    if (error) throw error;
+    return { id: data.id, name: data.name, createdAt: data.created_at || '', updatedAt: data.updated_at || '' };
+  }
+
+  async function renameFriendGroup(groupId, name, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const cleanName = String(name || '').trim();
+    if (!groupId || !cleanName || cleanName.length > 40) throw new Error('INVALID_FRIEND_GROUP_NAME');
+    const { data, error } = await supabase
+      .from('friend_groups')
+      .update({ name: cleanName, updated_at: new Date().toISOString() })
+      .eq('id', groupId)
+      .eq('owner_id', userId)
+      .select('id, name, created_at, updated_at')
+      .single();
+    if (error) throw error;
+    return { id: data.id, name: data.name, createdAt: data.created_at || '', updatedAt: data.updated_at || '' };
+  }
+
+  async function deleteFriendGroup(groupId, options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    if (!groupId) throw new Error('INVALID_FRIEND_GROUP_ID');
+    const { error } = await supabase
+      .from('friend_groups')
+      .delete()
+      .eq('id', groupId)
+      .eq('owner_id', userId);
+    if (error) throw error;
+    return true;
+  }
+
+  async function moveFriendToGroup(friendId, groupId = '', options = {}) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const userId = await getCurrentUserId({ ...options, requireSession: true, interactiveLogin: options.interactiveLogin !== false });
+    if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    if (!friendId || friendId === userId) throw new Error('INVALID_FRIEND_ID');
+
+    if (!groupId) {
+      const { error } = await supabase
+        .from('friend_group_members')
+        .delete()
+        .eq('owner_id', userId)
+        .eq('friend_id', friendId);
+      if (error) throw error;
+      return null;
+    }
+
+    const { data, error } = await supabase
+      .from('friend_group_members')
+      .upsert({ owner_id: userId, friend_id: friendId, group_id: groupId }, { onConflict: 'owner_id,friend_id' })
+      .select('group_id, friend_id, created_at')
+      .single();
+    if (error) throw error;
+    return { groupId: data.group_id, friendId: data.friend_id, createdAt: data.created_at || '' };
   }
 
   async function sendMessage(receiverId, body, guideId = null, options = {}) {
@@ -1862,6 +1977,11 @@ const TravelogSupabase = (() => {
     dismissFriendFeedback,
     addFriend,
     deleteFriend,
+    fetchFriendGroups,
+    createFriendGroup,
+    renameFriendGroup,
+    deleteFriendGroup,
+    moveFriendToGroup,
     sendMessage,
     fetchMessages,
     markMessageRead,
