@@ -6547,6 +6547,171 @@ textarea::placeholder {
   object-fit: contain;
 }
 
+.friend-group-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(112, 162, 183, .28);
+  border-radius: 14px;
+  background: rgba(112, 162, 183, .08);
+}
+
+.friend-group-manager-heading h3,
+.friend-group-manager-heading p {
+  margin: 0;
+}
+
+.friend-group-manager-heading h3 {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.friend-group-manager-heading p {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.friend-group-create-row {
+  display: flex;
+  gap: 8px;
+}
+
+.friend-group-create-row input,
+.friend-group-select {
+  min-width: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .9);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.friend-group-create-row input {
+  flex: 1;
+  min-height: 40px;
+  padding: 9px 11px;
+}
+
+.friend-group-create-btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  background: var(--color-ocean);
+  color: #fff;
+}
+
+.friend-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.friend-group-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 9px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.friend-group-card-name {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-group-card-count {
+  margin-left: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.friend-group-card-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.friend-group-card-actions .btn-rect {
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+
+.friend-edit-list-heading {
+  margin: 0 0 7px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.friend-edit-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .72);
+}
+
+.friend-edit-card-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.friend-edit-card-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 5px;
+}
+
+.friend-group-select {
+  width: 122px;
+  min-height: 34px;
+  padding: 6px 8px;
+}
+
+@media (max-width: 520px) {
+  .friend-group-create-row,
+  .friend-edit-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .friend-group-create-btn {
+    justify-content: center;
+  }
+
+  .friend-edit-card-actions {
+    width: 100%;
+  }
+
+  .friend-group-select {
+    flex: 1;
+    width: auto;
+  }
+
+  .friend-edit-card-actions .btn-rect {
+    min-height: 38px;
+  }
+}
+
 /* Friend request inbox and rejection feedback */
 .friend-request-area {
   display: flex;
