@@ -1028,6 +1028,9 @@ const TravelogSupabase = (() => {
       isPublishedGuide: true,
       isSupabaseGuide: true,
       supabaseGuideId: guideId,
+      likeCount: Number(options.likeCount ?? options.fallbackCard?.likeCount ?? 0) || 0,
+      likedByCurrentUser: options.likedByCurrentUser === true || options.fallbackCard?.likedByCurrentUser === true,
+      publishedAt: guide.published_at || options.fallbackCard?.publishedAt || '',
       version: guide.version || 1,
       totalBytes: Number(guide.total_bytes || 0) || 0,
       offlineReady: options.offlineReady === true || offlineStatus.offlineReady === true,
@@ -1057,17 +1060,59 @@ const TravelogSupabase = (() => {
   async function fetchPublishedGuideCards() {
     const supabase = getClient();
     if (!supabase) return [];
-    const { data, error } = await supabase
-      .from('guides')
-      .select('*, guide_pins(*), guide_media(*)')
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-      .limit(50);
+    const [{ data, error }, summaries] = await Promise.all([
+      supabase
+        .from('guides')
+        .select('*, guide_pins(*), guide_media(*)')
+        .eq('status', 'published')
+        .order('published_at', { ascending: false })
+        .limit(50),
+      fetchPublishedGuideLikeSummaries()
+    ]);
     if (error) {
       console.warn('[Travelog Supabase] Published guide fetch failed:', error);
       return [];
     }
-    return (data || []).map(guide => buildGuideCardFromSupabase(guide));
+    const summaryMap = new Map(summaries.map(item => [item.guideId, item]));
+    return (data || []).map(guide => {
+      const summary = summaryMap.get(guide.id);
+      return buildGuideCardFromSupabase(guide, null, null, {
+        likeCount: summary?.likeCount || 0,
+        likedByCurrentUser: summary?.liked === true
+      });
+    });
+  }
+
+  async function fetchPublishedGuideLikeSummaries() {
+    const supabase = getClient();
+    if (!supabase) return [];
+    const { data, error } = await supabase.rpc('get_published_guide_like_summaries');
+    if (error) {
+      console.warn('[Travelog Supabase] Guide like summaries failed:', error);
+      return [];
+    }
+    return (data || []).map(row => ({
+      guideId: row.guide_id,
+      likeCount: Math.max(0, Number(row.like_count || 0)),
+      liked: row.liked_by_me === true
+    }));
+  }
+
+  async function togglePublishedGuideLike(guideId) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const session = await ensureSession({
+      displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+      interactiveLogin: true
+    });
+    if (!session?.user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const { data, error } = await supabase.rpc('toggle_published_guide_like', { p_guide_id: guideId });
+    if (error) throw error;
+    return {
+      guideId: data?.guide_id || guideId,
+      likeCount: Math.max(0, Number(data?.like_count || 0)),
+      liked: data?.liked === true
+    };
   }
 
   async function purchaseGuide(guideCard) {
@@ -2049,6 +2094,8 @@ const TravelogSupabase = (() => {
     recordAccessRegion,
     publishGuidePackage,
     fetchPublishedGuideCards,
+    fetchPublishedGuideLikeSummaries,
+    togglePublishedGuideLike,
     purchaseGuide,
     downloadGuideOffline,
     getOfflineGuideCard,

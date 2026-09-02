@@ -494,6 +494,9 @@ function sanitizePublishedGuideCard(guide) {
     isPublishedGuide: guide?.isPublishedGuide === true || stops.length > 0,
     isSupabaseGuide: guide?.isSupabaseGuide === true,
     supabaseGuideId: guide?.supabaseGuideId || guide?.id || '',
+    likeCount: Math.max(0, Number(guide?.likeCount || 0)),
+    likedByCurrentUser: guide?.likedByCurrentUser === true,
+    publishedAt: guide?.publishedAt || '',
     offlineReady: guide?.offlineReady === true,
     offlineStatus: guide?.offlineStatus || (guide?.offlineReady === true ? 'downloaded' : 'not_downloaded'),
     totalBytes: Number(guide?.totalBytes || guide?.total_bytes || 0) || 0,
@@ -633,6 +636,7 @@ function mergePublishedGuideIntoCollections(guideCard) {
     { ...guide },
     ...RECOMMEND_GUIDES_DATA.today.filter(item => item.id !== guide.id)
   ];
+  sortTodayGuidesByLikes();
 
   TravelogState.userGuides = [
     { ...guide, isWidget: guide.isWidget !== false },
@@ -640,6 +644,19 @@ function mergePublishedGuideIntoCollections(guideCard) {
   ];
 
   return guide;
+}
+
+function sortTodayGuidesByLikes() {
+  RECOMMEND_GUIDES_DATA.today = RECOMMEND_GUIDES_DATA.today
+    .map((guide, index) => ({ guide, index }))
+    .sort((a, b) => {
+      const likeDifference = Number(b.guide.likeCount || 0) - Number(a.guide.likeCount || 0);
+      if (likeDifference !== 0) return likeDifference;
+      const publishedDifference = Date.parse(b.guide.publishedAt || b.guide.createdAt || 0) - Date.parse(a.guide.publishedAt || a.guide.createdAt || 0);
+      if (Number.isFinite(publishedDifference) && publishedDifference !== 0) return publishedDifference;
+      return a.index - b.index;
+    })
+    .map(item => item.guide);
 }
 
 function loadPublishedGuides() {
@@ -1025,9 +1042,10 @@ function renderGuidesScrollList(containerId, listData) {
   if (!container) return;
 
   container.innerHTML = listData.map(item => {
-    const ratingMarkup = String(item.rating).toUpperCase() === 'NEW'
+    const displayedRating = item.isSupabaseGuide ? Number(item.likeCount || 0) : item.rating;
+    const ratingMarkup = String(displayedRating).toUpperCase() === 'NEW'
       ? '<span class="guide-card-rating-text">NEW</span>'
-      : `<img class="guide-card-rating-icon" src="assets/icons/ui/like_icon.svg" alt="" aria-hidden="true"> <span>${escapeHtml(String(item.rating))}</span>`;
+      : `<img class="guide-card-rating-icon" src="assets/icons/ui/like_icon.svg" alt="" aria-hidden="true"> <span>${escapeHtml(String(displayedRating))}</span>`;
     const priceMarkup = isGuidePaid(item)
       ? `<span class="guide-card-price guide-card-price-paid"><img class="guide-card-price-icon" src="assets/icons/ui/tc_small.svg" alt="트레블 코인"> <span>${getGuideCoinPrice(item).toLocaleString()}</span></span>`
       : '<span class="guide-card-price guide-card-price-free">무료</span>';
@@ -2079,8 +2097,13 @@ function buildActiveGuideFromHomeGuide(guideId) {
       coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0,
       monetization: resolvedPublishedRecord.monetization || guideCard.monetization || { isPaid: resolvedPublishedRecord.isPaid === true || guideCard.isPaid === true, coinPrice: Number(resolvedPublishedRecord.coinPrice || guideCard.coinPrice || 0) || 0 },
       isPurchased: isGuidePurchased(guideId),
-      isSupabaseGuide: guideCard.isSupabaseGuide === true,
-      supabaseGuideId: guideCard.supabaseGuideId || guideCard.id || guideId,
+      isSupabaseGuide: selectedGuideInfo?.isSupabaseGuide === true || guideCard.isSupabaseGuide === true,
+      supabaseGuideId: selectedGuideInfo?.supabaseGuideId || guideCard.supabaseGuideId || guideCard.id || guideId,
+      likeCount: Math.max(0, Number(selectedGuideInfo?.likeCount ?? guideCard.likeCount ?? 0)),
+      likedByCurrentUser: typeof selectedGuideInfo?.likedByCurrentUser === 'boolean'
+        ? selectedGuideInfo.likedByCurrentUser
+        : guideCard.likedByCurrentUser === true,
+      publishedAt: selectedGuideInfo?.publishedAt || guideCard.publishedAt || resolvedPublishedRecord.publishedAt || '',
       offlineReady: guideCard.offlineReady === true,
       offlineStatus: guideCard.offlineStatus || (guideCard.offlineReady === true ? 'downloaded' : 'not_downloaded'),
       totalBytes: Number(guideCard.totalBytes || 0) || 0,
@@ -2124,6 +2147,7 @@ function initHomeGuideIntroModals() {
   const previewClose = document.getElementById('home-guide-preview-close-btn');
   const previewBtn = document.getElementById('home-guide-intro-preview-btn');
   const purchaseBtn = document.getElementById('home-guide-intro-purchase-btn');
+  const likeBtn = document.getElementById('home-guide-intro-like-btn');
   const pinListOpenBtn = document.getElementById('home-guide-pin-list-open-btn');
   const pinListCloseBtn = document.getElementById('home-guide-pin-list-close-btn');
   const pinListModal = document.getElementById('home-guide-pin-list-modal');
@@ -2148,6 +2172,10 @@ function initHomeGuideIntroModals() {
       if (currentIntroGuideId) purchaseCurrentIntroGuide();
     });
   }
+  if (likeBtn && !likeBtn.dataset.bound) {
+    likeBtn.dataset.bound = 'true';
+    likeBtn.addEventListener('click', toggleCurrentIntroGuideLike);
+  }
   if (pinListOpenBtn && !pinListOpenBtn.dataset.bound) {
     pinListOpenBtn.dataset.bound = 'true';
     pinListOpenBtn.addEventListener('click', window.openHomeGuidePinListModal);
@@ -2161,6 +2189,82 @@ function initHomeGuideIntroModals() {
     pinListModal.addEventListener('click', (event) => {
       if (event.target === pinListModal) window.closeHomeGuidePinListModal();
     });
+  }
+}
+
+function updateGuideLikeState(guideId, likeCount, liked) {
+  const safeCount = Math.max(0, Number(likeCount || 0));
+  Object.values(RECOMMEND_GUIDES_DATA).forEach(list => {
+    const guide = list.find(item => String(item.id) === String(guideId));
+    if (guide) {
+      guide.likeCount = safeCount;
+      guide.likedByCurrentUser = liked === true;
+    }
+  });
+  TravelogState.userGuides.forEach(guide => {
+    if (String(guide.id) === String(guideId)) {
+      guide.likeCount = safeCount;
+      guide.likedByCurrentUser = liked === true;
+    }
+  });
+  sortTodayGuidesByLikes();
+}
+
+function renderIntroGuideLike(activeGuide) {
+  const button = document.getElementById('home-guide-intro-like-btn');
+  const count = document.getElementById('home-guide-intro-like-count');
+  if (!button || !count) return;
+  const available = activeGuide?.isSupabaseGuide === true && activeGuide?.isPublishedGuide === true;
+  document.querySelector('#home-guide-intro-modal .tour-intro-hero')?.classList.toggle('has-like', available);
+  button.hidden = !available;
+  button.disabled = false;
+  const liked = activeGuide?.likedByCurrentUser === true;
+  button.classList.toggle('is-liked', liked);
+  button.setAttribute('aria-pressed', liked ? 'true' : 'false');
+  button.setAttribute('aria-label', liked ? '가이드 좋아요 취소' : '가이드 좋아요');
+  count.textContent = Math.max(0, Number(activeGuide?.likeCount || 0)).toLocaleString();
+}
+
+async function refreshCurrentIntroGuideLike(guideId) {
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.fetchPublishedGuideLikeSummaries !== 'function') return;
+  const summaries = await window.TravelogSupabase.fetchPublishedGuideLikeSummaries();
+  if (currentIntroGuideId !== guideId) return;
+  const summary = summaries.find(item => String(item.guideId) === String(guideId));
+  if (!summary) return;
+  updateGuideLikeState(guideId, summary.likeCount, summary.liked);
+  renderIntroGuideLike(buildActiveGuideFromHomeGuide(guideId));
+  renderHomeTab();
+}
+
+async function toggleCurrentIntroGuideLike() {
+  if (!currentIntroGuideId) return;
+  const guideId = currentIntroGuideId;
+  const activeGuide = buildActiveGuideFromHomeGuide(guideId);
+  const button = document.getElementById('home-guide-intro-like-btn');
+  if (!button || button.disabled || activeGuide.isSupabaseGuide !== true) return;
+  if (!window.TravelogSupabase || typeof window.TravelogSupabase.togglePublishedGuideLike !== 'function') {
+    showToast(localizedText('좋아요 기능을 불러오지 못했습니다.', 'Likes are not available.', 'いいね機能を読み込めませんでした。'));
+    return;
+  }
+
+  const previousLiked = activeGuide.likedByCurrentUser === true;
+  const previousCount = Math.max(0, Number(activeGuide.likeCount || 0));
+  updateGuideLikeState(guideId, previousLiked ? previousCount - 1 : previousCount + 1, !previousLiked);
+  renderIntroGuideLike(buildActiveGuideFromHomeGuide(guideId));
+  button.disabled = true;
+
+  try {
+    const result = await window.TravelogSupabase.togglePublishedGuideLike(activeGuide.supabaseGuideId || guideId);
+    updateGuideLikeState(guideId, result.likeCount, result.liked);
+    renderHomeTab();
+    if (currentIntroGuideId === guideId) renderIntroGuideLike(buildActiveGuideFromHomeGuide(guideId));
+  } catch (error) {
+    console.warn('[Travelog Guide Likes] Toggle failed:', error);
+    updateGuideLikeState(guideId, previousCount, previousLiked);
+    if (currentIntroGuideId === guideId) renderIntroGuideLike(buildActiveGuideFromHomeGuide(guideId));
+    showToast(localizedText('좋아요를 저장하지 못했습니다. 로그인 상태와 네트워크를 확인해 주세요.', 'Could not save the like. Check your sign-in and network.', 'いいねを保存できませんでした。ログイン状態とネットワークを確認してください。'));
+  } finally {
+    if (currentIntroGuideId === guideId) button.disabled = false;
   }
 }
 
@@ -2328,6 +2432,12 @@ window.openGuideIntroFromHome = function(guideId) {
   const priceValue = document.getElementById('home-guide-intro-price-value');
   if (priceValue) priceValue.textContent = getGuideCoinPrice(activeGuide).toLocaleString();
   updateIntroPurchaseButton(activeGuide);
+  renderIntroGuideLike(activeGuide);
+  if (activeGuide.isSupabaseGuide === true) {
+    refreshCurrentIntroGuideLike(guideId).catch(error => {
+      console.warn('[Travelog Guide Likes] Refresh failed:', error);
+    });
+  }
 
   renderIntroMedia(activeGuide);
 
@@ -2370,6 +2480,7 @@ window.closeHomeGuideIntroModal = function() {
     modal.classList.remove('active');
     modal.setAttribute('aria-hidden', 'true');
   }
+  currentIntroGuideId = null;
 };
 
 window.openHomeGuidePreviewModal = function(guideId) {
