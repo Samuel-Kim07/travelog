@@ -1881,6 +1881,12 @@ const TravelogSupabase = (() => {
     const sessionUserId = session?.user?.id || '';
     if (!sessionUserId) throw new Error('SUPABASE_AUTH_REQUIRED');
 
+    console.debug('[Travelog Memo Pin] Session checks', {
+      sessionExists: !!session,
+      accessTokenExists: !!session?.access_token,
+      clientInstanceStable: supabase === getClient()
+    });
+
     const { data: verifiedAuth, error: verifyAuthError } = await supabase.auth.getUser();
     if (verifyAuthError) throw verifyAuthError;
     const verifiedUser = verifiedAuth?.user;
@@ -1938,7 +1944,7 @@ const TravelogSupabase = (() => {
       expiresAtSource: 'database_default'
     });
 
-    let { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    let { error } = await supabase.from('memo_pins').insert(row);
     if (error?.code === '23503' && String(error.message || error.details || '').includes('profiles')) {
       const syncedProfile = await syncProfile({
         nickname: String(
@@ -1950,13 +1956,16 @@ const TravelogSupabase = (() => {
         ).trim()
       });
       if (!syncedProfile?.id) throw new Error('MEMO_PIN_PROFILE_REQUIRED');
-      ({ data, error } = await supabase.from('memo_pins').insert(row).select().single());
+      ({ error } = await supabase.from('memo_pins').insert(row));
     }
     if (error) {
       if (error.code === '42501') {
         error.memoPinStage = 'insert';
         console.warn('[Travelog Memo Pin] Insert RLS rejected', {
           code: error.code,
+          message: error.message || '',
+          details: error.details || '',
+          hint: error.hint || '',
           failedCheck: 'owner_or_expiry',
           ownerSource: 'auth.getUser',
           ownerMatchesVerifiedUser,
@@ -1970,6 +1979,29 @@ const TravelogSupabase = (() => {
         try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
       }
       throw error;
+    }
+
+    const { data, error: selectError } = await supabase
+      .from('memo_pins')
+      .select('id, owner_id, title, memo_type, content, latitude, longitude, media_bucket, media_path, media_mime_type, media_size_bytes, visibility, metadata, created_at, updated_at, expires_at')
+      .eq('id', pinId)
+      .single();
+    if (selectError) {
+      selectError.memoPinStage = 'select';
+      console.warn('[Travelog Memo Pin] Post-insert SELECT rejected', {
+        code: selectError.code || '',
+        message: selectError.message || '',
+        details: selectError.details || '',
+        hint: selectError.hint || '',
+        sessionExists: !!session,
+        accessTokenExists: !!session?.access_token,
+        ownerMatchesVerifiedUser,
+        clientInstanceStable: supabase === getClient(),
+        memoType,
+        visibility,
+        hasMedia: !!mediaPath
+      });
+      throw selectError;
     }
     if (visibility === 'friends') {
       const { error: visibilityError } = await supabase.rpc('set_memo_pin_visibility', {

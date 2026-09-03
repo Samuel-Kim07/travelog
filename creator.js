@@ -36,7 +36,7 @@ const TravelogCreatorModule = (() => {
   // Temporary coordinate caching for field captures
   let tempPinLat = 0;
   let tempPinLng = 0;
-  let pinCreationMode = 'guide';
+  let pinCreationMode = 'idle';
   let memoVisibility = 'public';
   let memoVisibilityFriends = [];
   let memoVisibilityFriendIds = new Set();
@@ -3586,6 +3586,7 @@ const TravelogCreatorModule = (() => {
     if (photoMemoTitleInput) photoMemoTitleInput.value = '';
     const photoMemoTextInput = document.getElementById('photo-memo-text-input');
     if (photoMemoTextInput) photoMemoTextInput.value = '';
+    resetPinCreationContext();
   }
 
   function resetRecordingStateForNewGuide() {
@@ -3766,6 +3767,47 @@ const TravelogCreatorModule = (() => {
     return pinCreationMode === 'memo';
   }
 
+  function resetPinCreationContext() {
+    pinCreationMode = 'idle';
+    memoVisibility = 'public';
+    memoVisibilityFriendIds.clear();
+    const home = document.getElementById('memo-visibility-home');
+    const section = document.getElementById('memo-visibility-section');
+    if (home && section && section.parentElement !== home) home.appendChild(section);
+    if (section) section.hidden = true;
+  }
+
+  function syncMemoEditorModeUI(kind) {
+    const standalone = isStandaloneMemoPinMode();
+    const section = document.getElementById('memo-visibility-section');
+    const home = document.getElementById('memo-visibility-home');
+    const slot = document.getElementById(`${kind}-memo-visibility-slot`);
+    const target = standalone ? slot : home;
+    if (section && target && section.parentElement !== target) target.appendChild(section);
+    if (section) section.hidden = !standalone;
+
+    const headings = {
+      voice: document.getElementById('voice-memo-recorder-title'),
+      video: document.getElementById('video-memo-heading'),
+      photo: document.getElementById('photo-memo-heading'),
+      text: document.getElementById('text-memo-heading')
+    };
+    const headingLabels = standalone
+      ? { voice: '음성 메모 녹음기', video: '영상 메모 녹화기', photo: '사진 메모', text: '텍스트 메모' }
+      : { voice: '음성 가이드 녹음기', video: '영상 가이드 녹화기', photo: '사진 가이드 메모', text: '텍스트 가이드 메모' };
+    const heading = headings[kind];
+    if (heading) {
+      const icon = heading.querySelector('img')?.outerHTML || '';
+      heading.innerHTML = `${icon}${headingLabels[kind]}`;
+    }
+    if (kind === 'text') {
+      const description = document.getElementById('text-memo-description');
+      if (description) description.textContent = standalone
+        ? t('지도에 남길 메모 내용을 입력해 주세요.', 'Enter the memo you want to leave on the map.', '地図に残すメモを入力してください。')
+        : t('이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.', 'Enter the detailed narration for this course pin.', 'このコースピンに残す詳しい解説を入力してください。');
+    }
+  }
+
   function getMemoPinSaveErrorMessage(error) {
     const code = String(error?.code || '').toUpperCase();
     const stage = String(error?.memoPinStage || '').toUpperCase();
@@ -3779,6 +3821,9 @@ const TravelogCreatorModule = (() => {
     if (code === '42501' || message.includes('ROW-LEVEL SECURITY') || message.includes('ROW LEVEL SECURITY')) {
       if (stage === 'INSERT') {
         return t('Supabase가 memo_pins 생성을 거부했습니다. 메모 INSERT RLS 정책을 확인해 주세요.', 'Supabase rejected the memo_pins insert. Check the memo INSERT RLS policy.', 'Supabaseがmemo_pinsの作成を拒否しました。メモのINSERT RLSポリシーを確認してください。');
+      }
+      if (stage === 'SELECT') {
+        return t('메모는 저장됐지만 저장 결과를 다시 불러오지 못했습니다. 메모 SELECT 권한을 확인해 주세요.', 'The memo was saved, but its result could not be loaded. Check memo SELECT permission.', 'メモは保存されましたが、保存結果を読み込めませんでした。メモのSELECT権限を確認してください。');
       }
       return t('메모 저장 권한을 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.', 'Memo save permission was denied. Sign in again and retry.', 'メモ保存権限を確認できません。再ログインしてからお試しください。');
     }
@@ -3831,6 +3876,7 @@ const TravelogCreatorModule = (() => {
 
   function closePinTypeSelectModal() {
     setModalHidden('pin-type-select-modal', true);
+    resetPinCreationContext();
   }
 
   function closeVoiceMemoModal() {
@@ -3856,6 +3902,7 @@ const TravelogCreatorModule = (() => {
     const voiceTimer = document.getElementById('voice-memo-timer');
     if (voiceTimer) voiceTimer.textContent = '00:00';
     setModalHidden('voice-memo-modal', true);
+    resetPinCreationContext();
   }
 
   function closeVideoMemoModal() {
@@ -3879,6 +3926,7 @@ const TravelogCreatorModule = (() => {
     const videoStatus = document.getElementById('video-memo-status');
     if (videoStatus) videoStatus.textContent = t('녹화 버튼을 누르면 스마트폰 카메라가 열립니다.', 'Press Record to open the phone camera.', '録画ボタンでスマートフォンのカメラを開きます。');
     setModalHidden('video-memo-modal', true);
+    resetPinCreationContext();
   }
 
   function closeTextMemoModal() {
@@ -3888,6 +3936,7 @@ const TravelogCreatorModule = (() => {
     if (titleInput) titleInput.value = '';
     resetTextMemoKeyboardFocus();
     setModalHidden('text-memo-modal', true);
+    resetPinCreationContext();
   }
 
   function resetTextMemoKeyboardFocus() {
@@ -4047,11 +4096,13 @@ const TravelogCreatorModule = (() => {
   function openTextMemoAtLocation(lat, lng) {
     tempPinLat = lat;
     tempPinLng = lng;
+    pinCreationMode = 'memo';
     openTextMemoModal();
   }
 
   // 1) Audio Field Capture
   function openVoiceMemoModal() {
+    syncMemoEditorModeUI('voice');
     disposeVoiceMemoPlayback(true);
     const modal = document.getElementById('voice-memo-modal');
     if (modal) {
@@ -4882,6 +4933,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function openVideoMemoModal() {
+    syncMemoEditorModeUI('video');
     cleanupVideoMemoEditorState();
     const modal = document.getElementById('video-memo-modal');
     if (modal) {
@@ -5400,6 +5452,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function openPhotoMemoModal() {
+    syncMemoEditorModeUI('photo');
     bindPhotoMemoModalControls();
     const modal = document.getElementById('photo-memo-modal');
     if (modal) {
@@ -5428,6 +5481,7 @@ const TravelogCreatorModule = (() => {
     if (titleInput) titleInput.value = '';
     if (textInput) textInput.value = '';
     setModalHidden('photo-memo-modal', true);
+    resetPinCreationContext();
   }
 
   function canvasToBlob(canvas, mimeType = 'image/png', quality = 0.92) {
@@ -5516,6 +5570,7 @@ const TravelogCreatorModule = (() => {
 
   // 3) Text Field Capture
   function openTextMemoModal() {
+    syncMemoEditorModeUI('text');
     const modal = document.getElementById('text-memo-modal');
     if (modal) {
       modal.classList.add('active');
@@ -5580,6 +5635,7 @@ const TravelogCreatorModule = (() => {
     init: init,
     openPinTypeSelectModal: openPinTypeSelectModal,
     openTextMemoAtLocation: openTextMemoAtLocation,
+    resetPinCreationContext: resetPinCreationContext,
     onLanguageChange: () => {
       renderCoordinatesList();
       renderAudioList();
