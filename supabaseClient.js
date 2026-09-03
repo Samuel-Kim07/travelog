@@ -1878,8 +1878,15 @@ const TravelogSupabase = (() => {
       displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
       interactiveLogin: true
     });
-    const userId = session?.user?.id;
+    const sessionUserId = session?.user?.id || '';
+    if (!sessionUserId) throw new Error('SUPABASE_AUTH_REQUIRED');
+
+    const { data: verifiedAuth, error: verifyAuthError } = await supabase.auth.getUser();
+    if (verifyAuthError) throw verifyAuthError;
+    const verifiedUser = verifiedAuth?.user;
+    const userId = verifiedUser?.id || '';
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const ownerMatchesVerifiedUser = sessionUserId === userId;
 
     const pinId = makeMemoPinId();
     const memoType = ['audio', 'video', 'photo', 'text'].includes(payload.memoType) ? payload.memoType : 'text';
@@ -1922,14 +1929,23 @@ const TravelogSupabase = (() => {
       }
     };
 
+    console.debug('[Travelog Memo Pin] Insert checks', {
+      memoType,
+      visibility,
+      hasMedia: !!mediaPath,
+      ownerSource: 'auth.getUser',
+      ownerMatchesVerifiedUser,
+      expiresAtSource: 'database_default'
+    });
+
     let { data, error } = await supabase.from('memo_pins').insert(row).select().single();
     if (error?.code === '23503' && String(error.message || error.details || '').includes('profiles')) {
       const syncedProfile = await syncProfile({
         nickname: String(
           window.TravelogApp?.getState?.()?.userProfile?.nickname
-          || session.user.user_metadata?.display_name
-          || session.user.user_metadata?.name
-          || session.user.email?.split('@')[0]
+          || verifiedUser.user_metadata?.display_name
+          || verifiedUser.user_metadata?.name
+          || verifiedUser.email?.split('@')[0]
           || 'Travelog User'
         ).trim()
       });
@@ -1937,7 +1953,19 @@ const TravelogSupabase = (() => {
       ({ data, error } = await supabase.from('memo_pins').insert(row).select().single());
     }
     if (error) {
-      if (error.code === '42501') error.memoPinStage = 'insert';
+      if (error.code === '42501') {
+        error.memoPinStage = 'insert';
+        console.warn('[Travelog Memo Pin] Insert RLS rejected', {
+          code: error.code,
+          failedCheck: 'owner_or_expiry',
+          ownerSource: 'auth.getUser',
+          ownerMatchesVerifiedUser,
+          expiresAtSource: 'database_default',
+          memoType,
+          visibility,
+          hasMedia: !!mediaPath
+        });
+      }
       if (mediaPath) {
         try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
       }
