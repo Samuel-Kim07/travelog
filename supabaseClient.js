@@ -1871,30 +1871,6 @@ const TravelogSupabase = (() => {
     return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}-4000-8000-${Math.random().toString(16).slice(2, 14)}`;
   }
 
-  async function ensureMemoPinOwnerProfile(supabase, session) {
-    const user = session?.user;
-    if (!user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
-
-    const { data: existingProfile, error: profileLookupError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (profileLookupError) throw profileLookupError;
-    if (existingProfile?.id) return;
-
-    const syncedProfile = await syncProfile({
-      nickname: String(
-        window.TravelogApp?.getState?.()?.userProfile?.nickname
-        || user.user_metadata?.display_name
-        || user.user_metadata?.name
-        || user.email?.split('@')[0]
-        || 'Travelog User'
-      ).trim()
-    });
-    if (!syncedProfile?.id) throw new Error('MEMO_PIN_PROFILE_REQUIRED');
-  }
-
   async function createMemoPin(payload = {}) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
@@ -1904,7 +1880,6 @@ const TravelogSupabase = (() => {
     });
     const userId = session?.user?.id;
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
-    await ensureMemoPinOwnerProfile(supabase, session);
 
     const pinId = makeMemoPinId();
     const memoType = ['audio', 'video', 'photo', 'text'].includes(payload.memoType) ? payload.memoType : 'text';
@@ -1947,8 +1922,22 @@ const TravelogSupabase = (() => {
       }
     };
 
-    const { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    let { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    if (error?.code === '23503' && String(error.message || error.details || '').includes('profiles')) {
+      const syncedProfile = await syncProfile({
+        nickname: String(
+          window.TravelogApp?.getState?.()?.userProfile?.nickname
+          || session.user.user_metadata?.display_name
+          || session.user.user_metadata?.name
+          || session.user.email?.split('@')[0]
+          || 'Travelog User'
+        ).trim()
+      });
+      if (!syncedProfile?.id) throw new Error('MEMO_PIN_PROFILE_REQUIRED');
+      ({ data, error } = await supabase.from('memo_pins').insert(row).select().single());
+    }
     if (error) {
+      if (error.code === '42501') error.memoPinStage = 'insert';
       if (mediaPath) {
         try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
       }

@@ -3768,7 +3768,8 @@ const TravelogCreatorModule = (() => {
 
   function getMemoPinSaveErrorMessage(error) {
     const code = String(error?.code || '').toUpperCase();
-    const message = [error?.message, error?.details, error?.hint, code].filter(Boolean).join(' ').toUpperCase();
+    const stage = String(error?.memoPinStage || '').toUpperCase();
+    const message = [error?.message, error?.details, error?.hint, code, stage].filter(Boolean).join(' ').toUpperCase();
     if (message.includes('MEMO_VIEWER')) {
       return t('친구 공개 메모는 공개할 친구를 한 명 이상 선택해야 합니다.', 'Select at least one friend for a friends-only memo.', '友達限定メモは公開する友達を1人以上選択してください。');
     }
@@ -3776,6 +3777,9 @@ const TravelogCreatorModule = (() => {
       return t('로그인 계정의 프로필 정보를 준비하지 못해 메모를 저장할 수 없습니다. 프로필을 다시 저장한 뒤 시도해 주세요.', 'The memo could not be saved because your account profile is missing. Save your profile and try again.', 'アカウントのプロフィール情報がないため、メモを保存できません。プロフィールを保存してから再試行してください。');
     }
     if (code === '42501' || message.includes('ROW-LEVEL SECURITY') || message.includes('ROW LEVEL SECURITY')) {
+      if (stage === 'INSERT') {
+        return t('Supabase가 memo_pins 생성을 거부했습니다. 메모 INSERT RLS 정책을 확인해 주세요.', 'Supabase rejected the memo_pins insert. Check the memo INSERT RLS policy.', 'Supabaseがmemo_pinsの作成を拒否しました。メモのINSERT RLSポリシーを確認してください。');
+      }
       return t('메모 저장 권한을 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.', 'Memo save permission was denied. Sign in again and retry.', 'メモ保存権限を確認できません。再ログインしてからお試しください。');
     }
     if (code === '23514' || code === '22P02') {
