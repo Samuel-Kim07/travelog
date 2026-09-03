@@ -1306,10 +1306,15 @@ function renderFriendList() {
     const groupId = friendGroupAssignments.get(friendId) || '';
     const group = friendGroups.find(item => String(item.id) === String(groupId));
     const subLabel = group?.name || friend.memo || (friend.isSupabaseFriend ? 'Supabase 친구' : '친구');
+    const avatarUrl = String(friend.avatarUrl || friend.avatar_url || '').trim();
+    const avatarInitial = escapeHtml((friend.name || '?').slice(0, 1));
     return `
     <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; background:rgba(255,255,255,.62); border:1px solid var(--glass-border); border-radius:14px; padding:8px 10px;">
       <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-        <div style="width:30px; height:30px; border-radius:50%; background:var(--grad-hero); display:flex; align-items:center; justify-content:center; color:white; font-weight:900; flex-shrink:0;">${escapeHtml((friend.name || '?').slice(0, 1))}</div>
+        <div class="home-friend-avatar${avatarUrl ? ' has-image' : ''}" aria-hidden="true">
+          ${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" onerror="this.hidden=true;this.parentElement.classList.remove('has-image');">` : ''}
+          <span>${avatarInitial}</span>
+        </div>
         <div style="min-width:0;">
           <div style="font-size:13px; font-weight:800; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(friend.name)}</div>
           <div style="font-size:10px; color:var(--text-muted);">${escapeHtml(subLabel)}</div>
