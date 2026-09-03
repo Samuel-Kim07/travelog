@@ -1283,6 +1283,7 @@
       <h3 id="pin-type-select-heading" style="font-size: 20px; color: #373737 !important; margin-bottom: 8px;">내 위치에 가이드 핀 생성</h3>
       <p id="pin-type-select-description" style="font-size: 13px; color: #555555 !important; margin-bottom: 24px;">이 핀 좌표에 연동할 미디어 유형을 선택하세요.</p>
 
+      <div id="memo-visibility-home">
       <section id="memo-visibility-section" class="memo-visibility-section" hidden aria-labelledby="memo-visibility-title">
         <h4 id="memo-visibility-title">공개 범위</h4>
         <div class="memo-visibility-options" role="radiogroup" aria-label="메모 공개 범위">
@@ -1302,6 +1303,7 @@
           <p id="memo-visibility-feedback" class="memo-visibility-feedback" aria-live="polite"></p>
         </div>
       </section>
+      </div>
       
       <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
         <button class="btn-rect memo-type-select-btn" id="btn-select-audio-memo" style="justify-content: center; height: 44px; font-weight: 700; background: rgba(255, 46, 99, 0.1); border-color: var(--accent-pink); color: #373737 !important;">
@@ -1372,6 +1374,7 @@
         </div>
       </div>
       <p id="voice-memo-status" class="voice-memo-status-text" aria-live="polite">마이크 버튼을 눌러 녹음 시작</p>
+      <div id="voice-memo-visibility-slot"></div>
 
       <div class="voice-memo-control-strip" aria-label="음성 메모 녹음 컨트롤">
         <button class="voice-memo-control-btn voice-memo-stop-btn" id="voice-memo-stop" type="button" aria-label="녹음 정지" disabled><img class="voice-memo-control-icon" src="assets/icons/voice-memo/voice-stop.svg" alt="" aria-hidden="true"></button>
@@ -1390,7 +1393,7 @@
   <div id="video-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel video-memo-recorder-card">
       <button class="btn-circle" id="video-memo-close-btn" type="button" aria-label="영상 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
-      <h3 class="video-memo-heading"><img class="video-memo-title-icon" src="assets/icons/video-memo/video-title.svg" alt="" aria-hidden="true">영상 가이드 녹화기</h3>
+      <h3 id="video-memo-heading" class="video-memo-heading"><img class="video-memo-title-icon" src="assets/icons/video-memo/video-title.svg" alt="" aria-hidden="true">영상 가이드 녹화기</h3>
       <p id="video-memo-status" class="video-memo-status" aria-live="polite">녹화 버튼을 누르면 스마트폰 카메라가 열립니다.</p>
       <label for="video-memo-title-input" class="video-memo-title-label">비디오 메모 제목</label>
       <input type="text" id="video-memo-title-input" class="video-memo-title-input" maxlength="60" placeholder="예: 골목 입구 영상 안내">
@@ -1425,6 +1428,8 @@
         <div id="video-memo-clip-list" class="video-memo-clip-list"></div>
       </section>
 
+      <div id="video-memo-visibility-slot"></div>
+
       <div class="video-memo-action-row">
         <button class="btn-rect secondary video-memo-action-btn" id="video-memo-reset" disabled><img src="assets/icons/video-memo/video-reset.svg" alt="" aria-hidden="true">다시 녹화</button>
         <button class="btn-rect video-memo-action-btn video-memo-complete-btn" id="video-memo-complete" disabled><img src="assets/icons/video-memo/video-complete.svg" alt="" aria-hidden="true">완료</button>
@@ -1437,7 +1442,7 @@
     <div class="profile-manager-card glass-panel" style="max-width: 640px; width: 94%; max-height: 92vh; overflow-y: auto; text-align: left; padding: 24px; position: relative;">
       <button class="btn-circle" id="photo-memo-close-btn" type="button" aria-label="사진 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
       <div style="padding-right: 42px; margin-bottom: 14px;">
-        <h3 class="photo-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><img class="photo-memo-title-icon" src="assets/icons/photo-memo/photo-memo-title.svg" alt="" aria-hidden="true"> 사진 가이드 메모</h3>
+        <h3 id="photo-memo-heading" class="photo-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px;"><img class="photo-memo-title-icon" src="assets/icons/photo-memo/photo-memo-title.svg" alt="" aria-hidden="true"> 사진 가이드 메모</h3>
         <p id="photo-memo-status" style="font-size: 12px; color: #555555 !important; margin: 0;">카메라 촬영 또는 사진추가로 이미지를 넣고 간단히 편집하세요.</p>
       </div>
 
@@ -1472,6 +1477,8 @@
       <label for="photo-memo-text-input" style="display:block;font-size:12px;font-weight:800;color:#373737 !important;margin-bottom:6px;">텍스트 메모</label>
       <textarea id="photo-memo-text-input" maxlength="500" placeholder="사진과 함께 보여줄 짧은 설명을 입력하세요..." style="width:100%; height:84px; background:var(--bg-tertiary); border:1px solid var(--glass-border); border-radius:var(--radius-sm); color:#373737 !important; padding:12px; font-size:13px; resize:none; outline:none; margin-bottom:16px;"></textarea>
 
+      <div id="photo-memo-visibility-slot"></div>
+
       <div style="display:flex; gap:10px; width:100%;">
         <button class="btn-rect secondary" id="photo-memo-cancel" style="flex:1; justify-content:center;">취소</button>
         <button class="btn-rect" id="photo-memo-complete" style="flex:1; justify-content:center; background:var(--grad-pink-purple);" disabled><img class="photo-memo-complete-icon" src="assets/icons/photo-memo/photo-complete.svg" alt="" aria-hidden="true"> 메모 완료</button>
@@ -1483,14 +1490,16 @@
   <div id="text-memo-modal" class="profile-manager-modal" style="z-index: 2500;" aria-hidden="true">
     <div class="profile-manager-card glass-panel text-memo-editor-card" style="max-width: 450px; padding: 30px; position: relative;">
       <button class="btn-circle" id="text-memo-close-btn" type="button" aria-label="텍스트 메모 팝업 닫기" style="position:absolute; top:12px; right:12px; width:32px; height:32px; font-size:14px; background:rgba(255,255,255,.92); color:#373737 !important;"><img class="popup-close-icon" src="assets/icons/ui/closed.svg" alt="" aria-hidden="true"></button>
-      <h3 class="text-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><img class="text-memo-title-icon" src="assets/icons/text-memo/text-memo-title.svg" alt="" aria-hidden="true">텍스트 가이드 메모</h3>
-      <p style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
+      <h3 id="text-memo-heading" class="text-memo-heading" style="font-size: 18px; color: #373737 !important; margin-bottom: 4px; text-align: center;"><img class="text-memo-title-icon" src="assets/icons/text-memo/text-memo-title.svg" alt="" aria-hidden="true">텍스트 가이드 메모</h3>
+      <p id="text-memo-description" style="font-size: 12px; color: #555555 !important; margin-bottom: 20px; text-align: center;">이 코스 핀에 남길 상세 해설 대본을 입력해 주세요.</p>
 
       <label class="text-memo-field-label" for="text-memo-title-input">텍스트 메모 제목</label>
       <input class="text-memo-title-input" type="text" id="text-memo-title-input" maxlength="60" placeholder="예: 광장 앞 거리 안내">
 
       <label class="text-memo-field-label" for="text-memo-input">메모 내용</label>
       <textarea id="text-memo-input" maxlength="2000" placeholder="여기에 메모를 남겨 주세요" style="width: 100%; height: 120px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: var(--radius-sm); color: #373737 !important; padding: 12px; font-size: 13px; resize: none; outline: none; margin-bottom: 24px;"></textarea>
+
+      <div id="text-memo-visibility-slot"></div>
 
       <div style="display: flex; gap: 10px; width: 100%;">
         <button class="btn-rect secondary" id="text-memo-cancel" style="flex: 1; justify-content: center;">취소</button>
@@ -1698,16 +1707,16 @@
   </div>
 
   <!-- Javascript Logic Files -->
-  <script src="supabaseClient.js?v=1023" defer></script>
+  <script src="supabaseClient.js?v=1024" defer></script>
   <script src="map.js?v=1017" defer></script>
   <script src="explore.js?v=1004" defer></script>
   <script src="rewards.js?v=1005" defer></script>
   <script src="mediaStorage.js?v=1003" defer></script>
   <script src="deviceStorage.js?v=1007" defer></script>
-  <script src="creator.js?v=1023" defer></script>
+  <script src="creator.js?v=1024" defer></script>
   <script src="adventure.js?v=1003" defer></script>
   <script src="languages.js?v=1002" defer></script>
-  <script src="app.js?v=1039" defer></script>
+  <script src="app.js?v=1040" defer></script>
   <script src="memo-fullscreen.js"></script>
   <script src="memo-edit.js?v=3"></script>
   <script src="memo-extension-fix.js?v=2"></script>

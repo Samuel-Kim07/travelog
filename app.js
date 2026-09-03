@@ -4730,6 +4730,9 @@ window.updateMapLayoutForMode = function(mode) {
   const routeDescEl = document.getElementById('map-route-description');
 
   TravelogState.mapMode = mode;
+  if (mode !== 'create') {
+    window.TravelogCreatorModule?.resetPinCreationContext?.();
+  }
 
   if (bottomSheet) {
     bottomSheet.style.display = 'none';
