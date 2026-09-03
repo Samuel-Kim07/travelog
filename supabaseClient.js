@@ -1922,8 +1922,22 @@ const TravelogSupabase = (() => {
       }
     };
 
-    const { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    let { data, error } = await supabase.from('memo_pins').insert(row).select().single();
+    if (error?.code === '23503' && String(error.message || error.details || '').includes('profiles')) {
+      const syncedProfile = await syncProfile({
+        nickname: String(
+          window.TravelogApp?.getState?.()?.userProfile?.nickname
+          || session.user.user_metadata?.display_name
+          || session.user.user_metadata?.name
+          || session.user.email?.split('@')[0]
+          || 'Travelog User'
+        ).trim()
+      });
+      if (!syncedProfile?.id) throw new Error('MEMO_PIN_PROFILE_REQUIRED');
+      ({ data, error } = await supabase.from('memo_pins').insert(row).select().single());
+    }
     if (error) {
+      if (error.code === '42501') error.memoPinStage = 'insert';
       if (mediaPath) {
         try { await supabase.storage.from(MEMO_PIN_MEDIA_BUCKET).remove([mediaPath]); } catch (_) {}
       }
