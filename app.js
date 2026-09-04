@@ -4869,7 +4869,7 @@ window.renderLocationGuidePanel = function() {
     const stops = Array.isArray(guide.stops) ? guide.stops : [];
     list.innerHTML = stops.map((stop, index) => {
       const name = localizedField(stop, 'name') || stop.name || `${localizedText('코스', 'Stop', '地点')} ${index + 1}`;
-      return `<li><span>${index + 1}</span><strong>${escapeHtml(name)}</strong></li>`;
+      return `<li data-guide-preview-index="${index}" role="button" tabindex="0"><span>${index + 1}</span><strong>${escapeHtml(name)}</strong></li>`;
     }).join('');
   }
 

@@ -44,6 +44,9 @@ const TravelogMapModule = (() => {
   let activeGuidePreviewIndex = -1;
   let activeGuidePreviewPopup = null;
   let activeGuidePreviewWasTracking = false;
+  let activeGuidePreviewMoveToken = 0;
+  let activeGuidePreviewResumeIndex = 0;
+  let activeGuidePreviewGuideKey = '';
   const USER_MEMO_STORAGE_KEY = 'travelog_user_location_memos_v1';
 
   // Temporary Minho media sources hosted in the Travelog GitHub Pages asset folder.
@@ -562,7 +565,7 @@ const TravelogMapModule = (() => {
             const { latitude, longitude, accuracy } = position.coords;
             latestGpsFix = { lat: latitude, lng: longitude, accuracy, updatedAt: Date.now() };
             hasRealGpsLocation = true;
-            if (map) {
+            if (map && activeGuidePreviewNodes.length === 0) {
               map.setView([latitude, longitude], 17);
             }
             if (userMarker) {
@@ -672,8 +675,24 @@ const TravelogMapModule = (() => {
     document.getElementById('active-guide-preview-prev')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex - 1));
     document.getElementById('active-guide-preview-next')?.addEventListener('click', () => showActiveGuidePreviewPin(activeGuidePreviewIndex + 1));
     document.getElementById('active-guide-preview-stop')?.addEventListener('click', stopActiveGuidePreview);
-    window.addEventListener('resize', positionActiveGuidePreviewControls, { passive: true });
-    window.addEventListener('orientationchange', () => window.setTimeout(positionActiveGuidePreviewControls, 250), { passive: true });
+    document.getElementById('location-guide-stop-list')?.addEventListener('click', (event) => {
+      const item = event.target.closest('li[data-guide-preview-index]');
+      if (!item || activeGuidePreviewNodes.length === 0) return;
+      showActiveGuidePreviewPin(Number(item.dataset.guidePreviewIndex));
+    });
+    document.getElementById('location-guide-stop-list')?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const item = event.target.closest('li[data-guide-preview-index]');
+      if (!item || activeGuidePreviewNodes.length === 0) return;
+      event.preventDefault();
+      showActiveGuidePreviewPin(Number(item.dataset.guidePreviewIndex));
+    });
+    const restoreActiveGuidePreviewPosition = () => {
+      positionActiveGuidePreviewControls();
+      if (activeGuidePreviewIndex >= 0) showActiveGuidePreviewPin(activeGuidePreviewIndex, { animate: false });
+    };
+    window.addEventListener('resize', () => window.setTimeout(restoreActiveGuidePreviewPosition, 120), { passive: true });
+    window.addEventListener('orientationchange', () => window.setTimeout(restoreActiveGuidePreviewPosition, 280), { passive: true });
     window.visualViewport?.addEventListener('resize', positionActiveGuidePreviewControls, { passive: true });
     window.visualViewport?.addEventListener('scroll', positionActiveGuidePreviewControls, { passive: true });
 
@@ -1010,6 +1029,7 @@ const TravelogMapModule = (() => {
     if (!validCoords.length) return;
 
     window.setTimeout(() => {
+      if (activeGuidePreviewNodes.length > 0) return;
       if (validCoords.length === 1) {
         map.setView(validCoords[0], 17);
         return;
@@ -1076,22 +1096,43 @@ const TravelogMapModule = (() => {
     controls.style.setProperty('--active-guide-preview-bottom', `${measuredBottom}px`);
   }
 
-  function showActiveGuidePreviewPin(index) {
-    if (!map || activeGuidePreviewNodes.length === 0) return;
-    const nextIndex = Math.max(0, Math.min(Number(index) || 0, activeGuidePreviewNodes.length - 1));
-    const node = activeGuidePreviewNodes[nextIndex];
-    if (!node) return;
+  function getActiveGuidePreviewCenterPoint() {
+    const size = map.getSize();
+    const mapRect = map.getContainer().getBoundingClientRect();
+    const topPanel = document.getElementById('location-active-guide-panel');
+    const controls = document.getElementById('active-guide-preview-controls');
+    const rightButtons = document.querySelector('#map-tab .gps-controls');
+    const margin = 18;
+    let left = margin;
+    let right = size.x - margin;
+    let top = margin;
+    let bottom = size.y - margin;
 
-    activeGuidePreviewIndex = nextIndex;
-    closeActiveGuidePreviewPopup();
-    map.setView([node.lat, node.lng], Math.max(map.getZoom(), 17), { animate: true });
+    [topPanel].forEach((element) => {
+      if (!element || element.hidden) return;
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom > mapRect.top && rect.top < mapRect.bottom) {
+        top = Math.max(top, rect.bottom - mapRect.top + 14);
+      }
+    });
+    if (controls && !controls.hidden) {
+      const rect = controls.getBoundingClientRect();
+      bottom = Math.min(bottom, rect.top - mapRect.top - 14);
+    }
+    if (rightButtons) {
+      const rect = rightButtons.getBoundingClientRect();
+      if (rect.left > mapRect.left + size.x / 2) right = Math.min(right, rect.left - mapRect.left - 12);
+    }
 
-    const detailLabel = activeGuidePreviewNodes.length > 1
-      ? `${activeGuidePreviewIndex + 1} / ${activeGuidePreviewNodes.length}`
-      : '1 / 1';
+    if (right <= left || bottom <= top) return L.point(size.x / 2, size.y / 2);
+    return L.point((left + right) / 2, (top + bottom) / 2);
+  }
+
+  function openActiveGuidePreviewPopup(node, detailLabel, moveToken) {
+    if (!map || moveToken !== activeGuidePreviewMoveToken || activeGuidePreviewNodes.length === 0) return;
     activeGuidePreviewPopup = L.popup({
       closeButton: false,
-      autoPan: true,
+      autoPan: false,
       offset: [0, -22],
       className: 'active-guide-preview-popup'
     })
@@ -1107,11 +1148,49 @@ const TravelogMapModule = (() => {
       .openOn(map);
 
     window.setTimeout(() => {
+      if (moveToken !== activeGuidePreviewMoveToken) return;
       const popupEl = activeGuidePreviewPopup?.getElement?.();
       popupEl?.querySelector('[data-active-guide-preview-open]')?.addEventListener('click', () => openPublishedGuideMemoPopup(node), { once: true });
     }, 0);
+  }
 
+  function showActiveGuidePreviewPin(index, options = {}) {
+    if (!map || activeGuidePreviewNodes.length === 0) return;
+    const nextIndex = Math.max(0, Math.min(Number(index) || 0, activeGuidePreviewNodes.length - 1));
+    const node = activeGuidePreviewNodes[nextIndex];
+    const lat = Number(node?.lat);
+    const lng = Number(node?.lng);
+    if (!node || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      window.TravelogApp?.showToast(t('이 핀에는 사용할 수 있는 위치 정보가 없습니다.', 'This pin has no valid location.', 'このピンには有効な位置情報がありません。'));
+      return;
+    }
+
+    activeGuidePreviewIndex = nextIndex;
+    activeGuidePreviewResumeIndex = nextIndex;
+    closeActiveGuidePreviewPopup();
     updateActiveGuidePreviewControls(node);
+    map.invalidateSize({ pan: false });
+
+    const detailLabel = activeGuidePreviewNodes.length > 1
+      ? `${activeGuidePreviewIndex + 1} / ${activeGuidePreviewNodes.length}`
+      : '1 / 1';
+    const zoom = Math.max(map.getZoom(), 17);
+    const size = map.getSize();
+    const safeCenter = getActiveGuidePreviewCenterPoint();
+    const pinPoint = map.project([lat, lng], zoom);
+    const centerPoint = pinPoint.subtract(safeCenter.subtract(L.point(size.x / 2, size.y / 2)));
+    const targetCenter = map.unproject(centerPoint, zoom);
+    const moveToken = ++activeGuidePreviewMoveToken;
+    let popupOpened = false;
+    const finishMove = () => {
+      if (popupOpened || moveToken !== activeGuidePreviewMoveToken) return;
+      popupOpened = true;
+      map.off('moveend', finishMove);
+      openActiveGuidePreviewPopup({ ...node, lat, lng }, detailLabel, moveToken);
+    };
+    map.once('moveend', finishMove);
+    map.setView(targetCenter, zoom, { animate: options.animate !== false, duration: 0.25 });
+    window.setTimeout(finishMove, options.animate === false ? 40 : 450);
   }
 
   function startActiveGuidePreview() {
@@ -1129,19 +1208,24 @@ const TravelogMapModule = (() => {
       return;
     }
 
+    const guideKey = String(appState.activeGuide.id || appState.activeGuide.guideId || appState.activeGuide.name || 'active-guide');
+    if (guideKey !== activeGuidePreviewGuideKey) activeGuidePreviewResumeIndex = 0;
+    activeGuidePreviewGuideKey = guideKey;
+
     if (isSimulating) toggleGPSSimulation();
     activeGuidePreviewWasTracking = isRealtimeTracking;
     if (activeGuidePreviewWasTracking) stopRealtimeLocationTracking(false);
-    activeGuidePreviewIndex = 0;
+    activeGuidePreviewIndex = Math.max(0, Math.min(activeGuidePreviewResumeIndex, activeGuidePreviewNodes.length - 1));
     window.setLocationGuidePanelCollapsed?.(true);
     document.getElementById('map-tab')?.classList.add('is-guide-previewing');
-    showActiveGuidePreviewPin(0);
+    showActiveGuidePreviewPin(activeGuidePreviewIndex);
     window.TravelogApp?.showToast(t('핀 미리보기를 시작합니다.', 'Starting pin preview.', 'ピンプレビューを開始します。'));
   }
 
   function stopActiveGuidePreview(options = {}) {
     const wasPreviewing = activeGuidePreviewNodes.length > 0 || activeGuidePreviewIndex >= 0;
     closeActiveGuidePreviewPopup();
+    activeGuidePreviewMoveToken += 1;
     activeGuidePreviewNodes = [];
     activeGuidePreviewIndex = -1;
     document.getElementById('map-tab')?.classList.remove('is-guide-previewing');
