@@ -354,6 +354,9 @@ function initNavigation() {
       // Special Tab-Specific Handlers
       if (targetTab === 'home-tab') {
         renderHomeTab();
+        refreshOfflineGuideDownloadStates({ force: true }).catch(error => {
+          console.warn('[Travelog Offline] Home download-state refresh skipped:', error);
+        });
         if (typeof refreshSupabaseSocialData === 'function') {
           refreshSupabaseSocialData({ requireSession: false }).catch(error => {
             console.warn('[Travelog Supabase] Home social refresh skipped:', error);
@@ -464,6 +467,7 @@ async function initSupabaseRuntime() {
       renderHomeTab();
       showToast(localizedText(`Supabase 가이드 ${remoteCards.length}개를 불러왔습니다.`, `Loaded ${remoteCards.length} Supabase guides.`, `Supabaseガイド${remoteCards.length}件を読み込みました。`));
     }
+    await refreshOfflineGuideDownloadStates({ force: true });
   } catch (error) {
     console.warn('[Travelog Supabase] Runtime init failed:', error);
   }
@@ -820,21 +824,79 @@ function getGuidePriceLabel(guide) {
   return isGuidePaid(guide) ? `${getGuideCoinPrice(guide).toLocaleString()} COIN` : '무료';
 }
 
+function normalizeGuideId(guideId) {
+  return String(guideId ?? '').trim();
+}
+
 function getGuideByIdFromCollections(guideId) {
-  if (!guideId) return null;
-  return getPurchasedGuideCards().find(guide => guide.id === guideId)
-    || TravelogState.userGuides.find(guide => guide.id === guideId)
-    || RECOMMEND_GUIDES_DATA.today.find(guide => guide.id === guideId)
-    || RECOMMEND_GUIDES_DATA.recommended.find(guide => guide.id === guideId)
-    || RECOMMEND_GUIDES_DATA.star.find(guide => guide.id === guideId)
-    || RECOMMEND_GUIDES_DATA.event.find(guide => guide.id === guideId)
+  const normalizedId = normalizeGuideId(guideId);
+  if (!normalizedId) return null;
+  const matches = guide => normalizeGuideId(guide?.id) === normalizedId;
+  return getPurchasedGuideCards().find(matches)
+    || TravelogState.userGuides.find(matches)
+    || RECOMMEND_GUIDES_DATA.today.find(matches)
+    || RECOMMEND_GUIDES_DATA.recommended.find(matches)
+    || RECOMMEND_GUIDES_DATA.star.find(matches)
+    || RECOMMEND_GUIDES_DATA.event.find(matches)
     || null;
 }
 
+let verifiedOfflineGuideIds = new Set();
+let verifiedOfflineUserId = '';
+let offlineGuideRefreshPromise = null;
+let offlineGuideLastRefreshAt = 0;
+
 function needsOfflineDownload(guide) {
   if (!guide || guide.isSupabaseGuide !== true) return false;
-  if (guide.offlineReady === true || guide.offlineStatus === 'downloaded' || guide.offlineStatus === 'creator-local') return false;
+  if (guide.offlineStatus === 'creator-local') return false;
+  if (verifiedOfflineGuideIds.has(normalizeGuideId(guide.supabaseGuideId || guide.id))) return false;
   return guide.isPurchased === true || isGuidePurchased(guide.id);
+}
+
+async function refreshOfflineGuideDownloadStates(options = {}) {
+  if (offlineGuideRefreshPromise) return offlineGuideRefreshPromise;
+  if (!window.TravelogSupabase?.getVerifiedOfflineGuideCard || !window.TravelogSupabase?.getSession) return false;
+  if (options.force !== true && Date.now() - offlineGuideLastRefreshAt < 1000) return false;
+
+  offlineGuideRefreshPromise = (async () => {
+    const session = await window.TravelogSupabase.getSession();
+    const userId = String(session?.user?.id || '');
+    if (userId !== verifiedOfflineUserId) {
+      verifiedOfflineGuideIds = new Set();
+      verifiedOfflineUserId = userId;
+    }
+
+    const purchased = getPurchasedGuideCards();
+    for (const guide of purchased) {
+      if (guide?.isSupabaseGuide !== true) continue;
+      const localGuideId = normalizeGuideId(guide.supabaseGuideId || guide.id);
+      let verifiedCard = null;
+      try {
+        verifiedCard = userId ? await window.TravelogSupabase.getVerifiedOfflineGuideCard(localGuideId) : null;
+      } catch (error) {
+        console.warn('[Travelog Offline] Local package verification failed:', error);
+      }
+      if (verifiedCard) verifiedOfflineGuideIds.add(localGuideId);
+      else verifiedOfflineGuideIds.delete(localGuideId);
+      guide.offlineReady = Boolean(verifiedCard);
+      guide.offlineStatus = verifiedCard ? 'downloaded' : 'not_downloaded';
+      const runtimeGuide = TravelogState.userGuides.find(item => normalizeGuideId(item?.id) === normalizeGuideId(guide.id));
+      if (runtimeGuide) {
+        Object.assign(runtimeGuide, guide, verifiedCard ? {
+          ...verifiedCard,
+          id: guide.id,
+          supabaseGuideId: localGuideId
+        } : {});
+      }
+    }
+    savePurchasedGuideCards(purchased);
+    offlineGuideLastRefreshAt = Date.now();
+    if (options.render !== false) renderHomeTab();
+    return true;
+  })().finally(() => {
+    offlineGuideRefreshPromise = null;
+  });
+  return offlineGuideRefreshPromise;
 }
 
 async function downloadSupabaseGuideForOffline(guideId) {
@@ -845,7 +907,11 @@ async function downloadSupabaseGuideForOffline(guideId) {
   }
 
   showToast(localizedText('오프라인 가이드 패키지를 다운로드 중입니다...', 'Downloading the offline guide package...', 'オフラインガイドパッケージをダウンロード中です...'));
-  const offlineCard = await window.TravelogSupabase.downloadGuideOffline(currentGuide.supabaseGuideId || currentGuide.id);
+  const localGuideId = normalizeGuideId(currentGuide.supabaseGuideId || currentGuide.id);
+  await window.TravelogSupabase.downloadGuideOffline(localGuideId);
+  const offlineCard = await window.TravelogSupabase.getVerifiedOfflineGuideCard(localGuideId);
+  if (!offlineCard) throw new Error('OFFLINE_GUIDE_PACKAGE_INCOMPLETE');
+  verifiedOfflineGuideIds.add(localGuideId);
   const normalized = addGuideToMyChest({
     ...currentGuide,
     ...offlineCard,
@@ -862,7 +928,9 @@ async function downloadSupabaseGuideForOffline(guideId) {
 }
 
 function isGuidePurchased(guideId) {
-  return getPurchasedGuideCards().some(guide => guide.id === guideId) || TravelogState.userGuides.some(guide => guide.id === guideId && guide.isPurchased);
+  const normalizedId = normalizeGuideId(guideId);
+  return getPurchasedGuideCards().some(guide => normalizeGuideId(guide.id) === normalizedId)
+    || TravelogState.userGuides.some(guide => normalizeGuideId(guide.id) === normalizedId && guide.isPurchased);
 }
 
 function addGuideToMyChest(guideCard) {
@@ -998,6 +1066,9 @@ function renderHomeTab() {
   renderGuidesScrollList('today-guides-list', RECOMMEND_GUIDES_DATA.today);
   renderGuidesScrollList('star-guides-list', RECOMMEND_GUIDES_DATA.star);
   renderGuidesScrollList('event-guides-list', RECOMMEND_GUIDES_DATA.event);
+  refreshOfflineGuideDownloadStates().catch(error => {
+    console.warn('[Travelog Offline] Download-state refresh skipped:', error);
+  });
 }
 
 function renderGuideWidgets() {
@@ -2048,13 +2119,14 @@ let homeGuidePreviewLayer = null;
 function findHomeGuideInfo(guideId) {
   let selectedGuideInfo = null;
   const creatorPublishedRecord = findCreatorPublishedGuideRecord(guideId);
+  const normalizedGuideId = normalizeGuideId(guideId);
 
-  const foundUser = TravelogState.userGuides.find(g => g.id === guideId);
+  const foundUser = TravelogState.userGuides.find(g => normalizeGuideId(g?.id) === normalizedGuideId);
   if (foundUser) {
     selectedGuideInfo = foundUser;
   } else {
     for (const cat in RECOMMEND_GUIDES_DATA) {
-      const match = RECOMMEND_GUIDES_DATA[cat].find(g => g.id === guideId);
+      const match = RECOMMEND_GUIDES_DATA[cat].find(g => normalizeGuideId(g?.id) === normalizedGuideId);
       if (match) {
         selectedGuideInfo = match;
         break;
@@ -2569,6 +2641,7 @@ window.closeHomeGuidePreviewModal = function() {
 };
 
 window.startGuideFromHome = async function(guideId) {
+  await refreshOfflineGuideDownloadStates({ force: true, render: false });
   let selectedGuide = getGuideByIdFromCollections(guideId);
   if (needsOfflineDownload(selectedGuide)) {
     try {
@@ -4897,6 +4970,9 @@ window.stopCurrentGuide = function() {
   window.TravelogMapModule?.stopRealtimeLocationTracking?.(false);
   window.TravelogMapModule?.renderTour?.();
   window.renderLocationGuidePanel?.();
+  refreshOfflineGuideDownloadStates({ force: true }).catch(error => {
+    console.warn('[Travelog Offline] Post-guide download-state refresh skipped:', error);
+  });
   showToast(localizedText('진행 중인 가이드를 멈췄습니다.', 'The active guide has stopped.', '進行中のガイドを停止しました。'));
 };
 

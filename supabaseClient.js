@@ -541,7 +541,7 @@ const TravelogSupabase = (() => {
     const db = await openOfflineDb();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(OFFLINE_STORE, 'readonly');
-      const req = tx.objectStore(OFFLINE_STORE).get(guideId);
+      const req = tx.objectStore(OFFLINE_STORE).get(String(guideId));
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error || new Error('OFFLINE_DB_GET_FAILED'));
       tx.oncomplete = () => db.close();
@@ -1155,9 +1155,10 @@ const TravelogSupabase = (() => {
     return data;
   }
 
-  async function saveOfflineGuidePackage(guideId, guideRow, mediaBlobs) {
+  async function saveOfflineGuidePackage(guideId, guideRow, mediaBlobs, ownerUserId) {
     const packageRecord = {
-      guideId,
+      guideId: String(guideId),
+      ownerUserId: String(ownerUserId || ''),
       guideRow,
       mediaBlobs,
       savedAt: new Date().toISOString(),
@@ -1252,16 +1253,47 @@ const TravelogSupabase = (() => {
   }
 
   async function getOfflineGuideCard(guideId) {
-    const record = await offlineDbGet(guideId);
+    const record = await offlineDbGet(String(guideId));
     if (!record) return null;
+    return buildOfflineCardFromPackage(record);
+  }
+
+  function isOfflineGuidePackageComplete(packageRecord, guideId, ownerUserId) {
+    if (!packageRecord?.guideRow) return false;
+    if (String(packageRecord.guideId || '') !== String(guideId || '')) return false;
+    if (String(packageRecord.guideRow.id || '') !== String(guideId || '')) return false;
+    if (!ownerUserId || String(packageRecord.ownerUserId || '') !== String(ownerUserId)) return false;
+
+    const expectedMedia = Array.isArray(packageRecord.guideRow.guide_media)
+      ? packageRecord.guideRow.guide_media.filter(Boolean)
+      : [];
+    const storedMedia = Array.isArray(packageRecord.mediaBlobs) ? packageRecord.mediaBlobs : [];
+    if (storedMedia.length !== expectedMedia.length) return false;
+
+    const storedById = new Map(storedMedia.map(item => [String(item?.mediaId || ''), item]));
+    return expectedMedia.every(media => {
+      const stored = storedById.get(String(media.id || ''));
+      return stored?.blob instanceof Blob && stored.blob.size > 0;
+    });
+  }
+
+  async function getVerifiedOfflineGuideCard(guideId) {
+    const session = await getSession();
+    const ownerUserId = session?.user?.id || '';
+    if (!ownerUserId) return null;
+    const record = await offlineDbGet(String(guideId));
+    if (!isOfflineGuidePackageComplete(record, guideId, ownerUserId)) return null;
     return buildOfflineCardFromPackage(record);
   }
 
   async function downloadGuideOffline(guideId) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
-    await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User', interactiveLogin: true });
-    writeOfflineStatus(guideId, { status: 'downloading', offlineReady: false });
+    const session = await ensureSession({ displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User', interactiveLogin: true });
+    const ownerUserId = session?.user?.id || '';
+    if (!ownerUserId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const normalizedGuideId = String(guideId);
+    writeOfflineStatus(normalizedGuideId, { status: 'downloading', offlineReady: false });
 
     const fullGuide = await fetchCompleteGuide(guideId);
     const mediaRows = Array.isArray(fullGuide.guide_media) ? fullGuide.guide_media : [];
@@ -1281,13 +1313,13 @@ const TravelogSupabase = (() => {
       });
     }
 
-    const packageRecord = await saveOfflineGuidePackage(guideId, fullGuide, mediaBlobs);
+    const packageRecord = await saveOfflineGuidePackage(normalizedGuideId, fullGuide, mediaBlobs, ownerUserId);
 
     try {
       await supabase
         .from('offline_downloads')
         .upsert({
-          user_id: (await getSession())?.user?.id,
+          user_id: ownerUserId,
           guide_id: guideId,
           guide_version: fullGuide.version || 1,
           status: 'downloaded',
@@ -2173,6 +2205,7 @@ const TravelogSupabase = (() => {
     purchaseGuide,
     downloadGuideOffline,
     getOfflineGuideCard,
+    getVerifiedOfflineGuideCard,
     getOfflineStatus,
     constants: {
       SUPABASE_URL,
