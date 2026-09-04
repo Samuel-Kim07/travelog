@@ -760,7 +760,8 @@ function getPurchasedGuideCards() {
 
     // 내 가이드 보관함은 결제를 완료했거나 무료 구매 버튼을 누른 가이드만 사용합니다.
     // 예전에 홈 위젯에 있던 기본/출간/추천 가이드가 섞여 저장된 경우를 방지합니다.
-    return guides.filter(guide => guide && guide.isPurchased === true);
+    const removedIds = getCurrentUserRemovedLibraryGuideIds();
+    return guides.filter(guide => guide && guide.isPurchased === true && !removedIds.has(String(guide.id)));
   } catch (_) {
     return [];
   }
@@ -845,6 +846,37 @@ let verifiedOfflineGuideIds = new Set();
 let verifiedOfflineUserId = '';
 let offlineGuideRefreshPromise = null;
 let offlineGuideLastRefreshAt = 0;
+let downloadingGuideIds = new Set();
+
+function readRemovedLibraryGuideMap() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REMOVED_LIBRARY_GUIDES_STORAGE_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function getCurrentUserRemovedLibraryGuideIds() {
+  const map = readRemovedLibraryGuideMap();
+  return new Set(Array.isArray(map[verifiedOfflineUserId]) ? map[verifiedOfflineUserId].map(String) : []);
+}
+
+function setLibraryGuideRemovedForCurrentUser(guideId, removed) {
+  if (!verifiedOfflineUserId) return false;
+  try {
+    const map = readRemovedLibraryGuideMap();
+    const ids = new Set(Array.isArray(map[verifiedOfflineUserId]) ? map[verifiedOfflineUserId].map(String) : []);
+    if (removed) ids.add(normalizeGuideId(guideId));
+    else ids.delete(normalizeGuideId(guideId));
+    map[verifiedOfflineUserId] = [...ids];
+    localStorage.setItem(REMOVED_LIBRARY_GUIDES_STORAGE_KEY, JSON.stringify(map));
+    return true;
+  } catch (error) {
+    console.warn('[Travelog Library] User library state could not be saved:', error);
+    return false;
+  }
+}
 
 function needsOfflineDownload(guide) {
   if (!guide || guide.isSupabaseGuide !== true) return false;
@@ -906,12 +938,20 @@ async function downloadSupabaseGuideForOffline(guideId) {
     throw new Error('SUPABASE_OFFLINE_DOWNLOADER_NOT_READY');
   }
 
-  showToast(localizedText('오프라인 가이드 패키지를 다운로드 중입니다...', 'Downloading the offline guide package...', 'オフラインガイドパッケージをダウンロード中です...'));
   const localGuideId = normalizeGuideId(currentGuide.supabaseGuideId || currentGuide.id);
-  await window.TravelogSupabase.downloadGuideOffline(localGuideId);
-  const offlineCard = await window.TravelogSupabase.getVerifiedOfflineGuideCard(localGuideId);
-  if (!offlineCard) throw new Error('OFFLINE_GUIDE_PACKAGE_INCOMPLETE');
-  verifiedOfflineGuideIds.add(localGuideId);
+  downloadingGuideIds.add(localGuideId);
+  renderHomeTab();
+  showToast(localizedText('오프라인 가이드 패키지를 다운로드 중입니다...', 'Downloading the offline guide package...', 'オフラインガイドパッケージをダウンロード中です...'));
+  let offlineCard;
+  try {
+    await window.TravelogSupabase.downloadGuideOffline(localGuideId);
+    offlineCard = await window.TravelogSupabase.getVerifiedOfflineGuideCard(localGuideId);
+    if (!offlineCard) throw new Error('OFFLINE_GUIDE_PACKAGE_INCOMPLETE');
+    verifiedOfflineGuideIds.add(localGuideId);
+  } finally {
+    downloadingGuideIds.delete(localGuideId);
+    renderHomeTab();
+  }
   const normalized = addGuideToMyChest({
     ...currentGuide,
     ...offlineCard,
@@ -937,6 +977,7 @@ function addGuideToMyChest(guideCard) {
   const normalized = sanitizePublishedGuideCard({ ...guideCard, isWidget: true, isPurchased: true });
   normalized.isPurchased = true;
   normalized.isWidget = true;
+  setLibraryGuideRemovedForCurrentUser(normalized.id, false);
 
   const purchased = [normalized, ...getPurchasedGuideCards().filter(item => item.id !== normalized.id)].slice(0, 100);
   savePurchasedGuideCards(purchased);
@@ -1017,6 +1058,7 @@ function initHomeTab() {
   const widgetSaveBtn = document.getElementById('widget-config-save-btn');
   if (widgetCloseBtn) widgetCloseBtn.addEventListener('click', closeWidgetConfig);
   if (widgetSaveBtn) widgetSaveBtn.addEventListener('click', saveWidgetConfig);
+  bindLibraryGuideRemovalDialog();
 
   bindFriendUiEvents();
 
@@ -1087,24 +1129,23 @@ function renderGuideWidgets() {
   }
 
   container.innerHTML = activeWidgets.map(guide => {
+    const guideId = normalizeGuideId(guide.id);
+    const isDownloading = downloadingGuideIds.has(normalizeGuideId(guide.supabaseGuideId || guide.id));
+    const needsDownload = needsOfflineDownload(guide);
     return `
-      <div class="widget-block" id="widget-${guide.id}" style="position:relative;">
-        <div class="widget-block-bg" style="background-image: url('${guide.bg}')"></div>
-        <span style="position:absolute; top:10px; right:10px; z-index:2; font-size:10px; font-weight:900; color:#fff; background:${isGuidePaid(guide) ? 'rgba(255,46,99,.92)' : 'rgba(52,168,83,.92)'}; border-radius:999px; padding:4px 8px; box-shadow:0 4px 10px rgba(0,0,0,.18);">${getGuidePriceLabel(guide)}</span>
-        <div>
+      <article class="widget-block" id="widget-${escapeHtml(guideId)}" tabindex="0" role="button" aria-label="${escapeHtml(guide.name)} 소개 보기" onclick="window.openGuideIntroFromHome('${escapeHtml(guideId)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openGuideIntroFromHome('${escapeHtml(guideId)}')}">
+        <div class="widget-block-bg" style="background-image: url('${guide.bg || 'assets/images/brand/travelog-ci-symbol.svg'}')"></div>
+        <span class="widget-block-price ${isGuidePaid(guide) ? 'is-paid' : 'is-free'}">${getGuidePriceLabel(guide)}</span>
+        <div class="widget-block-copy">
           <h4 class="widget-block-title">${escapeHtml(guide.name)}</h4>
-          <span class="widget-block-meta" style="color:#c9f1d5 !important;">
-            <svg class="widget-block-meta-icon" aria-hidden="true" viewBox="0 0 50 50" focusable="false">
-              <path d="M 8.00 36.00 L 8.00 49.00 L 41.00 49.00 L 41.00 36.00 L 40.00 35.00 L 40.00 34.00 L 37.00 31.00 L 36.00 31.00 L 35.00 30.00 L 14.00 30.00 L 13.00 31.00 L 12.00 31.00 L 9.00 34.00 L 9.00 35.00 Z M 20.00 2.00 L 19.00 3.00 L 18.00 3.00 L 13.00 8.00 L 13.00 9.00 L 12.00 10.00 L 12.00 19.00 L 13.00 20.00 L 13.00 21.00 L 18.00 26.00 L 19.00 26.00 L 20.00 27.00 L 29.00 27.00 L 30.00 26.00 L 31.00 26.00 L 36.00 21.00 L 36.00 20.00 L 37.00 19.00 L 37.00 10.00 L 36.00 9.00 L 36.00 8.00 L 31.00 3.00 L 30.00 3.00 L 29.00 2.00 Z" fill="currentColor" fill-rule="evenodd"></path>
-            </svg>
-            <span>${escapeHtml(guide.author)} &middot; ★ ${guide.rating}</span>
-          </span>
+          <span class="widget-block-meta">${escapeHtml(guide.author)}</span>
+          <span class="widget-block-download-state">${isDownloading ? '다운로드 중…' : needsDownload ? '다운로드 필요' : '다운로드 완료'}</span>
         </div>
-        <button class="widget-block-btn" onclick="window.startGuideFromHome('${guide.id}')">
+        <button class="widget-block-btn" ${isDownloading ? 'disabled' : ''} onclick="event.stopPropagation();window.startGuideFromHome('${escapeHtml(guideId)}')">
           <img class="widget-block-start-icon" src="assets/icons/ui/myguid_start_001.svg?v=2" alt="" aria-hidden="true">
-          <span>${needsOfflineDownload(guide) ? '다운로드 후 시작' : '가이드 시작'}</span>
+          <span>${isDownloading ? '다운로드 중' : needsDownload ? '다운로드 후 시작' : '가이드 시작'}</span>
         </button>
-      </div>`;
+      </article>`;
   }).join('');
 }
 
@@ -2068,18 +2109,123 @@ function openWidgetConfig() {
   } else {
     container.innerHTML = purchasedGuides.map(guide => {
       return `
-        <label class="widget-checkbox-item">
-          <input type="checkbox" id="chk-${guide.id}" ${guide.isWidget !== false ? 'checked' : ''}>
-          <div class="widget-checkbox-label">
+        <div class="widget-checkbox-item">
+          <label class="widget-checkbox-select" for="chk-${escapeHtml(normalizeGuideId(guide.id))}">
+            <input type="checkbox" id="chk-${escapeHtml(normalizeGuideId(guide.id))}" ${guide.isWidget !== false ? 'checked' : ''}>
+          </label>
+          <label class="widget-checkbox-label" for="chk-${escapeHtml(normalizeGuideId(guide.id))}">
             <span class="widget-checkbox-name">${escapeHtml(guide.name)}</span>
             <span class="widget-checkbox-author">${escapeHtml(guide.author)}</span>
-          </div>
-        </label>`;
+          </label>
+          <button class="widget-library-delete-btn" type="button" data-library-delete-id="${escapeHtml(normalizeGuideId(guide.id))}" aria-label="${escapeHtml(guide.name)} 보관함에서 삭제">삭제</button>
+        </div>`;
     }).join('');
+    container.querySelectorAll('[data-library-delete-id]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        openLibraryGuideRemovalDialog(button.dataset.libraryDeleteId);
+      });
+    });
   }
 
   modal.classList.add('active');
   modal.setAttribute('aria-hidden', 'false');
+}
+
+let pendingLibraryRemovalGuideId = '';
+let libraryRemovalBusy = false;
+
+function closeLibraryGuideRemovalDialog() {
+  if (libraryRemovalBusy) return;
+  const modal = document.getElementById('library-guide-delete-modal');
+  modal?.classList.remove('active');
+  modal?.setAttribute('aria-hidden', 'true');
+  pendingLibraryRemovalGuideId = '';
+  const feedback = document.getElementById('library-guide-delete-feedback');
+  if (feedback) feedback.textContent = '';
+}
+
+function openLibraryGuideRemovalDialog(guideId) {
+  const guide = getGuideByIdFromCollections(guideId);
+  if (!guide) return;
+  if (TravelogState.guideRunActive && normalizeGuideId(TravelogState.activeGuide?.id) === normalizeGuideId(guideId)) {
+    showToast(localizedText('실행 중인 가이드를 먼저 종료한 뒤 삭제해 주세요.', 'Stop the running guide before removing it.', '実行中のガイドを終了してから削除してください。'));
+    return;
+  }
+  pendingLibraryRemovalGuideId = normalizeGuideId(guideId);
+  const modal = document.getElementById('library-guide-delete-modal');
+  const name = document.getElementById('library-guide-delete-name');
+  if (name) name.textContent = guide.name || '';
+  modal?.classList.add('active');
+  modal?.setAttribute('aria-hidden', 'false');
+  window.setTimeout(() => document.getElementById('library-guide-delete-cancel')?.focus(), 0);
+}
+
+function setLibraryRemovalBusy(busy) {
+  libraryRemovalBusy = Boolean(busy);
+  ['library-guide-delete-cancel', 'library-guide-delete-confirm', 'library-guide-delete-close'].forEach(id => {
+    const button = document.getElementById(id);
+    if (button) button.disabled = libraryRemovalBusy;
+  });
+}
+
+async function confirmLibraryGuideRemoval() {
+  if (!pendingLibraryRemovalGuideId || libraryRemovalBusy) return;
+  const guideId = pendingLibraryRemovalGuideId;
+  const guide = getGuideByIdFromCollections(guideId);
+  const serverGuideId = normalizeGuideId(guide?.supabaseGuideId || guideId);
+  const feedback = document.getElementById('library-guide-delete-feedback');
+  setLibraryRemovalBusy(true);
+  if (feedback) feedback.textContent = '';
+
+  try {
+    if (!window.TravelogSupabase?.removeGuideFromLibraryServer) throw new Error('LIBRARY_REMOVE_SERVER_NOT_READY');
+    await window.TravelogSupabase.removeGuideFromLibraryServer(serverGuideId);
+  } catch (error) {
+    console.warn('[Travelog Library] Server removal failed:', error);
+    if (feedback) feedback.textContent = localizedText('서버의 구매·다운로드 기록을 삭제하지 못했습니다. 로컬 데이터는 유지되었습니다. 잠시 후 다시 시도해 주세요.', 'Could not remove the server purchase/download records. Local data was kept. Please retry.', 'サーバーの購入・ダウンロード記録を削除できませんでした。ローカルデータは維持されています。');
+    setLibraryRemovalBusy(false);
+    return;
+  }
+
+  try {
+    await window.TravelogSupabase.deleteOfflineGuidePackage(serverGuideId);
+  } catch (error) {
+    console.warn('[Travelog Library] Local package removal failed after server removal:', error);
+    if (feedback) feedback.textContent = localizedText('서버 기록은 삭제됐지만 현재 기기의 오프라인 데이터 정리에 실패했습니다. 삭제를 다시 눌러 로컬 정리를 재시도해 주세요.', 'Server records were removed, but local cleanup failed. Press Delete again to retry local cleanup.', 'サーバー記録は削除されましたが、端末データの整理に失敗しました。もう一度削除を押してください。');
+    setLibraryRemovalBusy(false);
+    return;
+  }
+
+  if (!setLibraryGuideRemovedForCurrentUser(guideId, true)) {
+    if (feedback) feedback.textContent = localizedText('서버 기록과 오프라인 패키지는 삭제됐지만 보관함 화면 상태를 저장하지 못했습니다. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.', 'Server records and the offline package were removed, but the library state could not be saved. Check browser storage and retry.', 'サーバー記録とオフラインパッケージは削除されましたが、保管箱の状態を保存できませんでした。');
+    setLibraryRemovalBusy(false);
+    return;
+  }
+  verifiedOfflineGuideIds.delete(serverGuideId);
+  TravelogState.userGuides = TravelogState.userGuides.filter(item =>
+    normalizeGuideId(item?.id) !== guideId || item.isPurchased !== true
+  );
+  setLibraryRemovalBusy(false);
+  closeLibraryGuideRemovalDialog();
+  openWidgetConfig();
+  renderHomeTab();
+  showToast(localizedText('가이드를 보관함과 현재 기기에서 삭제했습니다. 구매 코인은 환불되지 않습니다.', 'Removed the guide from your library and this device. Coins were not refunded.', 'ガイドを保管箱とこの端末から削除しました。コインは返金されません。'));
+}
+
+function bindLibraryGuideRemovalDialog() {
+  const modal = document.getElementById('library-guide-delete-modal');
+  if (!modal || modal.dataset.bound === 'true') return;
+  modal.dataset.bound = 'true';
+  document.getElementById('library-guide-delete-cancel')?.addEventListener('click', closeLibraryGuideRemovalDialog);
+  document.getElementById('library-guide-delete-close')?.addEventListener('click', closeLibraryGuideRemovalDialog);
+  document.getElementById('library-guide-delete-confirm')?.addEventListener('click', confirmLibraryGuideRemoval);
+  modal.addEventListener('click', event => {
+    if (event.target === modal) closeLibraryGuideRemovalDialog();
+  });
+  modal.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeLibraryGuideRemovalDialog();
+  });
 }
 
 function closeWidgetConfig() {
@@ -2883,6 +3029,7 @@ const ONBOARDING_STORAGE_KEY = 'travelog_user_profile_v1';
 const PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_published_guides_v1';
 const CREATOR_PUBLISHED_GUIDES_STORAGE_KEY = 'travelog_creator_published_guides_v1';
 const PURCHASED_GUIDES_STORAGE_KEY = 'travelog_purchased_guides_v1';
+const REMOVED_LIBRARY_GUIDES_STORAGE_KEY = 'travelog_removed_library_guides_v1';
 const HOME_COINS_STORAGE_KEY = 'travelog_home_coins_v1';
 const HOME_FRIENDS_STORAGE_KEY = 'travelog_home_friends_v1';
 const HOME_MESSAGES_STORAGE_KEY = 'travelog_home_messages_v1';

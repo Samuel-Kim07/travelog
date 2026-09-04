@@ -548,6 +548,31 @@ const TravelogSupabase = (() => {
     });
   }
 
+  async function deleteOfflineGuidePackage(guideId) {
+    const session = await getSession();
+    const ownerUserId = String(session?.user?.id || '');
+    if (!ownerUserId) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const normalizedGuideId = String(guideId);
+    const record = await offlineDbGet(normalizedGuideId);
+    if (record && String(record.ownerUserId || '') !== ownerUserId) {
+      throw new Error('OFFLINE_GUIDE_OWNER_MISMATCH');
+    }
+    if (record) {
+      const db = await openOfflineDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(OFFLINE_STORE, 'readwrite');
+        tx.objectStore(OFFLINE_STORE).delete(normalizedGuideId);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error('OFFLINE_DB_DELETE_FAILED'));
+        tx.onabort = () => reject(tx.error || new Error('OFFLINE_DB_DELETE_ABORTED'));
+      }).finally(() => db.close());
+    }
+    const statusMap = readOfflineStatusMap();
+    delete statusMap[normalizedGuideId];
+    try { localStorage.setItem(OFFLINE_STATUS_KEY, JSON.stringify(statusMap)); } catch (_) {}
+    return true;
+  }
+
   function dataUrlToBlob(dataUrl) {
     if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
     const [meta, body] = dataUrl.split(',');
@@ -1339,6 +1364,21 @@ const TravelogSupabase = (() => {
     }
 
     return buildOfflineCardFromPackage(packageRecord);
+  }
+
+  async function removeGuideFromLibraryServer(guideId) {
+    const supabase = getClient();
+    if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
+    const session = await ensureSession({
+      displayName: window.TravelogApp?.getState?.()?.userProfile?.nickname || 'Travelog User',
+      interactiveLogin: true
+    });
+    if (!session?.user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
+    const { data, error } = await supabase.rpc('remove_guide_from_library_v1', {
+      p_guide_id: guideId
+    });
+    if (error) throw error;
+    return data || {};
   }
 
 
@@ -2206,6 +2246,8 @@ const TravelogSupabase = (() => {
     downloadGuideOffline,
     getOfflineGuideCard,
     getVerifiedOfflineGuideCard,
+    deleteOfflineGuidePackage,
+    removeGuideFromLibraryServer,
     getOfflineStatus,
     constants: {
       SUPABASE_URL,
