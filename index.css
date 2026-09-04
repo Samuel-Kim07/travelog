@@ -6206,6 +6206,193 @@ nav.bottom-nav {
   color: var(--text-secondary, #94a3b8);
 }
 
+/* Purchased guide library: compact, image-led responsive grid. */
+#home-widget-grid.widget-blocks-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+#home-widget-grid .widget-block {
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  isolation: isolate;
+}
+
+#home-widget-grid .widget-block::before {
+  background: linear-gradient(180deg, rgba(20, 31, 36, 0.06) 25%, rgba(20, 31, 36, 0.88) 72%);
+}
+
+#home-widget-grid .widget-block-bg {
+  opacity: 1;
+}
+
+#home-widget-grid .widget-block-copy {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  min-width: 0;
+}
+
+#home-widget-grid .widget-block-title {
+  display: -webkit-box;
+  min-height: 2.7em;
+  margin: 0 0 3px;
+  overflow: hidden;
+  color: #fff !important;
+  font-size: 13px;
+  line-height: 1.35;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7) !important;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+#home-widget-grid .widget-block-meta,
+#home-widget-grid .widget-block-download-state {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.72);
+  white-space: nowrap;
+}
+
+#home-widget-grid .widget-block-download-state {
+  color: #d7f4ff !important;
+}
+
+.widget-block-price {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 2;
+  max-width: calc(100% - 18px);
+  padding: 4px 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.2);
+}
+
+.widget-block-price.is-paid { background: rgba(215, 71, 82, 0.94); }
+.widget-block-price.is-free { background: rgba(52, 138, 91, 0.94); }
+
+#home-widget-grid .widget-block-btn {
+  min-height: 32px;
+  margin-top: 7px;
+  padding: 6px 5px;
+  border-radius: 10px;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+#home-widget-grid .widget-block-btn:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+#home-widget-grid .widget-block:focus-visible {
+  outline: 3px solid #70a2b7;
+  outline-offset: 3px;
+}
+
+.widget-checkbox-select {
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+}
+
+.widget-library-delete-btn {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid rgba(190, 55, 65, 0.28);
+  border-radius: 10px;
+  background: rgba(214, 82, 92, 0.1);
+  color: #a52f39;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.library-guide-delete-card {
+  position: relative;
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px;
+}
+
+.library-guide-delete-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: #a52f39;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.library-guide-delete-card h2 {
+  padding-right: 40px;
+  color: #373737;
+  font-size: 20px;
+}
+
+.library-guide-delete-name {
+  display: block;
+  margin: 14px 0 8px;
+  color: #373737;
+  overflow-wrap: anywhere;
+}
+
+.library-guide-delete-card p {
+  color: #5f6468;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.library-guide-delete-feedback {
+  min-height: 1.5em;
+  color: #a52f39 !important;
+  font-weight: 700;
+}
+
+.library-guide-delete-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.library-guide-delete-confirm {
+  justify-content: center;
+  background: #c94954;
+}
+
+@media (min-width: 700px) {
+  #home-widget-grid.widget-blocks-grid {
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  #home-widget-grid.widget-blocks-grid { gap: 9px; }
+  #home-widget-grid .widget-block { padding: 8px; border-radius: 17px; }
+  #home-widget-grid .widget-block-start-icon { width: 13px; height: 13px; flex-basis: 13px; }
+  .library-guide-delete-card { padding: 24px 20px; }
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
