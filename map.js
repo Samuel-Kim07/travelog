@@ -2542,7 +2542,7 @@ const TravelogMapModule = (() => {
     // not from the temporary "Custom Pin #n" fallback.
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newIndex = customPins.length + 1;
-    const pinId = `custom-pin-${Date.now()}`;
+    const pinId = `custom-pin-${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
     const fallbackName = t(`메모핀 ${newIndex}`, `Memo Pin ${newIndex}`, `メモピン ${newIndex}`);
     const cleanName = String(pinName || '').trim() || fallbackName;
     const cleanDescription = String(description || '').trim();
@@ -2563,6 +2563,7 @@ const TravelogMapModule = (() => {
     };
     
     customPins.push(newPin);
+    window.TravelogCreatorModule?.persistWorkingDraft?.();
     
     // Draw Pin on Map
     const marker = L.marker([lat, lng], {
@@ -2582,16 +2583,22 @@ const TravelogMapModule = (() => {
     window.TravelogApp.showToast(t(`새 핀 [${cleanName}]이 추가되었습니다.`, `New pin [${cleanName}] added.`, `新しいピン［${cleanName}］を追加しました。`));
   }
 
-  function clearCreatorPins() {
-    window.TravelogApp.getState().customCreatedPins = [];
-    creatorRouteConnected = false;
-    stopCreatorGuidePreview();
+  function clearPinMarkersFromMap() {
     for (const pinId in customCreatedMarkers) {
       if (customCreatedMarkers[pinId]) {
         markersLayer.removeLayer(customCreatedMarkers[pinId]);
       }
     }
     customCreatedMarkers = {};
+  }
+
+  // Data deletion is reserved for an explicit reset/delete action.
+  function deleteAllGuidePins() {
+    window.TravelogApp.getState().customCreatedPins = [];
+    window.TravelogCreatorModule?.persistWorkingDraft?.();
+    creatorRouteConnected = false;
+    stopCreatorGuidePreview();
+    clearPinMarkersFromMap();
     renderTour(); // Redraw baseline tour
   }
 
@@ -2600,6 +2607,7 @@ const TravelogMapModule = (() => {
     const pin = customPins.find(p => p.id === pinId);
     if (pin) {
       pin.color = newColor;
+      window.TravelogCreatorModule?.persistWorkingDraft?.();
     }
     const marker = customCreatedMarkers[pinId];
     if (marker) {
@@ -2691,7 +2699,9 @@ const TravelogMapModule = (() => {
     startActiveGuidePreview: startActiveGuidePreview,
     stopActiveGuidePreview: stopActiveGuidePreview,
     addNewCreatorPin: addNewCreatorPin,
-    clearCreatorPins: clearCreatorPins,
+    clearCreatorPins: deleteAllGuidePins,
+    deleteAllGuidePins,
+    clearPinMarkersFromMap,
     updateCreatorPinColor: updateCreatorPinColor,
     updateCreatorPinName: updateCreatorPinName,
     refreshCreatorPinPopup: refreshCreatorPinPopup,
@@ -2725,7 +2735,9 @@ const TravelogMapModule = (() => {
         updateMapOverview();
       }
     },
-    clearCreatorPins: clearCreatorPins,
+    clearCreatorPins: deleteAllGuidePins,
+    deleteAllGuidePins,
+    clearPinMarkersFromMap,
     requestCurrentLocation: requestCurrentLocation,
     startRealtimeLocationTracking: startRealtimeLocationTracking,
     stopRealtimeLocationTracking: stopRealtimeLocationTracking,

@@ -69,6 +69,111 @@ const TravelogCreatorModule = (() => {
   let activeStudioEditStatus = 'new';
   let activeStudioEditTitle = '';
   let activeStudioEditCreatedAt = '';
+  const WORKING_DRAFT_KEY = 'travelog_creator_working_draft_v1';
+  let workingGuideId = '';
+  let draftReady = false;
+  let creatorInitialized = false;
+  let editorGeneration = 0;
+  let photoSaveInProgress = false;
+  let draftWarningShown = false;
+
+  // Keep small, synchronous recovery metadata; original media lives in DeviceStorage.
+  function persistWorkingDraft() {
+    if (!draftReady) return;
+    const state = window.TravelogApp?.getState?.();
+    if (!state) return;
+    workingGuideId = activeStudioEditGuideId || workingGuideId || createTravelogGuideId();
+    const mediaMetadata = items => items.map(({ blob, dataUrl, objectUrl, ...item }) => ({
+      ...item, dataUrl: /^https?:/.test(dataUrl || '') ? dataUrl : ''
+    }));
+    try {
+      localStorage.setItem(WORKING_DRAFT_KEY, JSON.stringify({
+        version: 1, guideId: workingGuideId,
+        editId: activeStudioEditGuideId, status: activeStudioEditStatus,
+        createdAt: activeStudioEditCreatedAt,
+        title: document.getElementById('new-tour-name')?.value || activeStudioEditTitle,
+        pins: state.customCreatedPins,
+        audios: mediaMetadata(recordedAudios), videos: mediaMetadata(recordedVideos),
+        photos: mediaMetadata(recordedPhotos)
+      }));
+    } catch (error) {
+      console.warn('[Travelog Creator] Recovery draft write failed:', error);
+      if (!draftWarningShown) {
+        draftWarningShown = true;
+        window.TravelogApp?.showToast?.('복구 저장에 실패했습니다. 페이지를 닫기 전에 가이드를 저장해 주세요.');
+      }
+    }
+  }
+
+  function restoreWorkingDraft() {
+    try {
+      const draft = JSON.parse(localStorage.getItem(WORKING_DRAFT_KEY) || 'null');
+      if (!draft || draft.version !== 1 || !draft.guideId || !Array.isArray(draft.pins)) return;
+      const state = window.TravelogApp.getState();
+      // Never replace live edits with hydration, including an empty stored result.
+      if (state.customCreatedPins.length) return;
+      workingGuideId = draft.guideId;
+      activeStudioEditGuideId = draft.editId || null;
+      activeStudioEditStatus = draft.status || 'new';
+      activeStudioEditTitle = draft.title || '';
+      activeStudioEditCreatedAt = draft.createdAt || '';
+      state.customCreatedPins = draft.pins;
+      const title = document.getElementById('new-tour-name');
+      if (title) title.value = draft.title || '';
+      recordedAudios = Array.isArray(draft.audios) ? draft.audios : [];
+      recordedVideos = Array.isArray(draft.videos) ? draft.videos : [];
+      recordedPhotos = Array.isArray(draft.photos) ? draft.photos : [];
+      const generation = editorGeneration;
+      Promise.allSettled([
+        ...recordedAudios.map(item => restoreMediaItemFromDeviceStorage(item, 'audio')),
+        ...recordedVideos.map(item => restoreMediaItemFromDeviceStorage(item, 'video')),
+        ...recordedPhotos.map(item => restoreMediaItemFromDeviceStorage(item, 'photo'))
+      ]).then(results => {
+        if (generation !== editorGeneration) return;
+        if (results.some(result => result.status === 'rejected' || result.value === false)) {
+          window.TravelogApp?.showToast?.('핀은 복원했지만 일부 미디어 원본을 찾지 못했습니다. 해당 파일을 다시 등록해 주세요.');
+        }
+        renderAudioList();
+        renderVideoList();
+        updatePublishPanelCounts();
+      });
+      updateStudioModeUi();
+    } catch (error) {
+      console.warn('[Travelog Creator] Recovery draft could not be read:', error);
+    }
+  }
+
+  function logCreatorLifecycle(event) {
+    try {
+      if (localStorage.getItem('travelog_debug_lifecycle') !== '1') return;
+    } catch (_) { return; }
+    const pins = window.TravelogApp?.getState?.().customCreatedPins || [];
+    console.log(`[TravelogDebug] ${event.type}`, {
+      guideId: activeStudioEditGuideId || workingGuideId,
+      pinCount: pins.length, pinIds: pins.map(pin => pin.id),
+      orientation: window.screen?.orientation?.type || `${window.innerWidth}x${window.innerHeight}`,
+      visibility: document.visibilityState,
+      photoEditing: !!document.getElementById('photo-memo-modal')?.classList.contains('active'),
+      persisted: event.persisted, timeOrigin: window.performance?.timeOrigin
+    });
+  }
+
+  function bindCreatorLifecycle() {
+    ['orientationchange', 'resize', 'pagehide', 'pageshow', 'load'].forEach(type => {
+      window.addEventListener(type, event => {
+        persistWorkingDraft();
+        logCreatorLifecycle(event);
+        if (['orientationchange', 'resize', 'pageshow'].includes(type)) {
+          window.TravelogMapModule?.invalidateSize?.();
+        }
+      });
+    });
+    document.addEventListener('visibilitychange', event => {
+      persistWorkingDraft();
+      logCreatorLifecycle(event);
+    });
+    logCreatorLifecycle({ type: 'DOMContentLoaded' });
+  }
 
   function escapeHtml(value) {
     return String(value || '')
@@ -280,6 +385,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function markPublishDraftDirty() {
+    persistWorkingDraft();
     updateFinalPublishButtonState();
   }
 
@@ -540,6 +646,8 @@ const TravelogCreatorModule = (() => {
   let videoMemoRenderInProgress = false;
 
   function init() {
+    if (creatorInitialized) return;
+    creatorInitialized = true;
     loadRegisteredCoupons();
     initGuideCoverUploader();
     initGuideIntroBuilder();
@@ -547,6 +655,9 @@ const TravelogCreatorModule = (() => {
     bindGuideEditModal();
     initGuidePricingControls();
     bindPublishReadinessWatchers();
+    restoreWorkingDraft();
+    draftReady = true;
+    bindCreatorLifecycle();
     renderCoordinatesList();
     renderAudioList();
     renderVideoList();
@@ -964,6 +1075,7 @@ const TravelogCreatorModule = (() => {
   }
 
   function renderCoordinatesList() {
+    persistWorkingDraft();
     const listEl = document.getElementById('creator-coordinates-list');
     const noPinsMsg = document.getElementById('no-pins-msg');
     if (!listEl || !noPinsMsg) return;
@@ -1147,7 +1259,7 @@ const TravelogCreatorModule = (() => {
 
   function clearPins() {
     if (window.TravelogMapModule) {
-      window.TravelogMapModule.clearCreatorPins();
+      window.TravelogMapModule.deleteAllGuidePins();
     }
     renderCoordinatesList();
     window.TravelogApp.showToast(t('등록된 핀들이 초기화되었습니다.', 'All custom pins reset.', '登録されたピンをリセットしました。'));
@@ -1392,7 +1504,7 @@ const TravelogCreatorModule = (() => {
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : {};
     const creator = state.userProfile?.nickname || 'Travelog Creator';
     const createdAt = activeStudioEditCreatedAt || new Date().toISOString();
-    const guideId = activeStudioEditGuideId || createTravelogGuideId();
+    const guideId = activeStudioEditGuideId || (workingGuideId ||= createTravelogGuideId());
     const tourSlug = safeFileName(tourName, 'travelog_guide');
     const representativeImage = getGuideCoverDataUrl();
     const guideIntroText = getGuideIntroText();
@@ -2032,11 +2144,11 @@ const TravelogCreatorModule = (() => {
       });
 
       window.TravelogApp.showToast(shouldRepublishOnline
-        ? t('출간된 가이드 수정이 완료되었습니다. 새 가이드 제작 화면으로 초기화합니다.', 'Published guide edit complete. Studio reset for a new guide.', '公開ガイドの修正が完了しました。新規制作画面に初期化します。')
-        : t('저장된 가이드 수정이 완료되었습니다. 새 가이드 제작 화면으로 초기화합니다.', 'Saved guide edit complete. Studio reset for a new guide.', '保存ガイドの修正が完了しました。新規制作画面に初期化します。')
+        ? t('출간된 가이드 수정이 완료되었습니다. 현재 핀을 유지합니다.', 'Published guide edit complete. Current pins are preserved.', '公開ガイドの修正が完了しました。現在のピンを保持します。')
+        : t('저장된 가이드 수정이 완료되었습니다. 현재 핀을 유지합니다.', 'Saved guide edit complete. Current pins are preserved.', '保存ガイドの修正が完了しました。現在のピンを保持します。')
       );
 
-      resetCreatorStudioForNewGuide();
+      persistWorkingDraft();
       setTimeout(() => {
         closePublishModal();
       }, 1200);
@@ -2492,8 +2604,16 @@ const TravelogCreatorModule = (() => {
   }
 
   async function openSavedGuideEditor(id) {
+    if ((activeStudioEditGuideId || workingGuideId) && String(activeStudioEditGuideId || workingGuideId) === String(id)) {
+      renderCoordinatesList();
+      return;
+    }
     const record = getSavedGuideById(id);
     if (!record) return;
+    persistWorkingDraft();
+    const generation = ++editorGeneration;
+    workingGuideId = record.id;
+    setStudioEditMode(record, record.status === 'published' ? 'published' : 'unpublished');
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
 
     const tourNameInput = document.getElementById('new-tour-name');
@@ -2530,6 +2650,8 @@ const TravelogCreatorModule = (() => {
     saveRegisteredCoupons();
 
     const restoredPins = Array.isArray(record.pins) ? record.pins.map((pin, index) => ({
+      memoType: pin.memoType,
+      type: pin.type,
       id: pin.id || `saved-pin-${Date.now()}-${index}`,
       name: pin.name || pin.nameKo || pin.nameEn || `메모핀 ${index + 1}`,
       nameKo: pin.nameKo || pin.name || `메모핀 ${index + 1}`,
@@ -2548,6 +2670,7 @@ const TravelogCreatorModule = (() => {
     recordedAudios = restoreMediaEntriesFromSavedPins(record, 'audio');
     recordedVideos = restoreMediaEntriesFromSavedPins(record, 'video');
     recordedPhotos = restoreMediaEntriesFromSavedPins(record, 'photo');
+    persistWorkingDraft();
 
     const restoredResults = await Promise.all([
       ...recordedAudios.map(item => restoreMediaItemFromDeviceStorage(item, 'audio')),
@@ -2556,6 +2679,7 @@ const TravelogCreatorModule = (() => {
       guideIntroAudio ? restoreMediaItemFromDeviceStorage(guideIntroAudio, 'audio') : Promise.resolve(true),
       guideIntroVideo ? restoreMediaItemFromDeviceStorage(guideIntroVideo, 'video') : Promise.resolve(true)
     ]);
+    if (generation !== editorGeneration) return;
     const missingMediaCount = restoredResults.filter(result => result === false).length;
     pendingPublishPackage = null;
     lastSavedPublishSignature = '';
@@ -3064,7 +3188,7 @@ const TravelogCreatorModule = (() => {
       window.TravelogApp.addPoints(150);
       window.TravelogApp.showToast(t(`가이드 [${completedPackage.tourName}] Supabase 출간 완료!`, `Guide [${completedPackage.tourName}] published to Supabase!`, `ガイド［${completedPackage.tourName}］をSupabaseに公開しました！`));
 
-      resetCreatorStudioForNewGuide();
+      persistWorkingDraft();
 
       setTimeout(() => {
         closePublishModal();
@@ -3128,9 +3252,9 @@ const TravelogCreatorModule = (() => {
       if (actions) actions.style.display = 'none';
 
       window.TravelogApp.addPoints(150);
-      window.TravelogApp.showToast(t(`가이드 [${completedTourName}] 출간 완료! 새 가이드 제작 화면을 정리했습니다.`, `Guide [${completedTourName}] published! Studio is ready for a new guide.`, `ガイド［${completedTourName}］を公開しました！新規制作のためスタジオを整理しました。`));
+      window.TravelogApp.showToast(t(`가이드 [${completedTourName}] 출간 완료! 현재 핀을 유지합니다.`, `Guide [${completedTourName}] published! Current pins are preserved.`, `ガイド［${completedTourName}］を公開しました！現在のピンを保持します。`));
 
-      resetCreatorStudioForNewGuide();
+      persistWorkingDraft();
 
       setTimeout(() => {
         closePublishModal();
@@ -3670,6 +3794,8 @@ const TravelogCreatorModule = (() => {
   }
 
   function resetCreatorStudioForNewGuide() {
+    editorGeneration++;
+    workingGuideId = createTravelogGuideId();
     clearStudioEditMode();
     const state = window.TravelogApp && window.TravelogApp.getState ? window.TravelogApp.getState() : null;
     if (state) {
@@ -3722,8 +3848,8 @@ const TravelogCreatorModule = (() => {
     resetRecordingStateForNewGuide();
     resetFieldCaptureModals();
 
-    if (window.TravelogMapModule && typeof window.TravelogMapModule.clearCreatorPins === 'function') {
-      window.TravelogMapModule.clearCreatorPins();
+    if (window.TravelogMapModule && typeof window.TravelogMapModule.deleteAllGuidePins === 'function') {
+      window.TravelogMapModule.deleteAllGuidePins();
     }
 
     renderCoordinatesList();
@@ -5495,17 +5621,25 @@ const TravelogCreatorModule = (() => {
   }
 
   async function completePhotoMemoRecording() {
+    if (photoSaveInProgress) return;
+    photoSaveInProgress = true;
+    const generation = editorGeneration;
+    const captureLat = tempPinLat;
+    const captureLng = tempPinLng;
+    try {
     if (!photoMemoCanvasReady) {
       window.TravelogApp.showToast(t('사진을 먼저 추가해 주세요.', 'Add a photo first.', '先に写真を追加してください。'));
       return;
     }
     const canvas = getPhotoMemoCanvas();
     const photoBlob = await canvasToBlob(canvas, 'image/png');
+    if (generation !== editorGeneration) return;
     const dataUrl = canvas ? canvas.toDataURL('image/png') : '';
     const memoTitle = getMemoTitleInputValue('photo-memo-title-input', t('사진 메모', 'Photo Memo', '写真メモ'));
     const memoText = String(document.getElementById('photo-memo-text-input')?.value || '').trim();
     const memoFileBase = safeFileName(memoTitle, 'photo_memo');
     const filename = `photo_memo_${memoFileBase}_${Date.now()}.png`;
+    if (!(photoBlob instanceof Blob) || !photoBlob.size) throw new Error('PHOTO_SOURCE_MISSING');
 
     if (isStandaloneMemoPinMode()) {
       const savedPin = await saveStandaloneMemoPinCapture({ memoType: 'photo', title: memoTitle, content: memoText, blob: photoBlob });
@@ -5514,10 +5648,17 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
+    // Studio photo pins are local drafts, not Supabase guide_pins inserts.
+    // Commit only after durable media storage succeeds; failure leaves all pins untouched.
+    const deviceStorageRef = await window.TravelogDeviceStorage.saveGeneratedFile('Photo', filename, photoBlob, {
+      source: 'field-photo-memo', title: memoTitle, memoTitle, memoText,
+      lat: captureLat, lng: captureLng
+    });
+    if (generation !== editorGeneration) return;
     document.getElementById('photo-memo-modal')?.classList.remove('active');
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.addNewCreatorPin === 'function') {
-      window.TravelogMapModule.addNewCreatorPin(tempPinLat, tempPinLng, memoTitle, memoText);
+      window.TravelogMapModule.addNewCreatorPin(captureLat, captureLng, memoTitle, memoText);
     }
 
     const customPins = window.TravelogApp.getState().customCreatedPins;
@@ -5529,6 +5670,7 @@ const TravelogCreatorModule = (() => {
     }
 
     const photoMemoEntry = {
+      deviceStorageRef,
       id: Date.now(),
       name: filename,
       fileName: filename,
@@ -5544,28 +5686,17 @@ const TravelogCreatorModule = (() => {
     };
     recordedPhotos.push(photoMemoEntry);
 
-    if (window.TravelogDeviceStorage && typeof window.TravelogDeviceStorage.saveGeneratedFile === 'function') {
-      window.TravelogDeviceStorage.saveGeneratedFile('Photo', filename, photoBlob, {
-        source: 'field-photo-memo',
-        title: memoTitle,
-        memoTitle,
-        memoText,
-        stopIndex: newStopIdx,
-        lat: tempPinLat,
-        lng: tempPinLng
-      }).then(() => {
-        window.TravelogApp.showToast(t('Photo 폴더에 사진 메모가 저장되었습니다.', 'Photo memo saved to the Photo folder.', 'Photoフォルダに写真メモを保存しました。'));
-      }).catch((error) => {
-        console.warn('[Travelog Device Storage] Photo memo save failed:', error);
-        window.TravelogApp.showToast(t('사진 메모는 앱에 보관되었지만 기기 저장소 쓰기에 실패했습니다.', 'Photo memo is kept in the app, but device write failed.', '写真メモはアプリに保持されましたが端末保存に失敗しました。'));
-      });
-    } else {
-      window.TravelogApp.showToast(t('사진 메모가 앱에 저장되었습니다.', 'Photo memo saved in the app.', '写真メモをアプリに保存しました。'));
-    }
+    window.TravelogApp.showToast(t('Photo 폴더에 사진 메모가 저장되었습니다.', 'Photo memo saved to the Photo folder.', 'Photoフォルダに写真メモを保存しました。'));
 
     markPublishDraftDirty();
     renderCoordinatesList();
     updatePublishPanelCounts();
+    } catch (error) {
+      console.warn('[Travelog Creator] Photo save failed:', error);
+      window.TravelogApp?.showToast?.('사진을 저장하지 못했습니다. 기존 핀은 유지됩니다. 다시 저장해 주세요.');
+    } finally {
+      photoSaveInProgress = false;
+    }
   }
 
   // 3) Text Field Capture
@@ -5632,6 +5763,7 @@ const TravelogCreatorModule = (() => {
   }
 
   return {
+    persistWorkingDraft,
     init: init,
     openPinTypeSelectModal: openPinTypeSelectModal,
     openTextMemoAtLocation: openTextMemoAtLocation,
