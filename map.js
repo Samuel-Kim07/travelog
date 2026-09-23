@@ -2542,7 +2542,12 @@ const TravelogMapModule = (() => {
     // not from the temporary "Custom Pin #n" fallback.
     const customPins = window.TravelogApp.getState().customCreatedPins;
     const newIndex = customPins.length + 1;
-    const pinId = `custom-pin-${window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+    // New pins use a database-compatible UUID once, at creation. Existing IDs
+    // (including legacy custom-pin-* IDs) are preserved by draft restoration.
+    const pinId = window.crypto?.randomUUID?.() || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+      const random = Math.random() * 16 | 0;
+      return (char === 'x' ? random : (random & 3 | 8)).toString(16);
+    });
     const fallbackName = t(`메모핀 ${newIndex}`, `Memo Pin ${newIndex}`, `メモピン ${newIndex}`);
     const cleanName = String(pinName || '').trim() || fallbackName;
     const cleanDescription = String(description || '').trim();

@@ -1,0 +1,1124 @@
+{
+  "tables": [
+    {
+      "rls": true,
+      "table": "public.guide_media",
+      "grants": [
+        {
+          "role": "postgres",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "anon",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "anon",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "anon",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "service_role",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRIGGER"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "guide_id",
+          "type": "uuid",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "pin_id",
+          "type": "uuid",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "media_role",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "bucket_name",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "storage_path",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "mime_type",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "file_size",
+          "type": "bigint",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "duration_seconds",
+          "type": "integer",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX guide_media_pkey ON public.guide_media USING btree (id)"
+      ],
+      "policies": [
+        {
+          "cmd": "SELECT",
+          "qual": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_media.guide_id) AND ((g.author_id = ( SELECT auth.uid() AS uid)) OR (g.price_coins = 0) OR (EXISTS ( SELECT 1\n           FROM guide_purchases gp\n          WHERE ((gp.guide_id = g.id) AND (gp.buyer_id = ( SELECT auth.uid() AS uid)))))))))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_media",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_media_select_available",
+          "schemaname": "public",
+          "with_check": null
+        },
+        {
+          "cmd": "INSERT",
+          "qual": null,
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_media",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_media_insert_author",
+          "schemaname": "public",
+          "with_check": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_media.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))"
+        },
+        {
+          "cmd": "DELETE",
+          "qual": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_media.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_media",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_media_delete_author",
+          "schemaname": "public",
+          "with_check": null
+        }
+      ],
+      "triggers": null,
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "guide_media_guide_id_fkey",
+          "deferrable": false,
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_media_media_role_check",
+          "deferrable": false,
+          "definition": "CHECK ((media_role = ANY (ARRAY['cover'::text, 'intro_audio'::text, 'intro_video'::text, 'pin_audio'::text, 'pin_video'::text, 'pin_photo'::text])))",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_media_pin_id_fkey",
+          "deferrable": false,
+          "definition": "FOREIGN KEY (pin_id) REFERENCES guide_pins(id) ON DELETE CASCADE",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_media_pkey",
+          "deferrable": false,
+          "definition": "PRIMARY KEY (id)",
+          "initially_deferred": false
+        }
+      ],
+      "incoming_foreign_keys": null
+    },
+    {
+      "rls": true,
+      "table": "public.guide_pins",
+      "grants": [
+        {
+          "role": "postgres",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "anon",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "anon",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "anon",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "service_role",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRIGGER"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "guide_id",
+          "type": "uuid",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "pin_order",
+          "type": "integer",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "lat",
+          "type": "double precision",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "lng",
+          "type": "double precision",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "memo_type",
+          "type": "text",
+          "default": "'text'::text",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "memo_title",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "memo_text",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "trigger_radius_m",
+          "type": "integer",
+          "default": "30",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX guide_pins_pkey ON public.guide_pins USING btree (id)",
+        "CREATE UNIQUE INDEX guide_pins_guide_id_pin_order_key ON public.guide_pins USING btree (guide_id, pin_order)"
+      ],
+      "policies": [
+        {
+          "cmd": "SELECT",
+          "qual": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_pins.guide_id) AND ((g.status = 'published'::text) OR (g.author_id = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n           FROM guide_purchases gp\n          WHERE ((gp.guide_id = g.id) AND (gp.buyer_id = ( SELECT auth.uid() AS uid)))))))))",
+          "roles": [
+            "anon",
+            "authenticated"
+          ],
+          "tablename": "guide_pins",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_pins_select_available",
+          "schemaname": "public",
+          "with_check": null
+        },
+        {
+          "cmd": "INSERT",
+          "qual": null,
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_pins",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_pins_insert_author",
+          "schemaname": "public",
+          "with_check": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_pins.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))"
+        },
+        {
+          "cmd": "UPDATE",
+          "qual": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_pins.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_pins",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_pins_update_author",
+          "schemaname": "public",
+          "with_check": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_pins.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))"
+        },
+        {
+          "cmd": "DELETE",
+          "qual": "(EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = guide_pins.guide_id) AND (g.author_id = ( SELECT auth.uid() AS uid)))))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guide_pins",
+          "permissive": "PERMISSIVE",
+          "policyname": "guide_pins_delete_author",
+          "schemaname": "public",
+          "with_check": null
+        }
+      ],
+      "triggers": null,
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "guide_pins_guide_id_fkey",
+          "deferrable": false,
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_pins_guide_id_pin_order_key",
+          "deferrable": false,
+          "definition": "UNIQUE (guide_id, pin_order)",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_pins_memo_type_check",
+          "deferrable": false,
+          "definition": "CHECK ((memo_type = ANY (ARRAY['text'::text, 'audio'::text, 'video'::text, 'photo'::text])))",
+          "initially_deferred": false
+        },
+        {
+          "name": "guide_pins_pkey",
+          "deferrable": false,
+          "definition": "PRIMARY KEY (id)",
+          "initially_deferred": false
+        }
+      ],
+      "incoming_foreign_keys": [
+        {
+          "name": "guide_media_pin_id_fkey",
+          "definition": "FOREIGN KEY (pin_id) REFERENCES guide_pins(id) ON DELETE CASCADE",
+          "from_table": "guide_media"
+        }
+      ]
+    },
+    {
+      "rls": true,
+      "table": "public.guides",
+      "grants": [
+        {
+          "role": "postgres",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "postgres",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "postgres",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "postgres",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "anon",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "anon",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "anon",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "anon",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "anon",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "authenticated",
+          "privilege": "TRIGGER"
+        },
+        {
+          "role": "service_role",
+          "privilege": "INSERT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "SELECT"
+        },
+        {
+          "role": "service_role",
+          "privilege": "UPDATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "DELETE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRUNCATE"
+        },
+        {
+          "role": "service_role",
+          "privilege": "REFERENCES"
+        },
+        {
+          "role": "service_role",
+          "privilege": "TRIGGER"
+        }
+      ],
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "author_id",
+          "type": "uuid",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "title",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "intro_text",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "cover_path",
+          "type": "text",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "default": "'draft'::text",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "price_coins",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "version",
+          "type": "integer",
+          "default": "1",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "total_bytes",
+          "type": "bigint",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "pin_count",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "memo_count",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "coupon_count",
+          "type": "integer",
+          "default": "0",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "published_at",
+          "type": "timestamp with time zone",
+          "default": null,
+          "identity": "",
+          "not_null": false,
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "identity": "",
+          "not_null": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX guides_pkey ON public.guides USING btree (id)"
+      ],
+      "policies": [
+        {
+          "cmd": "SELECT",
+          "qual": "((status = 'published'::text) OR (author_id = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n   FROM guide_purchases gp\n  WHERE ((gp.guide_id = guides.id) AND (gp.buyer_id = ( SELECT auth.uid() AS uid))))))",
+          "roles": [
+            "anon",
+            "authenticated"
+          ],
+          "tablename": "guides",
+          "permissive": "PERMISSIVE",
+          "policyname": "guides_select_published_or_author_or_purchased",
+          "schemaname": "public",
+          "with_check": null
+        },
+        {
+          "cmd": "INSERT",
+          "qual": null,
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guides",
+          "permissive": "PERMISSIVE",
+          "policyname": "guides_insert_author",
+          "schemaname": "public",
+          "with_check": "(author_id = ( SELECT auth.uid() AS uid))"
+        },
+        {
+          "cmd": "UPDATE",
+          "qual": "(author_id = ( SELECT auth.uid() AS uid))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guides",
+          "permissive": "PERMISSIVE",
+          "policyname": "guides_update_author",
+          "schemaname": "public",
+          "with_check": "(author_id = ( SELECT auth.uid() AS uid))"
+        },
+        {
+          "cmd": "DELETE",
+          "qual": "((author_id = ( SELECT auth.uid() AS uid)) AND (status <> 'published'::text))",
+          "roles": [
+            "authenticated"
+          ],
+          "tablename": "guides",
+          "permissive": "PERMISSIVE",
+          "policyname": "guides_delete_author_draft",
+          "schemaname": "public",
+          "with_check": null
+        }
+      ],
+      "triggers": null,
+      "force_rls": false,
+      "constraints": [
+        {
+          "name": "guides_author_id_fkey",
+          "deferrable": false,
+          "definition": "FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE",
+          "initially_deferred": false
+        },
+        {
+          "name": "guides_pkey",
+          "deferrable": false,
+          "definition": "PRIMARY KEY (id)",
+          "initially_deferred": false
+        },
+        {
+          "name": "guides_status_check",
+          "deferrable": false,
+          "definition": "CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])))",
+          "initially_deferred": false
+        }
+      ],
+      "incoming_foreign_keys": [
+        {
+          "name": "guide_pins_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "from_table": "guide_pins"
+        },
+        {
+          "name": "messages_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE SET NULL",
+          "from_table": "messages"
+        },
+        {
+          "name": "guide_media_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "from_table": "guide_media"
+        },
+        {
+          "name": "guide_purchases_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "from_table": "guide_purchases"
+        },
+        {
+          "name": "coin_transactions_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE SET NULL",
+          "from_table": "coin_transactions"
+        },
+        {
+          "name": "offline_downloads_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "from_table": "offline_downloads"
+        },
+        {
+          "name": "guide_likes_guide_id_fkey",
+          "definition": "FOREIGN KEY (guide_id) REFERENCES guides(id) ON DELETE CASCADE",
+          "from_table": "guide_likes"
+        }
+      ]
+    }
+  ],
+  "storage_policies": [
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'guide-media'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_media_author_delete",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((bucket_id = 'guide-media'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_media_author_update",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'guide-media'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_media_author_upload",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'guide-media'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((bucket_id = 'guide-media'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND ((g.author_id = ( SELECT auth.uid() AS uid)) OR (g.price_coins = 0) OR (EXISTS ( SELECT 1\n           FROM guide_purchases gp\n          WHERE ((gp.guide_id = g.id) AND (gp.buyer_id = ( SELECT auth.uid() AS uid))))))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_media_read_author_or_purchased_or_free",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'guide-public'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_public_author_delete",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((bucket_id = 'guide-public'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_public_author_update",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'guide-public'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))"
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_public_author_upload",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'guide-public'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE ((g.id = travelog_storage_guide_id(objects.name)) AND (g.author_id = ( SELECT auth.uid() AS uid))))))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(bucket_id = 'guide-public'::text)",
+      "roles": [
+        "anon",
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "guide_public_read_all",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'guide-media'::text) AND ((storage.foldername(name))[1] = 'guides'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE (((g.id)::text = (storage.foldername(objects.name))[2]) AND (g.author_id = auth.uid())))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_guide_media_owner_delete_v1",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'guide-public'::text) AND ((storage.foldername(name))[1] = 'guides'::text) AND (EXISTS ( SELECT 1\n   FROM guides g\n  WHERE (((g.id)::text = (storage.foldername(objects.name))[2]) AND (g.author_id = auth.uid())))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_guide_public_owner_delete_v1",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'memo-pin-media'::text) AND ((storage.foldername(name))[1] = (( SELECT auth.uid() AS uid))::text))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_memo_media_delete",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_memo_media_insert",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'memo-pin-media'::text) AND ((storage.foldername(name))[1] = (( SELECT auth.uid() AS uid))::text))"
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((bucket_id = 'memo-pin-media'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_memo_media_owner_delete_v2",
+      "schemaname": "storage",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_memo_media_owner_insert_v2",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'memo-pin-media'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((bucket_id = 'memo-pin-media'::text) AND (EXISTS ( SELECT 1\n   FROM memo_pins mp\n  WHERE ((mp.media_bucket = objects.bucket_id) AND (mp.media_path = objects.name) AND can_view_memo_pin(mp.id)))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "travelog_memo_media_select",
+      "schemaname": "storage",
+      "with_check": null
+    }
+  ]
+}

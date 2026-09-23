@@ -1,5 +1,7 @@
 # Supabase 출간 실패 및 재시도 조사 (2026-09-23)
 
+> 후속 수정: 개별 DB 쓰기 방식은 원자적 RPC 방식으로 대체됐다. 최신 구현·검증·SQL 적용 순서는 [guide_pins 409 수정 보고](GUIDE_PIN_409_INVESTIGATION.md)를 참고한다. 아래는 이전 조사 기록이다.
+
 ## 결론과 확인 범위
 
 Google Drive 출간 fallback과 관련 안내·Apps Script 전송 코드를 제거했다. 온라인 출간은 Supabase만 사용한다.

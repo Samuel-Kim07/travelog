@@ -46,19 +46,35 @@ const TravelogSupabase = (() => {
     return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-8${hash.slice(17, 20)}-${hash.slice(20, 32)}`;
   }
 
-  async function insertPublishRowOnce(table, row) {
-    const supabase = getClient();
-    const existing = await supabase.from(table).select('*').eq('id', row.id).maybeSingle();
-    if (existing.error) throw Object.assign(existing.error, { status: existing.status });
-    if (existing.data) return existing.data;
-    const inserted = await supabase.from(table).insert(row).select().single();
-    if (!inserted.error) return inserted.data;
-    // A concurrent request or a lost response must not create a second row.
-    if (inserted.error.code === '23505') {
-      const retry = await supabase.from(table).select('*').eq('id', row.id).maybeSingle();
-      if (!retry.error && retry.data) return retry.data;
-    }
-    throw Object.assign(inserted.error, { status: inserted.status });
+  function normalizePublishPins(guideId, pins) {
+    if (!Array.isArray(pins)) throw new Error('PUBLISH_PINS_REQUIRED');
+    const ids = new Set();
+    const orders = new Set();
+    const duplicateOrders = [];
+    const ordered = pins.map((pin, index) => {
+      if (!pin?.id || ids.has(String(pin.id))) throw new Error('PUBLISH_PIN_ID_MISSING_OR_DUPLICATE');
+      ids.add(String(pin.id));
+      const inputOrder = Number(pin.order ?? pin.pin_order ?? index + 1);
+      if (orders.has(inputOrder)) duplicateOrders.push(inputOrder);
+      orders.add(inputOrder);
+      return { pin, index, inputOrder };
+    }).sort((a, b) => {
+      const orderA = Number.isFinite(a.inputOrder) ? a.inputOrder : a.index + 1;
+      const orderB = Number.isFinite(b.inputOrder) ? b.inputOrder : b.index + 1;
+      return orderA - orderB || a.index - b.index;
+    });
+    console.info('[Travelog Publish] local-pins', { guideId, pinCount: pins.length, duplicateOrders });
+    console.table(ordered.map(({ pin, inputOrder }, index) => ({
+      id: pin.id, inputOrder, pin_order: index + 1, type: pin.memoType || pin.type || 'text'
+    })));
+    return ordered.map(({ pin }, index) => ({ ...pin, order: index + 1, pin_order: index + 1 }));
+  }
+
+  async function stablePinRowId(guideId, localId) {
+    const id = String(localId).replace(/^custom-pin-/, '');
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return id.toLowerCase();
+    // Legacy draft IDs remain intact locally; their database identity never includes mutable data.
+    return stablePublishRowId(['pin-identity-v1', guideId, String(localId)]);
   }
 
   function describePublishError(cause, context = {}) {
@@ -71,7 +87,7 @@ const TravelogSupabase = (() => {
       : original?.name === 'NotReadableError' ? 'file-read'
       : /auth|jwt|session/i.test(message) ? 'auth' : original?.name === 'TypeError' ? 'client' : 'validation';
     const diagnostic = {
-      ...context, kind, status, code: cause?.code || null,
+      ...context, kind, status, code: cause?.code || null, details: cause?.details || null,
       online: window.navigator?.onLine, visibility: document.visibilityState,
       errorName: original?.name || cause?.name, message
     };
@@ -79,6 +95,7 @@ const TravelogSupabase = (() => {
     error.publishDiagnostic = diagnostic;
     error.detail = [
       cause?.detail,
+      cause?.details,
       `단계: ${context.stage || 'publish'}`, context.fileName && `파일: ${context.fileName}`,
       context.bucket && `저장소: ${context.bucket}`, context.path && `경로: ${context.path}`,
       context.bytes != null && `크기: ${context.bytes} bytes`,
@@ -692,7 +709,7 @@ const TravelogSupabase = (() => {
     return cleanExt ? `${cleanBase}.${cleanExt}` : cleanBase;
   }
 
-  async function makeStoragePath({ guideId, folder, index = 0, originalName = '', role = 'file', blob = null }) {
+  async function makeStoragePath({ guideId, userId, reuseLegacy = false, folder, index = 0, originalName = '', role = 'file', blob = null }) {
     const ext = originalName && originalName.includes('.')
       ? originalName.split('.').pop()
       : guessExtension(blob?.type || '', role.includes('video') ? 'webm' : role.includes('photo') ? 'png' : role.includes('audio') ? 'webm' : 'dat');
@@ -703,7 +720,16 @@ const TravelogSupabase = (() => {
       throw describePublishError(error, { stage: 'file-fingerprint', guideId, fileName: originalName || role, bytes: blob?.size, mimeType: blob?.type });
     }
     const safeFileName = `${role}_${fingerprint}.${safeStorageSegment(ext, 'dat')}`;
-    return `guides/${guideId}/${safeStorageSegment(folder, 'media')}/${safeFileName}`;
+    if (reuseLegacy) {
+      const legacyPath = `guides/${guideId}/${safeStorageSegment(folder, 'media')}/${safeFileName}`;
+      const bucket = ['cover', 'intro_audio', 'intro_video'].includes(role) ? PUBLIC_BUCKET : MEDIA_BUCKET;
+      const { data, error } = await getClient().storage.from(bucket).info(legacyPath);
+      if (data && Number(data.size ?? data.metadata?.size) === blob.size) return legacyPath;
+      if (error && !['404'].includes(String(error.statusCode || error.status)) && !['NoSuchKey', 'not_found'].includes(error.code)) {
+        throw describePublishError(error, { stage: 'storage-check', guideId, bucket, path: legacyPath, fileName: originalName || role });
+      }
+    }
+    return `guides/${guideId}/uploads/${userId}/${safeStorageSegment(folder, 'media')}/${safeFileName}`;
   }
 
   function guessExtension(mimeType = '', fallback = 'dat') {
@@ -787,23 +813,19 @@ const TravelogSupabase = (() => {
     }
   }
 
-  async function createGuideMediaRow({ guideId, pinId = null, mediaRole, bucketName, storagePath, blob, durationSeconds = null, ordinal = 0 }) {
+  async function buildGuideMediaRow({ guideId, pinId = null, mediaRole, bucketName, storagePath, blob, durationSeconds = null, ordinal = 0 }) {
     const id = await stablePublishRowId(['media', guideId, pinId, mediaRole, bucketName, storagePath, durationSeconds, ordinal]);
-    try {
-      return await insertPublishRowOnce('guide_media', {
-        id,
-        guide_id: guideId,
-        pin_id: pinId,
-        media_role: mediaRole,
-        bucket_name: bucketName,
-        storage_path: storagePath,
-        mime_type: blob?.type || 'application/octet-stream',
-        file_size: blob?.size || 0,
-        duration_seconds: durationSeconds
-      });
-    } catch (error) {
-      throw describePublishError(error, { stage: 'guide-media-write', guideId, bucket: bucketName, path: storagePath, bytes: blob?.size });
-    }
+    return {
+      id,
+      guide_id: guideId,
+      pin_id: pinId,
+      media_role: mediaRole,
+      bucket_name: bucketName,
+      storage_path: storagePath,
+      mime_type: blob?.type || 'application/octet-stream',
+      file_size: blob?.size || 0,
+      duration_seconds: durationSeconds
+    };
   }
 
   function getPackageIntroBlob(packageData, key) {
@@ -850,6 +872,8 @@ const TravelogSupabase = (() => {
 
   async function executePublishGuidePackage(packageData, options = {}) {
     if (!packageData) throw new Error('PACKAGE_REQUIRED');
+    options.context.stage = 'local-pin-validation';
+    const orderedPins = normalizePublishPins(packageData.guideId, packageData.pins);
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
     const totalMediaItems = Math.max(1,
       (packageData.representativeImage ? 1 : 0)
@@ -871,7 +895,7 @@ const TravelogSupabase = (() => {
     };
 
     reportProgress(5, t('파일 검사 중', 'Checking files', 'ファイル確認中'), t('음성·영상·사진 원본을 검사하고 있습니다.', 'Checking original audio, video, and photo files.', '音声・動画・写真の元ファイルを確認しています。'));
-    // Validate every real media source before deleting an existing published package.
+    // Validate original files before uploading; database changes occur only in the atomic RPC.
     validatePublishMedia(packageData);
     reportProgress(10, t('서버 연결 중', 'Connecting to server', 'サーバー接続中'), t('사용자 인증을 확인하고 있습니다.', 'Checking the user session.', 'ユーザー認証を確認しています。'));
     const supabase = getClient();
@@ -892,13 +916,13 @@ const TravelogSupabase = (() => {
     const couponCount = (packageData.eventCoupons || []).length;
     let totalBytes = 0;
 
-    const guideDraftRow = {
+    const guidePayload = {
         id: guideId,
         author_id: userId,
         title: packageData.tourName || 'Travelog Guide',
         description: packageData.guideIntroText || '',
         intro_text: packageData.guideIntroText || '',
-        status: 'draft',
+        status: 'published',
         price_coins: Number(packageData.coinPrice || 0) || 0,
         version: 1,
         total_bytes: 0,
@@ -908,8 +932,8 @@ const TravelogSupabase = (() => {
         updated_at: new Date().toISOString()
     };
 
-    // Upload into temporary rows first. Existing published data stays intact until
-    // every media file has passed upload verification.
+    // Read for ownership/diagnostics only. No guide, pin, or media rows are written
+    // until all uploads finish and the atomic RPC commits.
     options.context.stage = 'guide-read';
     const { data: existingGuide, error: existingGuideError, status: existingGuideStatus } = await supabase
       .from('guides')
@@ -918,48 +942,22 @@ const TravelogSupabase = (() => {
       .maybeSingle();
     if (existingGuideError) throw Object.assign(existingGuideError, { status: existingGuideStatus });
 
-    let guide = existingGuide;
-    if (!existingGuide) {
-      options.context.stage = 'guide-create';
-      const { data: insertedGuide, error: guideError, status: guideStatus } = await supabase
-        .from('guides')
-        .insert(guideDraftRow)
-        .select()
-        .single();
-      if (guideError) throw Object.assign(guideError, { status: guideStatus });
-      guide = insertedGuide;
-    }
+    if (existingGuide && existingGuide.author_id !== userId) throw new Error('PUBLISH_GUIDE_NOT_OWNED');
 
-    options.context.stage = 'existing-media-read';
-    const { data: oldMediaRows, error: oldMediaError, status: oldMediaStatus } = await supabase
-      .from('guide_media')
-      .select('*')
-      .eq('guide_id', guideId);
-    if (oldMediaError) throw Object.assign(oldMediaError, { status: oldMediaStatus });
     options.context.stage = 'existing-pins-read';
     const { data: oldPinRows, error: oldPinError, status: oldPinStatus } = await supabase
       .from('guide_pins')
       .select('*')
       .eq('guide_id', guideId);
     if (oldPinError) throw Object.assign(oldPinError, { status: oldPinStatus });
+    console.info('[Travelog Publish] database-pins', { guideId, pinCount: (oldPinRows || []).length });
+    console.table((oldPinRows || []).map(pin => ({ id: pin.id, pin_order: pin.pin_order, type: pin.memo_type })));
     reportProgress(24, t('핀 정보 저장 중', 'Saving pins', 'ピン情報を保存中'), `${(packageData.pins || []).length}개 핀을 준비하고 있습니다.`);
 
-    let coverPath = '';
-    const desiredMediaRows = [];
-    const coverBlob = dataUrlToBlob(packageData.representativeImage || '');
-    if (coverBlob) {
-      coverPath = await makeStoragePath({ guideId, folder: 'cover', role: 'cover', blob: coverBlob });
-      reportProgress(30, t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'), `대표 이미지 · 처리 중 1/${totalMediaItems}`);
-      await uploadBlob(PUBLIC_BUCKET, coverPath, coverBlob, { fileName: '대표 이미지' });
-      totalBytes += coverBlob.size || 0;
-      desiredMediaRows.push(await createGuideMediaRow({ guideId, mediaRole: 'cover', bucketName: PUBLIC_BUCKET, storagePath: coverPath, blob: coverBlob }));
-      reportMediaUploaded(t('대표 이미지', 'Cover image', '代表画像'));
-    }
-
-    const insertedPinsByLocalId = new Map();
-    const insertedPinsByIndex = new Map();
-    const orderedPins = (packageData.pins || []).slice().sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
-    options.context.stage = 'pin-write';
+    const preparedPinsByLocalId = new Map();
+    const preparedPinsByIndex = new Map();
+    const canonicalPinIds = new Set();
+    options.context.stage = 'pin-validation';
     for (const pin of orderedPins) {
       const pinData = {
           guide_id: guideId,
@@ -973,10 +971,25 @@ const TravelogSupabase = (() => {
           memo_text: pin.description || pin.memoText || '',
           trigger_radius_m: Number(pin.triggerRadius || 30) || 30
       };
-      const stableId = await stablePublishRowId(['pin', guideId, String(pin.id), pinData]);
-      const insertedPin = await insertPublishRowOnce('guide_pins', { id: stableId, ...pinData });
-      insertedPinsByLocalId.set(String(pin.id), insertedPin);
-      insertedPinsByIndex.set(Number(pin.order || orderedPins.indexOf(pin) + 1) - 1, insertedPin);
+      if (!Number.isFinite(pinData.lat) || !Number.isFinite(pinData.lng) || Math.abs(pinData.lat) > 90 || Math.abs(pinData.lng) > 180) throw new Error('PUBLISH_PIN_COORDINATES_INVALID');
+      const stableId = await stablePinRowId(guideId, pin.id);
+      if (canonicalPinIds.has(stableId)) throw new Error('PUBLISH_PIN_ID_MISSING_OR_DUPLICATE');
+      canonicalPinIds.add(stableId);
+      const preparedPin = { id: stableId, ...pinData };
+      preparedPinsByLocalId.set(String(pin.id), preparedPin);
+      preparedPinsByIndex.set(Number(pin.order || orderedPins.indexOf(pin) + 1) - 1, preparedPin);
+    }
+
+    let coverPath = '';
+    const desiredMediaRows = [];
+    const coverBlob = dataUrlToBlob(packageData.representativeImage || '');
+    if (coverBlob) {
+      coverPath = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'cover', role: 'cover', blob: coverBlob });
+      reportProgress(30, t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'), `대표 이미지 · 처리 중 1/${totalMediaItems}`);
+      await uploadBlob(PUBLIC_BUCKET, coverPath, coverBlob, { fileName: '대표 이미지' });
+      totalBytes += coverBlob.size || 0;
+      desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'cover', bucketName: PUBLIC_BUCKET, storagePath: coverPath, blob: coverBlob }));
+      reportMediaUploaded(t('대표 이미지', 'Cover image', '代表画像'));
     }
 
     const uploadMediaFile = async (file, role, folder, bucket = MEDIA_BUCKET) => {
@@ -985,9 +998,12 @@ const TravelogSupabase = (() => {
       const kind = role === 'pin_video' ? 'video' : role === 'pin_photo' ? 'photo' : 'audio';
       assertValidMediaBlob(blob, kind, file.fileName || role);
       const index = Number(file.stopIndex || 0);
-      const pinRow = insertedPinsByLocalId.get(String(file.pinId || '')) || insertedPinsByIndex.get(index) || null;
+      const pinRow = preparedPinsByLocalId.get(String(file.pinId || '')) || preparedPinsByIndex.get(index) || null;
+      if (!pinRow) throw new Error('PUBLISH_MEDIA_PIN_NOT_FOUND');
       const storagePath = await makeStoragePath({
         guideId,
+        userId,
+        reuseLegacy: !!existingGuide,
         folder,
         index,
         originalName: file.fileName || '',
@@ -997,7 +1013,7 @@ const TravelogSupabase = (() => {
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'), `${file.fileName || role} · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
       await uploadBlob(bucket, storagePath, blob, { fileName: file.fileName || role });
       totalBytes += blob.size || 0;
-      const mediaRow = await createGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null, ordinal: completedMediaItems });
+      const mediaRow = await buildGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null, ordinal: completedMediaItems });
       desiredMediaRows.push(mediaRow);
       reportMediaUploaded(file.fileName || role);
       return mediaRow;
@@ -1005,21 +1021,21 @@ const TravelogSupabase = (() => {
 
     const introAudioBlob = getPackageIntroBlob(packageData, 'guideIntroAudio');
     if (introAudioBlob) {
-      const path = await makeStoragePath({ guideId, folder: 'intro', role: 'intro_audio', blob: introAudioBlob });
+      const path = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'intro', role: 'intro_audio', blob: introAudioBlob });
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), '미디어 업로드 중', `투어소개 음성 · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
       await uploadBlob(PUBLIC_BUCKET, path, introAudioBlob, { fileName: packageData.guideIntroAudio.fileName || '투어소개 음성' });
       totalBytes += introAudioBlob.size || 0;
-      desiredMediaRows.push(await createGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introAudioBlob }));
+      desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introAudioBlob }));
       reportMediaUploaded(t('투어소개 음성', 'Intro audio', '紹介音声'));
     }
 
     const introVideoBlob = getPackageIntroBlob(packageData, 'guideIntroVideo');
     if (introVideoBlob) {
-      const path = await makeStoragePath({ guideId, folder: 'intro', role: 'intro_video', blob: introVideoBlob });
+      const path = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'intro', role: 'intro_video', blob: introVideoBlob });
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), '미디어 업로드 중', `투어소개 영상 · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
       await uploadBlob(PUBLIC_BUCKET, path, introVideoBlob, { fileName: packageData.guideIntroVideo.fileName || '투어소개 영상' });
       totalBytes += introVideoBlob.size || 0;
-      desiredMediaRows.push(await createGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introVideoBlob }));
+      desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introVideoBlob }));
       reportMediaUploaded(t('투어소개 영상', 'Intro video', '紹介動画'));
     }
 
@@ -1035,62 +1051,21 @@ const TravelogSupabase = (() => {
       + (packageData.audioFiles || []).length
       + (packageData.videoFiles || []).length
       + (packageData.photoFiles || []).length;
-    options.context.stage = 'media-verify';
-    const { data: allMediaAfterUpload, error: mediaCheckError, status: mediaCheckStatus } = await supabase
-      .from('guide_media')
-      .select('*')
-      .eq('guide_id', guideId);
-    if (mediaCheckError) throw Object.assign(mediaCheckError, { status: mediaCheckStatus });
-    const desiredMediaIds = new Set(desiredMediaRows.map(row => row.id));
-    const uploadedMedia = (allMediaAfterUpload || []).filter(row => desiredMediaIds.has(row.id));
-    const invalidUploadedMedia = uploadedMedia.some(row => Number(row.file_size || 0) <= 0 || ['pin_audio', 'intro_audio'].includes(row.media_role) && !String(row.mime_type || '').startsWith('audio/') || ['pin_video', 'intro_video'].includes(row.media_role) && !String(row.mime_type || '').startsWith('video/') || row.media_role === 'pin_photo' && !String(row.mime_type || '').startsWith('image/'));
-    if (uploadedMedia.length !== expectedMediaCount || invalidUploadedMedia) {
-      const error = new Error('MEDIA_UPLOAD_VERIFICATION_FAILED');
-      error.detail = t('미디어 업로드 결과가 원본과 일치하지 않아 출간을 완료하지 않았습니다.', 'Media upload verification did not match the originals, so publishing was not completed.', 'メディアのアップロード結果が元データと一致しないため公開を完了しませんでした。');
-      throw error;
-    }
-
-    reportProgress(91, t('가이드 등록 중', 'Registering guide', 'ガイド登録中'), t('최종 가이드 정보로 교체하고 있습니다.', 'Finalizing the guide information.', '最終ガイド情報に更新しています。'));
-
-    options.context.stage = 'guide-finalize';
-    const { data: finalGuide, error: updateError, status: updateStatus } = await supabase
-      .from('guides')
-      .update({
-        cover_path: coverPath || null,
-        status: 'published',
-        total_bytes: totalBytes,
-        pin_count: pinCount,
-        memo_count: memoCount,
-        coupon_count: couponCount,
-        published_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', guideId)
-      .select()
-      .single();
-    if (updateError) throw Object.assign(updateError, { status: updateStatus });
-    // Publishing has committed. Cleanup is best-effort and never removes Storage objects.
-    // A cleanup failure is reported separately, not as a failed upload/rollback.
-    const currentPinIds = new Set([...insertedPinsByLocalId.values()].map(pin => pin.id));
-    const staleMediaIds = (oldMediaRows || []).filter(row => !desiredMediaIds.has(row.id)).map(row => row.id);
-    const stalePinIds = (oldPinRows || []).filter(row => !currentPinIds.has(row.id)).map(row => row.id);
-    let cleanupPending = false;
-    try {
-      if (staleMediaIds.length) {
-        const { error } = await supabase.from('guide_media').delete().in('id', staleMediaIds);
-        if (error) throw error;
-      }
-      if (stalePinIds.length) {
-        const { error } = await supabase.from('guide_pins').delete().in('id', stalePinIds);
-        if (error) throw error;
-      }
-    } catch (error) {
-      cleanupPending = true;
-      describePublishError(error, { stage: 'published-row-cleanup', guideId });
-    }
+    const uploadedMedia = desiredMediaRows;
+    if (uploadedMedia.length !== expectedMediaCount) throw new Error('MEDIA_UPLOAD_VERIFICATION_FAILED');
+    reportProgress(91, t('가이드 등록 중', 'Registering guide', 'ガイド登録中'), t('가이드와 핀을 함께 저장하고 있습니다.', 'Saving guide and pins together.', 'ガイドとピンを一緒に保存しています。'));
+    options.context.stage = 'publish-transaction';
+    const { data: committed, error: commitError, status: commitStatus } = await supabase.rpc('publish_guide_atomic_v1', {
+      p_guide: { ...guidePayload, cover_path: coverPath || null, total_bytes: totalBytes, status: 'published' },
+      p_pins: [...preparedPinsByLocalId.values()],
+      p_media: desiredMediaRows
+    });
+    if (commitError) throw Object.assign(commitError, { status: commitStatus });
+    if (!committed?.guide) throw new Error('PUBLISH_COMMIT_RESPONSE_INVALID');
+    const finalGuide = committed.guide;
     reportProgress(97, t('마무리 중', 'Finishing', '仕上げ中'), t('홈 화면용 가이드 정보를 만들고 있습니다.', 'Preparing the guide card for Home.', 'ホーム画面用のガイド情報を準備しています。'));
 
-    const guideCard = buildGuideCardFromSupabase(finalGuide || guide, orderedPins, uploadedMedia || [], {
+    const guideCard = buildGuideCardFromSupabase(finalGuide, committed.pins, committed.media, {
       creatorName: packageData.creator,
       representativeImage: coverPath ? getPublicUrl(PUBLIC_BUCKET, coverPath) : packageData.representativeImage,
       fallbackCard: packageData.guideCard,
@@ -1107,7 +1082,6 @@ const TravelogSupabase = (() => {
     return {
       guideId,
       guide: finalGuide,
-      cleanupPending,
       guideCard,
       totalBytes
     };
