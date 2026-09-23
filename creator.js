@@ -42,11 +42,6 @@ const TravelogCreatorModule = (() => {
   let memoVisibilityFriendIds = new Set();
   let textMemoViewportFrame = 0;
 
-  const DRIVE_PARENT_FOLDER_ID = '15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-';
-  const DRIVE_PARENT_FOLDER_URL = 'https://drive.google.com/drive/folders/15zekqgQLbqiUasOg7wUNO8MIIvo5ROY-?usp=drive_link';
-  const APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwXJ0Bk3FljLvY274QfQrKNnl_Cc_b9-O3vqBnektWX2rOVmlNIYvGSHu5iNW6Zdr0slg/exec';
-  const APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY = 'travelog_apps_script_publish_key';
-  const DEFAULT_APPS_SCRIPT_PUBLISH_KEY = ''; // Apps Script에서 PUBLISH_KEY를 비워두었다면 그대로 사용
   const GUIDE_COVER_STORAGE_KEY = 'travelog_creator_guide_cover_v1';
   const GUIDE_INTRO_TEXT_STORAGE_KEY = 'travelog_creator_guide_intro_text_v1';
   const CREATOR_SAVED_GUIDES_KEY = 'travelog_creator_saved_guides_v1';
@@ -697,9 +692,9 @@ const TravelogCreatorModule = (() => {
       finalPublishBtn.addEventListener('click', handleFinalPublishClick);
     }
 
-    const publishDriveUploadBtn = document.getElementById('publish-drive-upload-btn');
-    if (publishDriveUploadBtn) {
-      publishDriveUploadBtn.addEventListener('click', handleFinalPublishClick);
+    const publishOnlineUploadBtn = document.getElementById('publish-online-upload-btn');
+    if (publishOnlineUploadBtn) {
+      publishOnlineUploadBtn.addEventListener('click', handleFinalPublishClick);
     }
 
     const publishReadyCloseBtn = document.getElementById('publish-ready-close-btn');
@@ -1642,7 +1637,6 @@ const TravelogCreatorModule = (() => {
       tourSlug,
       creator,
       createdAt,
-      driveFolderId: DRIVE_PARENT_FOLDER_ID,
       representativeImage,
       guideIntroText,
       guideIntroAudio: guideIntroAudioInfo,
@@ -1666,7 +1660,6 @@ const TravelogCreatorModule = (() => {
       tourName,
       creator,
       createdAt,
-      driveFolderId: DRIVE_PARENT_FOLDER_ID,
       folders: { audio: 'Audio', video: 'Video', photo: 'Photo', text: 'Text' },
       representativeImage,
       guideIntroText,
@@ -1859,7 +1852,7 @@ const TravelogCreatorModule = (() => {
     const successIcon = document.getElementById('publish-success-icon');
     const summary = document.getElementById('publish-local-summary');
     const actions = document.getElementById('publish-ready-actions');
-    const uploadButton = document.getElementById('publish-drive-upload-btn');
+    const uploadButton = document.getElementById('publish-online-upload-btn');
     const closeButton = document.getElementById('publish-ready-close-btn');
 
     if (!loadingModal) return;
@@ -2082,6 +2075,7 @@ const TravelogCreatorModule = (() => {
     const editGuideId = activeStudioEditGuideId;
     const shouldRepublishOnline = isActiveEditPublished();
     let packageData = null;
+    let publishCleanupPending = false;
 
     try {
       showPublishModalLoading(
@@ -2095,8 +2089,11 @@ const TravelogCreatorModule = (() => {
       lastSavedPublishSignature = getPublishContentSignature();
       storeSavedGuideRecord(packageData, localSaveInfo, shouldRepublishOnline ? 'published' : 'unpublished');
 
-      if (shouldRepublishOnline && window.TravelogSupabase && typeof window.TravelogSupabase.publishGuidePackage === 'function') {
+      if (shouldRepublishOnline) {
+        if (typeof window.TravelogSupabase?.publishGuidePackage !== 'function') throw new Error('SUPABASE_SDK_NOT_READY');
         const publishResult = await window.TravelogSupabase.publishGuidePackage(packageData, { onProgress: updatePublishProgress });
+        publishCleanupPending = publishResult.cleanupPending;
+
         packageData = {
           ...packageData,
           guideId: publishResult.guideId || packageData.guideId,
@@ -2126,6 +2123,7 @@ const TravelogCreatorModule = (() => {
       if (statusDesc) statusDesc.textContent = shouldRepublishOnline
         ? t('출간된 가이드와 저장된 제작 데이터가 덮어쓰기 완료되었습니다.', 'The published guide and saved working data were overwritten.', '公開ガイドと保存制作データを上書きしました。')
         : t('저장된 제작 가이드가 덮어쓰기 완료되었습니다.', 'The saved guide was overwritten.', '保存済み制作ガイドを上書きしました。');
+      if (publishCleanupPending && statusDesc) statusDesc.textContent += ' 이전 기록 정리가 남아 있습니다. 다시 출간하면 정리를 재시도합니다.';
       if (spinner) spinner.style.display = 'none';
       if (successIcon) successIcon.style.display = 'block';
       if (summary) {
@@ -2160,7 +2158,9 @@ const TravelogCreatorModule = (() => {
     }
   }
 
-  function handleFinalPublishClick() {
+  let finalPublishInProgress = false;
+  async function handleFinalPublishClick() {
+    if (finalPublishInProgress) return;
     const readiness = getPublishReadiness();
     updateFinalPublishButtonState();
 
@@ -2169,12 +2169,16 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
-    if (isStudioEditMode()) {
-      completeStudioGuideEdit();
-      return;
+    finalPublishInProgress = true;
+    try {
+      if (isStudioEditMode()) {
+        await completeStudioGuideEdit();
+      } else {
+        await publishPreparedGuideOnline();
+      }
+    } finally {
+      finalPublishInProgress = false;
     }
-
-    publishPreparedGuideOnline();
   }
 
 
@@ -2224,34 +2228,6 @@ const TravelogCreatorModule = (() => {
     URL.revokeObjectURL(url);
   }
 
-  function getAppsScriptPublishKey() {
-    return localStorage.getItem(APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY) || DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '';
-  }
-
-  function setAppsScriptPublishKey(key) {
-    localStorage.setItem(APPS_SCRIPT_PUBLISH_KEY_STORAGE_KEY, String(key || ''));
-  }
-
-  function ensureAppsScriptPublishKey() {
-    const savedKey = getAppsScriptPublishKey();
-    if (savedKey) return savedKey;
-
-    const input = window.prompt(t(
-      'Apps Script 임시 출간 비밀번호(publishKey)를 입력해 주세요. Apps Script에서 비밀번호를 비워두었다면 빈칸으로 확인하세요.',
-      'Enter the Apps Script publishKey. If your Apps Script publish key is empty, press OK with this field empty.',
-      'Apps ScriptのpublishKeyを入力してください。未設定なら空欄のままOKしてください。'
-    ), DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '');
-
-    if (input === null) {
-      // 취소해도 Apps Script 쪽 PUBLISH_KEY가 비어 있을 수 있으므로 빈 값으로 전송한다.
-      return DEFAULT_APPS_SCRIPT_PUBLISH_KEY || '';
-    }
-
-    const key = String(input || '').trim();
-    setAppsScriptPublishKey(key);
-    return key;
-  }
-
   function blobToDataUrl(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -2259,115 +2235,6 @@ const TravelogCreatorModule = (() => {
       reader.onerror = () => reject(reader.error || new Error('BLOB_READ_FAILED'));
       reader.readAsDataURL(blob);
     });
-  }
-
-  async function convertFileEntryToMemo(file, type, fallbackText = '') {
-    const blob = file.blob instanceof Blob ? file.blob : new Blob([fallbackText || ''], { type: 'text/plain;charset=utf-8' });
-    const memo = {
-      type,
-      fileName: file.fileName || `${type}_memo_${Date.now()}`,
-      pinId: file.pinId || '',
-      stopIndex: typeof file.stopIndex === 'number' ? file.stopIndex : Number(file.stopIndex || 0),
-      lat: file.lat || '',
-      lng: file.lng || '',
-      text: file.memoText || fallbackText || '',
-      memo: file.memoText || fallbackText || '',
-      createdAt: new Date().toISOString(),
-      mimeType: blob.type || (type === 'video' ? 'video/webm' : type === 'audio' ? 'audio/webm' : 'text/plain')
-    };
-
-    if (type === 'audio' || type === 'video' || type === 'photo') {
-      memo.base64 = await blobToDataUrl(blob);
-      memo.dataUrl = memo.base64;
-    }
-
-    return memo;
-  }
-
-  async function buildAppsScriptPayload(packageData) {
-    const publishKey = ensureAppsScriptPublishKey();
-    const memos = [];
-
-    for (const file of packageData.audioFiles || []) {
-      memos.push(await convertFileEntryToMemo(file, 'audio', 'Travelog audio memo'));
-    }
-
-    for (const file of packageData.videoFiles || []) {
-      memos.push(await convertFileEntryToMemo(file, 'video', 'Travelog video memo'));
-    }
-
-    for (const file of packageData.photoFiles || []) {
-      memos.push(await convertFileEntryToMemo(file, 'photo', file.memoText || 'Travelog photo memo'));
-    }
-
-    for (const file of packageData.textFiles || []) {
-      let text = file.memoText || '';
-      try {
-        if (!text && file.blob instanceof Blob) {
-          text = await file.blob.text();
-        }
-      } catch (_) {}
-      memos.push(await convertFileEntryToMemo(file, 'text', text));
-    }
-
-    return {
-      publishKey,
-      guide: {
-        id: packageData.guideId,
-        title: packageData.tourName,
-        slug: packageData.tourSlug,
-        author: packageData.creator,
-        createdAt: packageData.createdAt,
-        driveFolderId: DRIVE_PARENT_FOLDER_ID,
-        pinCount: (packageData.pins || []).length,
-        audioCount: (packageData.audioFiles || []).length,
-        videoCount: (packageData.videoFiles || []).length,
-        photoCount: (packageData.photoFiles || []).length,
-        textCount: (packageData.textFiles || []).length,
-        couponCount: (packageData.eventCoupons || []).length,
-        representativeImage: packageData.representativeImage || '',
-        guideIntroText: packageData.guideIntroText || '',
-        guideIntroAudio: packageData.guideIntroAudio ? { fileName: packageData.guideIntroAudio.fileName, mimeType: packageData.guideIntroAudio.mimeType, dataUrl: packageData.guideIntroAudio.dataUrl } : null,
-        guideIntroVideo: packageData.guideIntroVideo ? { fileName: packageData.guideIntroVideo.fileName, mimeType: packageData.guideIntroVideo.mimeType, dataUrl: packageData.guideIntroVideo.dataUrl } : null
-      },
-      eventCoupons: packageData.eventCoupons || [],
-      pins: packageData.pins || [],
-      memos,
-      studioRows: packageData.studioRows || [],
-      studioCsv: packageData.studioCsv || '',
-      guideJson: packageData.guideJson || ''
-    };
-  }
-
-  async function postPayloadToAppsScript(payload) {
-    if (!APPS_SCRIPT_WEB_APP_URL) {
-      throw new Error('APPS_SCRIPT_URL_MISSING');
-    }
-
-    const response = await fetch(APPS_SCRIPT_WEB_APP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'text/plain;charset=utf-8'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    // Apps Script Web App은 브라우저 CORS 정책 때문에 응답 본문을 읽을 수 없는 경우가 많다.
-    // no-cors 전송이 네트워크 예외 없이 끝나면 서버로 전송된 것으로 처리한다.
-    return response;
-  }
-
-  async function uploadPackageToGoogleDrive(packageData) {
-    const payload = await buildAppsScriptPayload(packageData);
-    await postPayloadToAppsScript(payload);
-
-    return {
-      uploadedCount: payload.memos.length + 1,
-      spreadsheetUpdated: true,
-      spreadsheetFallbackUploaded: false,
-      responseVerified: false
-    };
   }
 
   function registerGuideOnHome(packageData) {
@@ -3129,8 +2996,7 @@ const TravelogCreatorModule = (() => {
     }
 
     if (!window.TravelogSupabase || typeof window.TravelogSupabase.publishGuidePackage !== 'function') {
-      console.warn('[Travelog Publish] Supabase connector is not ready. Falling back to Google Drive publisher.');
-      publishPreparedGuideToDrive();
+      window.TravelogApp.showToast(t('Supabase 연결을 준비하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.', 'Supabase is unavailable. Check your connection and retry.', 'Supabaseに接続できません。接続を確認して再試行してください。'));
       return;
     }
 
@@ -3141,6 +3007,7 @@ const TravelogCreatorModule = (() => {
       );
 
       const publishResult = await window.TravelogSupabase.publishGuidePackage(pendingPublishPackage, { onProgress: updatePublishProgress });
+
       const completedPackage = {
         ...pendingPublishPackage,
         guideId: publishResult.guideId || pendingPublishPackage.guideId,
@@ -3168,6 +3035,7 @@ const TravelogCreatorModule = (() => {
 
       if (statusTitle) statusTitle.textContent = t('Supabase 출간이 완료되었습니다.', 'Supabase publishing complete.', 'Supabase公開が完了しました。');
       if (statusDesc) statusDesc.textContent = t('홈 화면의 오늘의 가이드에 등록되었고, 다른 유저는 구매 후 오프라인 다운로드할 수 있습니다.', 'Registered on Home. Other users can purchase and download it for offline use.', 'ホームに登録され、他のユーザーは購入後オフライン用にダウンロードできます。');
+      if (publishResult.cleanupPending && statusDesc) statusDesc.textContent += ' 이전 기록 정리가 남아 있습니다. 다시 출간하면 정리를 재시도합니다.';
       if (spinner) spinner.style.display = 'none';
       if (successIcon) successIcon.style.display = 'block';
       if (summary) {
@@ -3199,75 +3067,10 @@ const TravelogCreatorModule = (() => {
       closePublishModal();
       const detailMessage = error?.detail || error?.message || '';
       alert(`${t(
-        'Supabase 출간 중 오류가 발생했습니다. 기존 Google Drive 출간은 실행하지 않았습니다.',
-        'Supabase publishing failed. Google Drive publishing was not run.',
-        'Supabase公開中にエラーが発生しました。Google Drive公開は実行していません。'
+        'Supabase 출간에 실패했습니다. 작업 데이터는 유지됩니다.',
+        'Supabase publishing failed. Your working data is preserved.',
+        'Supabase公開に失敗しました。作業データは保持されています。'
       )}${detailMessage ? `\n\n상세 오류: ${detailMessage}` : ''}`);
-    }
-  }
-
-  async function publishPreparedGuideToDrive() {
-    const readiness = getPublishReadiness();
-    if (!readiness.ready) {
-      updateFinalPublishButtonState();
-      window.TravelogApp.showToast(readiness.reason);
-      return;
-    }
-
-    try {
-      showPublishModalLoading(
-        t('구글 드라이브로 출간 중입니다...', 'Publishing to Google Drive...', 'Google Driveに公開しています...'),
-        t('Apps Script를 통해 Audio, Video, Text 폴더와 User Studio Data에 반영하고 있습니다.', 'Sending through Apps Script to update Audio, Video, Text folders and User Studio Data.', 'Apps Script経由でAudio/Video/TextとUser Studio Dataに反映しています。')
-      );
-
-      const uploadResult = await uploadPackageToGoogleDrive(pendingPublishPackage);
-      const statusTitle = document.getElementById('publish-status-title');
-      const statusDesc = document.getElementById('publish-status-desc');
-      const spinner = document.getElementById('publish-loading-spinner');
-      const successIcon = document.getElementById('publish-success-icon');
-      const summary = document.getElementById('publish-local-summary');
-      const actions = document.getElementById('publish-ready-actions');
-
-      const completedPackage = pendingPublishPackage;
-      const completedTourName = completedPackage.tourName;
-
-      // 먼저 전체 출간 기록을 저장한 뒤 홈 카드에 등록한다.
-      // 그래야 홈에서 카드를 눌렀을 때 임시 경복궁/민호 코스가 아니라 해당 가이드의 핀 목록을 바로 찾을 수 있다.
-      storePublishedGuideRecord(completedPackage);
-      markSavedGuideAsPublished(completedPackage);
-      registerGuideOnHome(completedPackage);
-
-      if (statusTitle) statusTitle.textContent = t('출간이 완료되었습니다.', 'Publishing complete.', '公開が完了しました。');
-      if (statusDesc) statusDesc.textContent = t('홈 화면의 오늘의 가이드에 등록되었습니다.', "Registered under Today's Guide on Home.", 'ホームの今日のガイドに登録されました。');
-      if (spinner) spinner.style.display = 'none';
-      if (successIcon) successIcon.style.display = 'block';
-      if (summary) {
-        summary.innerHTML = `
-          Apps Script 전송 항목: ${uploadResult.uploadedCount}개<br>
-          User Studio Data: 스프레드시트 반영 요청 완료<br>
-          오늘의 가이드 등록 완료
-        `;
-        summary.style.display = 'block';
-      }
-      if (actions) actions.style.display = 'none';
-
-      window.TravelogApp.addPoints(150);
-      window.TravelogApp.showToast(t(`가이드 [${completedTourName}] 출간 완료! 현재 핀을 유지합니다.`, `Guide [${completedTourName}] published! Current pins are preserved.`, `ガイド［${completedTourName}］を公開しました！現在のピンを保持します。`));
-
-      persistWorkingDraft();
-
-      setTimeout(() => {
-        closePublishModal();
-        moveToHomeTab();
-      }, 1500);
-    } catch (error) {
-      console.error('[Travelog Publish] Drive upload failed:', error);
-      closePublishModal();
-      if (String(error.message || '').includes('APPS_SCRIPT_URL_MISSING')) {
-        alert(t('Apps Script 웹앱 URL이 설정되지 않았습니다.', 'Apps Script Web App URL is not set.', 'Apps Script URLが設定されていません。'));
-        return;
-      }
-      alert(t('구글 드라이브 출간 전송 중 오류가 발생했습니다. Apps Script 배포 URL, publishKey, 네트워크를 확인해 주세요.', 'Publishing failed. Check the Apps Script deployment URL, publishKey, and network.', '公開送信中にエラーが発生しました。Apps Script URL、publishKey、ネットワークを確認してください。'));
     }
   }
 
