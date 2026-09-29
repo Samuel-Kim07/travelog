@@ -71,6 +71,7 @@ const TravelogCreatorModule = (() => {
   let editorGeneration = 0;
   let photoSaveInProgress = false;
   let draftWarningShown = false;
+  let mediaRestorePromise = Promise.resolve();
 
   // Keep small, synchronous recovery metadata; original media lives in DeviceStorage.
   function persistWorkingDraft() {
@@ -119,7 +120,7 @@ const TravelogCreatorModule = (() => {
       recordedVideos = Array.isArray(draft.videos) ? draft.videos : [];
       recordedPhotos = Array.isArray(draft.photos) ? draft.photos : [];
       const generation = editorGeneration;
-      Promise.allSettled([
+      mediaRestorePromise = Promise.allSettled([
         ...recordedAudios.map(item => restoreMediaItemFromDeviceStorage(item, 'audio')),
         ...recordedVideos.map(item => restoreMediaItemFromDeviceStorage(item, 'video')),
         ...recordedPhotos.map(item => restoreMediaItemFromDeviceStorage(item, 'photo'))
@@ -1491,6 +1492,9 @@ const TravelogCreatorModule = (() => {
   }
 
   async function buildGuidePublishPackage() {
+    const generation = editorGeneration;
+    await mediaRestorePromise;
+    if (generation !== editorGeneration) throw new Error('EDITOR_CHANGED_DURING_MEDIA_RESTORE');
     await ensureRecordedMediaDataUrls();
     const orderedPins = getOrderedCustomPins();
     normalizeCustomPinOrder(orderedPins);
@@ -3192,12 +3196,23 @@ const TravelogCreatorModule = (() => {
     const cleanTourName = tourName.replace(/[^a-zA-Z0-9가-힣]/g, '_');
     const filename = `guide_audio_${cleanTourName}_${Date.now()}.${finalExtension}`;
 
-    recordedAudios.push({
+    const audioEntry = {
       id: Date.now(),
       name: filename,
+      fileName: filename,
       blob: audioBlob,
       stopIndex: -1
-    });
+    };
+    recordedAudios.push(audioEntry);
+    if (window.TravelogDeviceStorage?.saveGeneratedFile) {
+      try {
+        audioEntry.deviceStorageRef = await window.TravelogDeviceStorage.saveGeneratedFile('Audio', filename, audioBlob, { source: 'guide-audio' });
+      } catch (error) {
+        console.warn('[Travelog Creator] Guide audio persistence failed:', error);
+        window.TravelogApp.showToast(t('음성은 현재 화면에 보관되어 있습니다. 페이지를 닫기 전에 가이드를 저장해 주세요.', 'Audio is kept in this session. Save the guide before closing the page.', '音声は現在の画面に保持されています。閉じる前にガイドを保存してください。'));
+      }
+    }
+    persistWorkingDraft();
 
     window.TravelogApp.showToast(t('음성 녹음 완료! 리스트에 추가되었습니다.', 'Audio recording finished and added to list!', '音声録音完了！リストに追加されました。'));
     

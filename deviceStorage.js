@@ -389,7 +389,20 @@ const TravelogDeviceStorage = (() => {
     const targetHandle = folderKind === 'Root' ? dataHandle : folderHandles[folderKind];
     if (!targetHandle) return null;
     const fileHandle = await targetHandle.getFileHandle(fileName, { create: false });
-    return fileHandle.getFile();
+    return copyStoredMedia(await fileHandle.getFile());
+  }
+
+  async function copyStoredMedia(file) {
+    // getFile() is a snapshot of the backing file. Saving the package to the
+    // same path invalidates it, even if the bytes being written are identical.
+    // Read every byte before returning; Blob([file]) would retain that dependency.
+    const parts = [];
+    for (let offset = 0; offset < file.size; offset += 6 * 1024 * 1024) {
+      parts.push(new Blob([await file.slice(offset, offset + 6 * 1024 * 1024).arrayBuffer()]));
+    }
+    const copy = new Blob(parts, { type: file.type });
+    if (copy.size !== file.size) throw new Error('MEDIA_COPY_INCOMPLETE');
+    return copy;
   }
 
   async function loadGeneratedFile(reference = {}) {
@@ -409,7 +422,7 @@ const TravelogDeviceStorage = (() => {
       const record = reference.id
         ? await idbGet(FILE_STORE, reference.id)
         : await findPersistedFile(reference.fileName, folderKind);
-      return record?.blob instanceof Blob && record.blob.size > 0 ? record.blob : null;
+      return record?.blob instanceof Blob && record.blob.size > 0 ? await copyStoredMedia(record.blob) : null;
     } catch (error) {
       console.warn('[Travelog Device Storage] Saved media could not be read from IndexedDB.', error);
       return null;
