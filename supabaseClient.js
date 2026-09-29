@@ -101,7 +101,8 @@ const TravelogSupabase = (() => {
       context.bytes != null && `크기: ${context.bytes} bytes`,
       status ? `HTTP ${status}: ${message}` : `${kind}: ${message}`,
       kind === 'network' && '브라우저가 HTTP 응답을 받지 못했습니다. 네트워크·CORS·연결 중단 여부를 확인해 주세요.',
-      kind === 'timeout' && '업로드 제한 시간이 지났습니다. 연결을 확인하고 다시 시도해 주세요.'
+      kind === 'timeout' && '업로드 제한 시간이 지났습니다. 연결을 확인하고 다시 시도해 주세요.',
+      kind === 'file-read' && '기기의 원본 파일을 읽을 수 없습니다. 해당 파일을 다시 선택하거나 해당 영상 메모를 다시 촬영한 뒤 출간해 주세요. 기존 작업은 유지됩니다.'
     ].filter(Boolean).join('\n');
     // Never log request headers, tokens, signed URLs, or media contents.
     console.warn('[Travelog Publish]', diagnostic);

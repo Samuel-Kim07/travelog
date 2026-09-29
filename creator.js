@@ -4637,14 +4637,29 @@ const TravelogCreatorModule = (() => {
     });
   }
 
+  async function copyCapturedVideo(file) {
+    // Read bytes now: wrapping a File in a Blob alone still retains its backing file.
+    // Mobile camera providers can revoke that backing file after another capture.
+    const parts = [];
+    for (let offset = 0; offset < file.size; offset += 6 * 1024 * 1024) {
+      parts.push(new Blob([await file.slice(offset, offset + 6 * 1024 * 1024).arrayBuffer()]));
+    }
+    const copy = new Blob(parts, { type: file.type || 'video/mp4' });
+    if (!copy.size || copy.size !== file.size) throw new Error('VIDEO_CAPTURE_COPY_FAILED');
+    return copy;
+  }
+
   async function addVideoMemoCapture(file, mode = 'replace') {
     const status = document.getElementById('video-memo-status');
     if (!(file instanceof Blob) || !String(file.type || '').startsWith('video/')) {
       if (status) status.textContent = t('영상 파일을 선택하거나 카메라로 촬영해 주세요.', 'Choose or record a video file.', '動画ファイルを選択または撮影してください。');
       return;
     }
-    const url = URL.createObjectURL(file);
+    let url;
     try {
+      if (status) status.textContent = t('영상을 앱에 복사하는 중입니다...', 'Copying video into the app...', '動画をアプリにコピーしています...');
+      const capturedBlob = await copyCapturedVideo(file);
+      url = URL.createObjectURL(capturedBlob);
       const metadata = await readVideoMemoMetadata(url);
       if (!metadata.duration || metadata.duration <= 0) throw new Error('VIDEO_DURATION_INVALID');
       if (mode === 'replace') {
@@ -4653,7 +4668,7 @@ const TravelogCreatorModule = (() => {
       }
       videoMemoClips.push({
         id: `video-clip-${Date.now()}-${videoMemoClips.length}`,
-        blob: file,
+        blob: capturedBlob,
         fileName: file.name || `camera_clip_${videoMemoClips.length + 1}`,
         mimeType: file.type || 'video/mp4',
         url,
