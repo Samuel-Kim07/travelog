@@ -7282,6 +7282,12 @@ nav.bottom-nav {
   min-width: 0;
 }
 
+.creator-new-guide-btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  justify-content: center;
+}
+
 .creator-mode-pill {
   display: inline-flex;
   align-items: center;
@@ -7357,6 +7363,10 @@ nav.bottom-nav {
 
   #creator-mode-desc {
     text-align: left;
+  }
+
+  .creator-new-guide-btn {
+    width: 100%;
   }
 
   .onboarding-card {

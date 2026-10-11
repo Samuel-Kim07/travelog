@@ -663,6 +663,7 @@ const TravelogCreatorModule = (() => {
     updatePublishPanelCounts();
 
     // Bind Planner actions
+    document.getElementById('creator-new-guide-btn')?.addEventListener('click', startNewGuide);
     const clearPinsBtn = document.getElementById('clear-pins-btn');
     if (clearPinsBtn) {
       clearPinsBtn.addEventListener('click', clearPins);
@@ -3609,6 +3610,20 @@ const TravelogCreatorModule = (() => {
     if (voiceMemoTitleInput) voiceMemoTitleInput.value = '';
     const videoMemoTitleInput = document.getElementById('video-memo-title-input');
     if (videoMemoTitleInput) videoMemoTitleInput.value = '';
+  }
+
+  function startNewGuide() {
+    if (isRecording || isVideoRecording || photoSaveInProgress) {
+      window.TravelogApp.showToast('녹음·녹화 또는 사진 저장을 마친 뒤 새로 작성해 주세요.');
+      return;
+    }
+    if (!window.confirm('작성 중인 가이드를 취소하고 처음부터 새로 작성할까요?\n저장하지 않은 작성 내용은 사라집니다. 이미 저장하거나 출간한 가이드는 유지됩니다.')) return;
+    resetCreatorStudioForNewGuide();
+    persistWorkingDraft();
+    const titleInput = document.getElementById('new-tour-name');
+    titleInput?.focus();
+    titleInput?.select();
+    window.TravelogApp.showToast('새 가이드를 작성할 준비가 되었습니다.');
   }
 
   function resetCreatorStudioForNewGuide() {
