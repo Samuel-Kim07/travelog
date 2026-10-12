@@ -8,12 +8,12 @@ test('five-file publish: failure after 3 successes retains old data and retry re
  assert.equal(h.objects.size,3);assert.ok(h.db.guide_pins.some(p=>p.id==='old-pin'));assert.ok(h.db.guide_media.some(p=>p.id==='old-media'));assert.equal(h.db.guides[0].cover_path,'old-cover');assert.ok(!h.events.some(e=>e.startsWith('delete:')));
  assert.match(h.progress.at(-1).detail,/video_memo_4.mp4.*4\/5/);
  const rowsBefore=h.db.guide_pins.length;const result=await h.api.publishGuidePackage(p,h.options);
- assert.equal(result.guideId,guideId);assert.equal(h.objects.size,5);assert.equal(h.control.uploadNumber,6);assert.equal(rowsBefore,1);assert.equal(h.db.guide_pins.length,1);assert.equal(h.db.guide_media.length,5);
- await h.api.publishGuidePackage(p,h.options);assert.equal(h.control.uploadNumber,6);assert.equal(h.db.guide_media.length,5);
+ assert.equal(result.guideId,guideId);assert.equal(h.objects.size,5);assert.equal(h.control.uploadNumber,8);assert.equal(rowsBefore,1);assert.equal(h.db.guide_pins.length,1);assert.equal(h.db.guide_media.length,5);
+ await h.api.publishGuidePackage(p,h.options);assert.equal(h.control.uploadNumber,8);assert.equal(h.db.guide_media.length,5);
 });
 test('server stored object but response lost: retry performs no duplicate POST',async()=>{
- const h=harness();h.control.failAt=1;h.control.acceptThenFail=true;const p=packageData();
- await assert.rejects(h.api.publishGuidePackage(p));assert.equal(h.objects.size,1);await h.api.publishGuidePackage(p);assert.equal(h.control.uploadNumber,5);
+ const h=harness();h.control.failAt=1;h.control.failCount=1;h.control.acceptThenFail=true;const p=packageData();
+ await h.api.publishGuidePackage(p);assert.equal(h.objects.size,5);assert.equal(h.control.uploadNumber,5);await h.api.publishGuidePackage(p);assert.equal(h.control.uploadNumber,5);
 });
 test('Storage success followed by media-row failure reuses uploaded object',async()=>{
  const h=harness();h.control.failMedia=true;const p=packageData();await assert.rejects(h.api.publishGuidePackage(p),e=>e.publishDiagnostic.stage==='publish-transaction');await h.api.publishGuidePackage(p);assert.equal(h.control.uploadNumber,5);

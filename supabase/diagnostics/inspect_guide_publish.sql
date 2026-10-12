@@ -43,6 +43,27 @@ select jsonb_pretty(jsonb_build_object(
   'tables', (select jsonb_agg(definition) from snapshot),
   'storage_policies', (select jsonb_agg(to_jsonb(p)) from pg_catalog.pg_policies p
     where p.schemaname = 'storage' and p.tablename in ('objects', 'buckets')),
+  'buckets', (select jsonb_agg(jsonb_build_object(
+    'id', b.id, 'public', b.public,
+    'file_size_limit', to_jsonb(b)->'file_size_limit',
+    'allowed_mime_types', to_jsonb(b)->'allowed_mime_types'))
+    from storage.buckets b where b.id in ('guide-public', 'guide-media')),
+  'storage_helpers', (select jsonb_agg(jsonb_build_object(
+    'name', p.proname, 'definition', pg_catalog.pg_get_functiondef(p.oid)))
+    from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'travelog_storage_guide_id'),
+  'publish_rpc_definition', (select pg_catalog.pg_get_functiondef(p.oid)
+    from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'publish_guide_atomic_v1'
+      and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_guide jsonb, p_pins jsonb, p_media jsonb'),
+  'guide_storage_objects', (select jsonb_agg(jsonb_build_object(
+    'bucket_id', o.bucket_id, 'name', o.name,
+    'owner_id', to_jsonb(o)->'owner_id', 'legacy_owner', to_jsonb(o)->'owner'))
+    from storage.objects o
+    where current_setting('travelog.inspect_guide_id') <> ''
+      and o.bucket_id in ('guide-public', 'guide-media')
+      and split_part(o.name, '/', 1) = 'guides'
+      and split_part(o.name, '/', 2) = current_setting('travelog.inspect_guide_id')),
   'existing_publish_rpcs', (select jsonb_agg(jsonb_build_object(
     'name', p.proname, 'arguments', pg_catalog.pg_get_function_arguments(p.oid),
     'result', pg_catalog.pg_get_function_result(p.oid), 'security_definer', p.prosecdef))

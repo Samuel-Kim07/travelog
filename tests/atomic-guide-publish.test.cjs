@@ -5,10 +5,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {randomUUID} = require('node:crypto');
 const {PGlite} = require(process.env.TRAVELOG_PGLITE_MODULE || '@electric-sql/pglite');
-const {harness, packageData, guideId} = require('./publish-harness.cjs');
+const {harness: mockHarness, packageData, guideId} = require('./publish-harness.cjs');
 const {harness: creatorHarness} = require('./creator-recovery-harness.cjs');
 const catalog = JSON.parse(fs.readFileSync('tests/fixtures/publish-schema-20260923.json','utf8').replace(/^\uFEFF/,''));
-const migration = fs.readFileSync('supabase/migrations/202609230001_atomic_guide_publish.sql','utf8');
+const migration = fs.readFileSync('supabase/migrations/202610120001_publish_finalize_rpc_only.sql','utf8');
 const userId = '22222222-2222-4222-8222-222222222222';
 let db;
 before(async () => {
@@ -20,6 +20,8 @@ before(async () => {
     create table public.profiles(id uuid primary key);
     create table public.guide_purchases(guide_id uuid, buyer_id uuid);
     create table storage.objects(bucket_id text, name text, primary key(bucket_id,name));
+    create function public.travelog_storage_guide_id(path text) returns uuid language sql immutable as $$select split_part(path,'/',2)::uuid$$;
+    create function storage.foldername(path text) returns text[] language sql immutable as $$select string_to_array(path,'/')$$;
     alter table storage.objects enable row level security;
     grant usage on schema public,auth,storage to authenticated,anon;
     grant all on all tables in schema public,storage to authenticated,anon;
@@ -34,11 +36,53 @@ before(async () => {
     for (const p of table.policies) await db.exec(`create policy "${p.policyname}" on ${name}
       for ${p.cmd} to ${p.roles.join(',')}${p.qual?' using ('+p.qual+')':''}${p.with_check?' with check ('+p.with_check+')':''};`);
   }
+  for (const policy of catalog.storage_policies.filter(p => /'guide-public'|'guide-media'/.test((p.qual || '') + (p.with_check || '')))) {
+    await db.exec(`create policy "${policy.policyname}" on storage.objects for ${policy.cmd} to ${policy.roles.join(',')}
+      ${policy.qual ? 'using (' + policy.qual + ')' : ''} ${policy.with_check ? 'with check (' + policy.with_check + ')' : ''};`);
+  }
+  const absent = await inspectRpc();
+  assert.equal(absent.exact_signature_exists, false);
+  assert.equal(absent.public_same_name_count, 0);
   await db.exec(migration);
-  await db.exec(migration); // Reapplying migration changes no data or existing constraints.
+  await assert.rejects(db.exec(migration), /RPC_ALREADY_EXISTS_REVIEW_REQUIRED/);
+  await db.exec('rollback'); // Failed installation must never replace an existing routine.
   await db.query("select set_config('request.jwt.claim.sub', $1, false)",[userId]);
 });
 after(async()=>{await db?.close();});
+async function inspectRpc(connection = db) {
+  const results = await connection.exec(fs.readFileSync('supabase/diagnostics/inspect_publish_rpc.sql','utf8'));
+  const row = results.flatMap(result => result.rows || []).find(row => row.travelog_rpc_review);
+  return JSON.parse(row.travelog_rpc_review);
+}
+// Draft INSERT/SELECT and Storage INSERT now run as the authenticated role too.
+function harness(rpcHandler) {
+  return mockHarness(rpcHandler, {
+    async query({table, operation, row, filters, single}) {
+      assert.ok(['guides', 'guide_pins', 'guide_media'].includes(table));
+      try {
+        await db.exec('set role authenticated');
+        let result;
+        if (operation === 'select') {
+          const [field, value] = filters[0]; assert.ok(['id', 'guide_id'].includes(field));
+          result = await db.query(`select * from ${table} where ${field}=$1`, [value]);
+        } else {
+          assert.equal(table, 'guides'); assert.equal(operation, 'insert');
+          result = await db.query('insert into guides(id,author_id,title,status) values($1,$2,$3,$4) returning *', [row.id,row.author_id,row.title,row.status]);
+        }
+        return {data: single ? result.rows[0] || null : result.rows};
+      } catch (error) { return {status: 400, error: {message: error.message, code: error.code}}; }
+      finally { await db.exec('reset role'); }
+    },
+    async upload({key}) {
+      const slash = key.indexOf('/');
+      try {
+        await db.exec('set role authenticated');
+        await db.query('insert into storage.objects values($1,$2)', [key.slice(0,slash),key.slice(slash+1)]);
+      } catch (error) { return {ok:false,status:error.code === '23505' ? 409 : 400,json:async()=>({message:error.message,code:error.code})}; }
+      finally { await db.exec('reset role'); }
+    }
+  });
+}
 async function rpc(name,args,objects) {
   assert.equal(name,'publish_guide_atomic_v1');
   for(const key of objects.keys()) {
@@ -68,7 +112,7 @@ test('A: first four-pin publication commits; production unique constraint is unc
   const s=await snapshot();assert.equal(s.guides.length,1);assert.equal(s.guide_pins.length,4);
   const c=(await db.query("select condeferrable, pg_get_constraintdef(oid) as definition from pg_constraint where conname='guide_pins_guide_id_pin_order_key'")).rows[0];
   assert.equal(c.condeferrable,false);assert.equal(c.definition,'UNIQUE (guide_id, pin_order)');
-  assert.ok(!h.events.some(e=>/^(insert|update|delete):/.test(e)));
+  assert.deepEqual(h.events.filter(e=>/^(insert|update|delete):/.test(e)), ['insert:guides']);
 });
 test('B: two unchanged republishes keep exactly four rows and stable UUIDs',async()=>{
   await h.api.publishGuidePackage(p);await h.api.publishGuidePackage(p);
@@ -108,11 +152,11 @@ test('H: Creator portrait/landscape lifecycle preserves pins; publish remains id
   assert.deepEqual(c.state.customCreatedPins.map(p=>p.id),p.pins.map(p=>p.id));
   await h.api.publishGuidePackage({...p,pins:c.state.customCreatedPins});assert.equal((await snapshot()).guide_pins.length,3);
 });
-test('new guide upload fails before commit: no partial guide/pin/media; retry uses stored files',async()=>{
+test('new guide upload failure retains only its draft; retry uses stored files',async()=>{
   const input={...packageData(),guideId:randomUUID()};const client=harness(rpc);client.control.failAt=4;
-  await assert.rejects(client.api.publishGuidePackage(input));assert.deepEqual(await snapshot(input.guideId),{guides:[],guide_pins:[],guide_media:[]});
+  await assert.rejects(client.api.publishGuidePackage(input));const failed=await snapshot(input.guideId);assert.equal(failed.guides[0].status,'draft');assert.equal(failed.guide_pins.length,0);assert.equal(failed.guide_media.length,0);
   await client.api.publishGuidePackage(input);await client.api.publishGuidePackage(input);
-  const s=await snapshot(input.guideId);assert.equal(s.guides.length,1);assert.equal(s.guide_pins.length,1);assert.equal(s.guide_media.length,5);assert.equal(client.control.uploadNumber,6);
+  const s=await snapshot(input.guideId);assert.equal(s.guides.length,1);assert.equal(s.guide_pins.length,1);assert.equal(s.guide_media.length,5);assert.equal(client.control.uploadNumber,8);
 });
 test('RPC response lost after COMMIT: retry has one guide/pin/media set and no repeat upload',async()=>{
   const input={...packageData(),guideId:randomUUID()};let lost=false;
@@ -135,36 +179,175 @@ test('direct invalid orders, missing object, foreign pin id and foreign owner al
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[randomUUID()]);assert.match((await call(base)).message,/GUIDE_NOT_OWNED/);
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[userId]);assert.deepEqual(await snapshot(),before);
 });
-test('upload policy permits own namespace without guide row, denies foreign namespace; RPC is not public',async()=>{
+test('existing upload policy requires owned guide; RPC is not public',async()=>{
   const gid=randomUUID();await db.exec('set role authenticated');
   try {
+    await assert.rejects(db.query('insert into storage.objects values($1,$2)',['guide-media',`guides/${gid}/uploads/${userId}/video/a.mp4`]),/row-level security/);
+    await db.query('insert into guides(id,author_id,title,status) values($1,$2,$3,$4)',[gid,userId,'Draft','draft']);
     await db.query('insert into storage.objects values($1,$2)',['guide-media',`guides/${gid}/uploads/${userId}/video/a.mp4`]);
     assert.equal((await db.query('select * from storage.objects where name=$1',[`guides/${gid}/uploads/${userId}/video/a.mp4`])).rows.length,1);
-    await assert.rejects(db.query('insert into storage.objects values($1,$2)',['guide-media',`guides/${gid}/uploads/${randomUUID()}/video/b.mp4`]),/row-level security/);
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)",[randomUUID()]);
+    await assert.rejects(db.query('insert into storage.objects values($1,$2)',['guide-media',`guides/${gid}/uploads/${userId}/video/b.mp4`]),/row-level security/);
   }finally{await db.exec('reset role');}
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[userId]);
   const perms=(await db.query("select has_function_privilege('anon','public.publish_guide_atomic_v1(jsonb,jsonb,jsonb)','EXECUTE') as anon")).rows[0];assert.equal(perms.anon,false);
 });
-test('new guide failure after pin insert rolls back the new guide too',async()=>{
+test('failed finalization after pin insert preserves only the reusable draft',async()=>{
   const input=fourPins();input.guideId=randomUUID();
   await db.exec(`create function public.test_fail_insert() returns trigger language plpgsql as $$ begin raise exception 'FORCED_PIN_INSERT'; end; $$;
     create trigger fail_insert after insert on guide_pins for each row execute function test_fail_insert();`);
   try{await assert.rejects(harness(rpc).api.publishGuidePackage(input),/FORCED_PIN_INSERT/);}
   finally{await db.exec('drop trigger fail_insert on guide_pins');}
-  assert.deepEqual(await snapshot(input.guideId),{guides:[],guide_pins:[],guide_media:[]});
+  const failed=await snapshot(input.guideId);assert.equal(failed.guides[0].status,'draft');assert.equal(failed.guide_pins.length,0);assert.equal(failed.guide_media.length,0);
   await harness(rpc).api.publishGuidePackage(input);assert.equal((await snapshot(input.guideId)).guide_pins.length,4);
 });
 test('an existing object in another namespace cannot be attached to a new guide',async()=>{
   const input=fourPins();input.guideId=randomUUID();let args;
   await harness(async(name,payload)=>{args=payload;return {error:{message:'capture only'}};}).api.publishGuidePackage(input).catch(()=>{});
-  const foreignPath=`guides/${input.guideId}/video/not-owned.mp4`;
+  const foreignPath=`guides/${randomUUID()}/video/not-owned.mp4`;
   await db.query('insert into storage.objects values($1,$2)',['guide-media',foreignPath]);
   args.p_media=[{id:randomUUID(),guide_id:input.guideId,pin_id:input.pins[0].id,media_role:'pin_video',bucket_name:'guide-media',storage_path:foreignPath,mime_type:'video/mp4',file_size:5}];
   assert.match((await rpc('publish_guide_atomic_v1',args,new Map())).error.message,/INVALID_OR_MISSING/);
-  assert.deepEqual(await snapshot(input.guideId),{guides:[],guide_pins:[],guide_media:[]});
+  const failed=await snapshot(input.guideId);assert.equal(failed.guides[0].status,'draft');assert.equal(failed.guide_pins.length,0);assert.equal(failed.guide_media.length,0);
 });
 test('legacy successful file from a partial publish is reused without upload or manual cleanup',async()=>{
   const input={...packageData(),videoFiles:[packageData().videoFiles[0]]};const client=harness(rpc);
   const file=input.videoFiles[0];const modern=await client.internal.makeStoragePath({guideId,userId,folder:'video',role:'pin_video',originalName:file.fileName,blob:file.blob});
   const legacy=modern.replace(`/uploads/${userId}`,'');client.objects.set('guide-media/'+legacy,file.blob);
   await client.api.publishGuidePackage(input);assert.equal(client.control.uploadNumber,0);assert.equal((await snapshot()).guide_media[0].storage_path,legacy);
+});
+
+test('another user cannot see the failed draft but can read the successfully published free guide', async () => {
+  const client = harness(rpc), input = {...packageData(), guideId: randomUUID()};
+  client.control.httpStatus = 400;
+  await assert.rejects(client.api.publishGuidePackage(input));
+  const reader = randomUUID();
+  async function readAsOther() {
+    await db.query("select set_config('request.jwt.claim.sub',$1,false)", [reader]);
+    await db.exec('set role authenticated');
+    try {
+      return {
+        guides: (await db.query('select * from guides where id=$1',[input.guideId])).rows,
+        pins: (await db.query('select * from guide_pins where guide_id=$1',[input.guideId])).rows,
+        media: (await db.query('select * from guide_media where guide_id=$1',[input.guideId])).rows
+      };
+    } finally {
+      await db.exec('reset role');
+      await db.query("select set_config('request.jwt.claim.sub',$1,false)", [userId]);
+    }
+  }
+  assert.deepEqual(await readAsOther(), {guides:[],pins:[],media:[]});
+  client.control.httpStatus = 0; await client.api.publishGuidePackage(input);
+  const visible = await readAsOther();
+  assert.equal(visible.guides[0].status,'published'); assert.equal(visible.pins.length,1); assert.equal(visible.media.length,5);
+});
+
+test('purchase records survive failed and successful edits of the published guide', async () => {
+  const buyer = randomUUID(); await db.query('insert into guide_purchases values($1,$2)', [guideId,buyer]);
+  const before = (await db.query('select * from guide_purchases')).rows;
+  const input = {...packageData(),tourName:'Republished'};
+  const client = harness(rpc); client.control.httpStatus = 400;
+  await assert.rejects(client.api.publishGuidePackage(input));
+  assert.deepEqual((await db.query('select * from guide_purchases')).rows, before);
+  client.control.httpStatus = 0; await client.api.publishGuidePackage(input);
+  assert.deepEqual((await db.query('select * from guide_purchases')).rows, before);
+});
+
+test('finalizer-only SQL changes no Storage or table RLS policies', () => {
+  assert.doesNotMatch(migration, /(?:create|alter|drop)\s+policy|disable\s+row\s+level\s+security/i);
+  const original = fs.readFileSync('supabase/migrations/202609230001_atomic_guide_publish.sql','utf8');
+  const start = 'returns jsonb';
+  assert.equal(migration.slice(migration.indexOf(start)), original.slice(original.indexOf(start)));
+});
+
+test('read-only diagnostic SQL returns policies, bucket settings and RPC definition', async () => {
+  await db.exec("create table storage.buckets(id text primary key, public boolean); insert into storage.buckets values ('guide-public',true),('guide-media',false);");
+  const before = await snapshot();
+  const results = await db.exec(fs.readFileSync('supabase/diagnostics/inspect_guide_publish.sql', 'utf8'));
+  const row = results.flatMap(result => result.rows || []).find(row => row.travelog_publish_inspection);
+  const report = JSON.parse(row.travelog_publish_inspection);
+  assert.equal(report.buckets.length, 2);
+  assert.match(report.publish_rpc_definition, /publish_guide_atomic_v1/);
+  assert.deepEqual(await snapshot(), before);
+});
+
+for (const kind of ['cover', 'none', 'photo', 'audio', 'video', 'mixed']) {
+  test(`PostgreSQL ${kind} publication and edited republication commit complete rows`, async () => {
+    const input = {...packageData(), guideId: randomUUID(), videoFiles: []};
+    if (['cover', 'mixed'].includes(kind)) input.representativeImage = 'data:image/jpeg;base64,Y292ZXI=';
+    for (const [type, mime] of [['photo', 'image/png'], ['audio', 'audio/webm'], ['video', 'video/mp4']]) {
+      if ([type, 'mixed'].includes(kind)) input[type + 'Files'] = [{fileName: type, blob: new Blob([type], {type: mime}), pinId: 'local-pin', stopIndex: 0}];
+    }
+    const client = harness(rpc);
+    await client.api.publishGuidePackage(input);
+    const first = await snapshot(input.guideId);
+    assert.equal(first.guides[0].status, 'published');
+    assert.equal(first.guide_pins.length, 1);
+    assert.equal(first.guide_media.length, kind === 'none' ? 0 : kind === 'mixed' ? 4 : 1);
+    const uploads = client.control.uploadNumber;
+    input.tourName = 'Edited'; input.pins[0].description = 'Updated memo';
+    await client.api.publishGuidePackage(input);
+    const edited = await snapshot(input.guideId);
+    assert.equal(edited.guides[0].title, 'Edited');
+    assert.equal(edited.guide_pins[0].description, 'Updated memo');
+    assert.equal(edited.guide_media.length, first.guide_media.length);
+    assert.equal(client.control.uploadNumber, uploads);
+  });
+}
+
+test('RPC inspection reports exact client signature, body, settings and effective ACL', async () => {
+  const before = await snapshot();
+  const report = await inspectRpc();
+  assert.equal(report.exact_signature_exists, true); assert.equal(report.public_same_name_count, 1);
+  const fn = report.routines.find(r => r.schema === 'public');
+  assert.equal(fn.client_signature_matches, true); assert.equal(fn.reviewed_body_matches, true);
+  assert.equal(fn.reviewed_settings_match, true); assert.equal(fn.security, 'DEFINER');
+  assert.equal(fn.effective_execute.find(r => r.role === 'anon').allowed, false);
+  assert.equal(fn.effective_execute.find(r => r.role === 'authenticated').allowed, true);
+  assert.ok(!fn.direct_acl.some(r => r.grantee === 'PUBLIC' || r.grantee === 'anon'));
+  assert.deepEqual(await snapshot(), before);
+});
+
+test('new-install guard refuses existing RPC and preserves definition, ACL and data', async () => {
+  const before = await inspectRpc(), data = await snapshot();
+  await assert.rejects(db.exec(migration), /RPC_ALREADY_EXISTS_REVIEW_REQUIRED/); await db.exec('rollback');
+  assert.deepEqual(await inspectRpc(), before); assert.deepEqual(await snapshot(), data);
+});
+
+test('inspection and installer detect incompatible same-name overload without overwriting it', async () => {
+  const isolated = await PGlite.create();
+  try {
+    await isolated.exec("create function public.publish_guide_atomic_v1(payload text) returns text language sql as 'select payload';");
+    const before = await inspectRpc(isolated);
+    assert.equal(before.exact_signature_exists,false); assert.equal(before.public_same_name_count,1);
+    assert.equal(before.routines[0].client_signature_matches,false); assert.equal(before.routines[0].reviewed_body_matches,false);
+    await assert.rejects(isolated.exec(migration),/RPC_ALREADY_EXISTS_REVIEW_REQUIRED/); await isolated.exec('rollback');
+    assert.deepEqual(await inspectRpc(isolated),before);
+  } finally { await isolated.close(); }
+});
+
+test('SECURITY INVOKER fails republishing with recorded guide_media UPDATE policy absent', async () => {
+  const before = await snapshot(); assert.ok(before.guide_media.length > 0);
+  await db.exec('alter function public.publish_guide_atomic_v1(jsonb,jsonb,jsonb) security invoker');
+  try {
+    const inspected = await inspectRpc(); assert.equal(inspected.routines[0].reviewed_settings_match, false);
+    const result = await rpc('publish_guide_atomic_v1', {p_guide:before.guides[0],p_pins:before.guide_pins,p_media:before.guide_media},new Map());
+    assert.equal(result.error?.code, '42501'); assert.match(result.error.message, /row-level security/);
+    assert.deepEqual(await snapshot(), before);
+  } finally { await db.exec('alter function public.publish_guide_atomic_v1(jsonb,jsonb,jsonb) security definer'); }
+});
+
+test('SQL-looking title is data, forged author is ignored, anonymous execution is denied', async () => {
+  const before = await snapshot();
+  const args = {p_guide:{...before.guides[0], author_id:randomUUID(), title:"x'); delete from public.profiles; --"},p_pins:before.guide_pins,p_media:before.guide_media};
+  const profiles = (await db.query('select * from profiles')).rows;
+  const published = await rpc('publish_guide_atomic_v1',args,new Map());
+  assert.equal(published.data.guide.author_id,userId); assert.equal(published.data.guide.title,args.p_guide.title);
+  assert.deepEqual((await db.query('select * from profiles')).rows,profiles);
+  await db.exec('set role anon');
+  try { await assert.rejects(db.query('select public.publish_guide_atomic_v1($1,$2,$3)',[args.p_guide,args.p_pins,args.p_media]), /permission denied/); }
+  finally { await db.exec('reset role'); }
+  await db.query("select set_config('request.jwt.claim.sub','',false)");
+  try { assert.match((await rpc('publish_guide_atomic_v1',args,new Map())).error.message,/AUTH_REQUIRED/); }
+  finally { await db.query("select set_config('request.jwt.claim.sub',$1,false)",[userId]); }
 });

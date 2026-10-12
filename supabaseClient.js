@@ -102,6 +102,11 @@ const TravelogSupabase = (() => {
       status ? `HTTP ${status}: ${message}` : `${kind}: ${message}`,
       kind === 'network' && '브라우저가 HTTP 응답을 받지 못했습니다. 네트워크·CORS·연결 중단 여부를 확인해 주세요.',
       kind === 'timeout' && '업로드 제한 시간이 지났습니다. 연결을 확인하고 다시 시도해 주세요.',
+      context.bucket && /row.level security|42501|unauthorized|accessdenied/i.test(`${message} ${cause?.code || ''}`) && '저장소 권한 정책이 요청을 거절했습니다. 관리자에게 업로드 경로와 Storage INSERT·SELECT 정책 확인을 요청해 주세요. 작업 데이터는 유지됩니다.',
+      /PUBLISH_AUTH_(USER|PATH_OWNER)_MISMATCH/.test(message) && '인증 사용자와 출간 소유자 정보가 일치하지 않아 중단했습니다. 작성한 계정으로 다시 로그인해 주세요.',
+      context.stage === 'guide-draft-create' && '출간용 초안을 만들지 못했습니다. 같은 계정으로 로그인했는지 확인한 뒤 재시도해 주세요. 편집 데이터는 유지됩니다.',
+      context.stage === 'publish-transaction' && ['PGRST202', '42883'].includes(cause?.code) && '출간 확정용 서버 함수가 준비되지 않았습니다. 관리자에게 publish_guide_atomic_v1 설치 여부를 확인해 주세요. 초안과 기존 출간본은 유지됩니다.',
+      (kind === 'auth' || status === 401 || context.stage === 'auth-verify') && '로그인 확인에 실패했습니다. 연결 상태를 확인하고 같은 계정으로 다시 로그인한 뒤 재시도해 주세요.',
       kind === 'file-read' && '기기의 원본 파일을 읽을 수 없습니다. 해당 파일을 다시 선택하거나 해당 영상 메모를 다시 촬영한 뒤 출간해 주세요. 기존 작업은 유지됩니다.'
     ].filter(Boolean).join('\n');
     // Never log request headers, tokens, signed URLs, or media contents.
@@ -762,14 +767,54 @@ const TravelogSupabase = (() => {
     return data?.publicUrl || '';
   }
 
+  async function verifyPublishSession(expectedUserId) {
+    const supabase = getClient();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const session = data?.session;
+    if (!session?.access_token || !session.user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
+    // Verify the exact token subsequently used by Storage, not only local session metadata.
+    const { data: verified, error: verificationError } = await supabase.auth.getUser(session.access_token);
+    if (verificationError) throw verificationError;
+    const user = verified?.user;
+    if (!user?.id) throw new Error('SUPABASE_AUTH_REQUIRED');
+    if (user.id !== session.user.id || (expectedUserId && user.id !== expectedUserId)) {
+      throw new Error('PUBLISH_AUTH_USER_MISMATCH');
+    }
+    return session;
+  }
+
   async function uploadBlob(bucketName, path, blob, options = {}) {
+    // At most two retries; each attempt checks whether the previous POST succeeded.
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try { return await uploadBlobOnce(bucketName, path, blob, { ...options, attempt }); }
+      catch (error) {
+        const diagnostic = error.publishDiagnostic;
+        const transient = ['network', 'timeout'].includes(diagnostic?.kind)
+          || [408, 429, 500, 502, 503, 504].includes(diagnostic?.status);
+        if (!transient || attempt === 3 || /row.level security|42501/i.test(diagnostic?.message || '')) throw error;
+        await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+      }
+    }
+  }
+
+  async function uploadBlobOnce(bucketName, path, blob, options = {}) {
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
-    const context = { stage: 'storage-check', bucket: bucketName, path,
+    const context = { stage: 'auth-verify', bucket: bucketName, path, attempt: options.attempt,
+      api: 'auth.getUser',
       fileName: options.fileName || path.split('/').pop(), bytes: blob?.size, mimeType: blob?.type };
     const startedAt = Date.now();
     try {
       if (!(blob instanceof Blob) || !blob.size) throw new Error('INVALID_UPLOAD_BLOB');
+      const session = await verifyPublishSession(options.userId);
+      const segments = path.split('/');
+      context.pathOwnerMatchesAuth = segments[2] === 'uploads' ? segments[3] === session.user.id : null;
+      context.isAnonymous = session.user.is_anonymous === true;
+      if (context.pathOwnerMatchesAuth === false) throw new Error('PUBLISH_AUTH_PATH_OWNER_MISMATCH');
+      if (options.guideId && (segments[0] !== 'guides' || segments[1] !== options.guideId)) throw new Error('PUBLISH_PATH_GUIDE_MISMATCH');
+      context.stage = 'storage-check';
+      context.api = 'storage.info';
       const storage = supabase.storage.from(bucketName);
       const { data: existing, error: infoError } = await storage.info(path);
       if (existing) {
@@ -781,11 +826,7 @@ const TravelogSupabase = (() => {
         && !['NoSuchKey', 'not_found'].includes(infoError.code)) throw infoError;
 
       context.stage = 'storage-upload';
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      const session = sessionData?.session;
-      if (!session?.access_token) throw new Error('SUPABASE_AUTH_REQUIRED');
-      context.sessionExpiresAt = session.expires_at || null;
+      context.api = 'POST storage/v1/object';
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), options.timeoutMs || 180000);
       try {
@@ -804,7 +845,7 @@ const TravelogSupabase = (() => {
             const { data: stored, error: storedError } = await storage.info(path);
             if (!storedError && Number(stored?.size ?? stored?.metadata?.size) === blob.size) return { path, reused: true };
           }
-          throw Object.assign(new Error(payload.message || payload.error || response.statusText), { status: response.status, code: payload.code });
+          throw Object.assign(new Error(payload.message || payload.error || response.statusText), { status: response.status, code: payload.code || payload.error });
         }
         return { path, reused: false };
       } finally { clearTimeout(timer); }
@@ -896,14 +937,17 @@ const TravelogSupabase = (() => {
     };
 
     reportProgress(5, t('파일 검사 중', 'Checking files', 'ファイル確認中'), t('음성·영상·사진 원본을 검사하고 있습니다.', 'Checking original audio, video, and photo files.', '音声・動画・写真の元ファイルを確認しています。'));
-    // Validate original files before uploading; database changes occur only in the atomic RPC.
+    // Validate originals first. Only a minimal draft may precede the final atomic commit.
     validatePublishMedia(packageData);
     reportProgress(10, t('서버 연결 중', 'Connecting to server', 'サーバー接続中'), t('사용자 인증을 확인하고 있습니다.', 'Checking the user session.', 'ユーザー認証を確認しています。'));
     const supabase = getClient();
     if (!supabase) throw new Error('SUPABASE_SDK_NOT_READY');
     options.context.stage = 'auth-session';
     const session = await ensureSession({ displayName: packageData.creator || 'Travelog Creator', interactiveLogin: true });
-    const userId = session?.user?.id;
+    options.context.stage = 'auth-verify';
+    options.context.api = 'auth.getUser';
+    const verifiedSession = await verifyPublishSession(session?.user?.id);
+    const userId = verifiedSession.user.id;
     if (!userId) throw new Error('SUPABASE_AUTH_REQUIRED');
     reportProgress(16, t('가이드 준비 중', 'Preparing guide', 'ガイド準備中'), t('기존 가이드 정보를 확인하고 있습니다.', 'Checking existing guide data.', '既存ガイド情報を確認しています。'));
 
@@ -933,9 +977,9 @@ const TravelogSupabase = (() => {
         updated_at: new Date().toISOString()
     };
 
-    // Read for ownership/diagnostics only. No guide, pin, or media rows are written
-    // until all uploads finish and the atomic RPC commits.
+    // Never downgrade or modify an existing published guide while uploading edits.
     options.context.stage = 'guide-read';
+    options.context.api = 'GET guides';
     const { data: existingGuide, error: existingGuideError, status: existingGuideStatus } = await supabase
       .from('guides')
       .select('*')
@@ -946,6 +990,7 @@ const TravelogSupabase = (() => {
     if (existingGuide && existingGuide.author_id !== userId) throw new Error('PUBLISH_GUIDE_NOT_OWNED');
 
     options.context.stage = 'existing-pins-read';
+    options.context.api = 'GET guide_pins';
     const { data: oldPinRows, error: oldPinError, status: oldPinStatus } = await supabase
       .from('guide_pins')
       .select('*')
@@ -959,6 +1004,7 @@ const TravelogSupabase = (() => {
     const preparedPinsByIndex = new Map();
     const canonicalPinIds = new Set();
     options.context.stage = 'pin-validation';
+    delete options.context.api;
     for (const pin of orderedPins) {
       const pinData = {
           guide_id: guideId,
@@ -981,13 +1027,40 @@ const TravelogSupabase = (() => {
       preparedPinsByIndex.set(Number(pin.order || orderedPins.indexOf(pin) + 1) - 1, preparedPin);
     }
 
+    // Existing Storage policies require an author-owned guides row before INSERT.
+    // An interrupted first publish leaves this draft for a same-ID retry.
+    options.context.stage = 'auth-verify';
+    options.context.api = 'auth.getUser';
+    await verifyPublishSession(userId);
+    options.context.stage = 'guide-draft-create';
+    options.context.api = 'POST guides';
+    let draftInsertError = null;
+    if (!existingGuide) {
+      try {
+        const { error, status } = await supabase.from('guides').insert({
+          id: guideId, author_id: userId, title: guidePayload.title, status: 'draft'
+        });
+        if (error) draftInsertError = Object.assign(error, { status });
+      } catch (error) { draftInsertError = error; }
+    }
+    // Re-read also resolves a duplicate UUID race or a lost INSERT response without UPSERT.
+    options.context.api = 'GET guides';
+    const { data: ownedGuide, error: ownedGuideError, status: ownedGuideStatus } = await supabase
+      .from('guides').select('*').eq('id', guideId).maybeSingle();
+    if (ownedGuideError) throw Object.assign(ownedGuideError, { status: ownedGuideStatus });
+    if (!ownedGuide) {
+      if (draftInsertError) options.context.api = 'POST guides';
+      throw draftInsertError || new Error('PUBLISH_DRAFT_NOT_CONFIRMED');
+    }
+    if (ownedGuide.id !== guideId || ownedGuide.author_id !== userId) throw new Error('PUBLISH_GUIDE_NOT_OWNED');
+
     let coverPath = '';
     const desiredMediaRows = [];
     const coverBlob = dataUrlToBlob(packageData.representativeImage || '');
     if (coverBlob) {
       coverPath = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'cover', role: 'cover', blob: coverBlob });
       reportProgress(30, t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'), `대표 이미지 · 처리 중 1/${totalMediaItems}`);
-      await uploadBlob(PUBLIC_BUCKET, coverPath, coverBlob, { fileName: '대표 이미지' });
+      await uploadBlob(PUBLIC_BUCKET, coverPath, coverBlob, { fileName: '대표 이미지', userId, guideId });
       totalBytes += coverBlob.size || 0;
       desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'cover', bucketName: PUBLIC_BUCKET, storagePath: coverPath, blob: coverBlob }));
       reportMediaUploaded(t('대표 이미지', 'Cover image', '代表画像'));
@@ -1012,7 +1085,7 @@ const TravelogSupabase = (() => {
         blob
       });
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), t('미디어 업로드 중', 'Uploading media', 'メディアをアップロード中'), `${file.fileName || role} · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
-      await uploadBlob(bucket, storagePath, blob, { fileName: file.fileName || role });
+      await uploadBlob(bucket, storagePath, blob, { fileName: file.fileName || role, userId, guideId });
       totalBytes += blob.size || 0;
       const mediaRow = await buildGuideMediaRow({ guideId, pinId: pinRow?.id || null, mediaRole: role, bucketName: bucket, storagePath, blob, durationSeconds: file.durationSeconds || null, ordinal: completedMediaItems });
       desiredMediaRows.push(mediaRow);
@@ -1024,7 +1097,7 @@ const TravelogSupabase = (() => {
     if (introAudioBlob) {
       const path = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'intro', role: 'intro_audio', blob: introAudioBlob });
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), '미디어 업로드 중', `투어소개 음성 · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
-      await uploadBlob(PUBLIC_BUCKET, path, introAudioBlob, { fileName: packageData.guideIntroAudio.fileName || '투어소개 음성' });
+      await uploadBlob(PUBLIC_BUCKET, path, introAudioBlob, { fileName: packageData.guideIntroAudio.fileName || '투어소개 음성', userId, guideId });
       totalBytes += introAudioBlob.size || 0;
       desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'intro_audio', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introAudioBlob }));
       reportMediaUploaded(t('투어소개 음성', 'Intro audio', '紹介音声'));
@@ -1034,7 +1107,7 @@ const TravelogSupabase = (() => {
     if (introVideoBlob) {
       const path = await makeStoragePath({ guideId, userId, reuseLegacy: !!existingGuide, folder: 'intro', role: 'intro_video', blob: introVideoBlob });
       reportProgress(30 + Math.round(completedMediaItems / totalMediaItems * 50), '미디어 업로드 중', `투어소개 영상 · 처리 중 ${completedMediaItems + 1}/${totalMediaItems}`);
-      await uploadBlob(PUBLIC_BUCKET, path, introVideoBlob, { fileName: packageData.guideIntroVideo.fileName || '투어소개 영상' });
+      await uploadBlob(PUBLIC_BUCKET, path, introVideoBlob, { fileName: packageData.guideIntroVideo.fileName || '투어소개 영상', userId, guideId });
       totalBytes += introVideoBlob.size || 0;
       desiredMediaRows.push(await buildGuideMediaRow({ guideId, mediaRole: 'intro_video', bucketName: PUBLIC_BUCKET, storagePath: path, blob: introVideoBlob }));
       reportMediaUploaded(t('투어소개 영상', 'Intro video', '紹介動画'));
@@ -1054,15 +1127,27 @@ const TravelogSupabase = (() => {
       + (packageData.photoFiles || []).length;
     const uploadedMedia = desiredMediaRows;
     if (uploadedMedia.length !== expectedMediaCount) throw new Error('MEDIA_UPLOAD_VERIFICATION_FAILED');
+    for (const media of desiredMediaRows) {
+      const context = { stage: 'storage-verify', api: 'storage.info', bucket: media.bucket_name, path: media.storage_path };
+      try {
+        const { data: stored, error } = await supabase.storage.from(media.bucket_name).info(media.storage_path);
+        if (error) throw error;
+        if (!stored || Number(stored.size ?? stored.metadata?.size) !== media.file_size) throw new Error('MEDIA_UPLOAD_VERIFICATION_FAILED');
+      } catch (error) { throw describePublishError(error, context); }
+    }
     reportProgress(91, t('가이드 등록 중', 'Registering guide', 'ガイド登録中'), t('가이드와 핀을 함께 저장하고 있습니다.', 'Saving guide and pins together.', 'ガイドとピンを一緒に保存しています。'));
+    options.context.stage = 'auth-verify';
+    options.context.api = 'auth.getUser';
+    await verifyPublishSession(userId);
     options.context.stage = 'publish-transaction';
+    options.context.api = 'rpc.publish_guide_atomic_v1';
     const { data: committed, error: commitError, status: commitStatus } = await supabase.rpc('publish_guide_atomic_v1', {
       p_guide: { ...guidePayload, cover_path: coverPath || null, total_bytes: totalBytes, status: 'published' },
       p_pins: [...preparedPinsByLocalId.values()],
       p_media: desiredMediaRows
     });
     if (commitError) throw Object.assign(commitError, { status: commitStatus });
-    if (!committed?.guide) throw new Error('PUBLISH_COMMIT_RESPONSE_INVALID');
+    if (committed?.guide?.id !== guideId || committed.guide.author_id !== userId || committed.guide.status !== 'published') throw new Error('PUBLISH_COMMIT_RESPONSE_INVALID');
     const finalGuide = committed.guide;
     reportProgress(97, t('마무리 중', 'Finishing', '仕上げ中'), t('홈 화면용 가이드 정보를 만들고 있습니다.', 'Preparing the guide card for Home.', 'ホーム画面用のガイド情報を準備しています。'));
 
