@@ -305,6 +305,12 @@ test('RPC inspection reports exact client signature, body, settings and effectiv
   assert.equal(fn.effective_execute.find(r => r.role === 'anon').allowed, false);
   assert.equal(fn.effective_execute.find(r => r.role === 'authenticated').allowed, true);
   assert.ok(!fn.direct_acl.some(r => r.grantee === 'PUBLIC' || r.grantee === 'anon'));
+  const verification = await db.exec(fs.readFileSync('supabase/diagnostics/verify_publish_rpc_install.sql','utf8'));
+  const summary = verification.flatMap(result => result.rows || []).find(row => 'installed' in row);
+  assert.equal(summary.installed,true); assert.equal(summary.signature_matches,true);
+  assert.equal(summary.reviewed_body_matches,true); assert.equal(summary.security_mode,'SECURITY DEFINER');
+  assert.equal(summary.authenticated_can_execute,true); assert.equal(summary.anon_can_execute,false);
+  assert.equal(summary.public_can_execute,false);
   assert.deepEqual(await snapshot(), before);
 });
 
