@@ -99,6 +99,16 @@
     if (stage) stage.innerHTML = '';
   }
 
+  window.TravelogMemoFullscreen = {
+    closeForMedia(media) {
+      if (restoreState?.original === media) closeOverlay();
+      else if (document.fullscreenElement === media || document.webkitFullscreenElement === media) exitFullscreen();
+      try {
+        if (media.webkitDisplayingFullscreen && media.webkitExitFullscreen) media.webkitExitFullscreen();
+      } catch (_) {}
+    }
+  };
+
   function openImage(image) {
     const overlay = ensureOverlay();
     const stage = overlay.querySelector('.travelog-media-fullscreen__stage');

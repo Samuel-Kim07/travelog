@@ -2207,6 +2207,7 @@ const TravelogMapModule = (() => {
   }
 
   function openPublishedGuideMemoListPopup(nodes) {
+    clearMemoPlayback();
     const safeNodes = Array.isArray(nodes) ? nodes : [];
     let modal = document.getElementById('published-guide-memo-list-popup');
     if (!modal) {
@@ -2255,6 +2256,58 @@ const TravelogMapModule = (() => {
     modal.setAttribute('aria-hidden', 'false');
   }
 
+  let memoPlaybackCleanup = null;
+
+  function clearMemoPlayback() {
+    if (memoPlaybackCleanup) memoPlaybackCleanup();
+    memoPlaybackCleanup = null;
+  }
+
+  function bindMemoPlayback(modal, media, close, autoplay = false) {
+    clearMemoPlayback();
+    if (!media) return;
+    let active = true;
+    let closeTimer = null;
+    let playTimer = null;
+    const cancelClose = () => {
+      window.clearTimeout(closeTimer);
+      closeTimer = null;
+    };
+    const ended = () => {
+      cancelClose();
+      if (!active || !media.ended || media.error) return;
+      closeTimer = window.setTimeout(() => {
+        if (active && media.ended && !media.error && modal.classList.contains('active')) close();
+      }, 3000);
+    };
+    const cancelEvents = ['play', 'playing', 'pause', 'seeking', 'waiting', 'stalled', 'error', 'emptied', 'loadstart'];
+    media.addEventListener('ended', ended);
+    cancelEvents.forEach(event => media.addEventListener(event, cancelClose));
+    memoPlaybackCleanup = () => {
+      active = false;
+      cancelClose();
+      window.clearTimeout(playTimer);
+      media.removeEventListener('ended', ended);
+      cancelEvents.forEach(event => media.removeEventListener(event, cancelClose));
+      window.TravelogMemoFullscreen?.closeForMedia(media);
+      try { media.pause(); } catch (_) {}
+    };
+    if (autoplay) {
+      playTimer = window.setTimeout(() => {
+        if (active && modal.classList.contains('active')) playMemoModalMedia(modal);
+      }, 80);
+    }
+  }
+
+  function closePublishedGuideMemoPopup() {
+    clearMemoPlayback();
+    const modal = document.getElementById('published-guide-memo-popup');
+    if (!modal) return;
+    pauseMemoModalMedia(modal);
+    modal.classList.remove('active');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
   function pauseMemoModalMedia(modal) {
     if (!modal) return;
     modal.querySelectorAll('video, audio').forEach(media => {
@@ -2276,6 +2329,7 @@ const TravelogMapModule = (() => {
   }
 
   function openPublishedGuideMemoPopup(node) {
+    clearMemoPlayback();
     let modal = document.getElementById('published-guide-memo-popup');
     if (!modal) {
       modal = document.createElement('div');
@@ -2294,11 +2348,7 @@ const TravelogMapModule = (() => {
           </div>
         </div>`;
       document.body.appendChild(modal);
-      modal.querySelector('#published-guide-memo-close-btn').addEventListener('click', () => {
-        pauseMemoModalMedia(modal);
-        modal.classList.remove('active');
-        modal.setAttribute('aria-hidden', 'true');
-      });
+      modal.querySelector('#published-guide-memo-close-btn').addEventListener('click', closePublishedGuideMemoPopup);
     }
     const titleEl = modal.querySelector('#published-guide-memo-title');
     const mediaEl = modal.querySelector('#published-guide-memo-media');
@@ -2321,7 +2371,7 @@ const TravelogMapModule = (() => {
     if (typeEl) typeEl.textContent = node.type === 'audio' ? '음성 메모' : node.type === 'video' ? '영상 메모' : node.type === 'photo' ? '사진 메모' : node.type === 'coupon' ? '쿠폰 메모' : '텍스트 메모';
     modal.classList.add('active');
     modal.setAttribute('aria-hidden', 'false');
-    window.setTimeout(() => playMemoModalMedia(modal), 80);
+    bindMemoPlayback(modal, mediaEl?.querySelector('audio, video'), closePublishedGuideMemoPopup, true);
   }
 
   function triggerNodeEvent(node) {
@@ -2377,11 +2427,13 @@ const TravelogMapModule = (() => {
   }
 
   function triggerAudioOverlay(title, speaker, audioSrc = getMinhoMedia('audio')) {
+    clearMemoPlayback();
     const overlay = document.getElementById('audio-overlay');
     const audioEl = getGuideAudioElement();
     document.getElementById('audio-title').textContent = title;
     document.getElementById('audio-speaker').textContent = `By ${speaker}`;
     overlay.classList.add('active');
+    bindMemoPlayback(overlay, audioEl, closeAudioOverlay);
 
     if (audioEl && audioSrc) {
       if (!audioEl.src || !audioEl.src.endsWith(audioSrc)) {
@@ -2405,14 +2457,16 @@ const TravelogMapModule = (() => {
   }
 
   // Bind audio controls
-  document.getElementById('close-audio-btn').addEventListener('click', () => {
+  function closeAudioOverlay() {
+    clearMemoPlayback();
     const audioEl = getGuideAudioElement();
     if (audioEl) audioEl.pause();
     isAudioPlaying = false;
     document.getElementById('audio-overlay').classList.remove('active');
     updateAudioPlayButtonIcon();
     stopAudioWaveAnimation();
-  });
+  }
+  document.getElementById('close-audio-btn').addEventListener('click', closeAudioOverlay);
 
   document.getElementById('play-audio-btn').addEventListener('click', () => {
     const audioEl = getGuideAudioElement();
@@ -2489,6 +2543,7 @@ const TravelogMapModule = (() => {
   }
 
   function triggerVideoOverlay(title, author, videoSrc = getMinhoMedia('video')) {
+    clearMemoPlayback();
     const modal = document.getElementById('video-overlay');
     const videoEl = getGuideVideoElement();
     const timerText = document.getElementById('video-play-timer');
@@ -2496,6 +2551,7 @@ const TravelogMapModule = (() => {
     document.getElementById('video-overlay-title').textContent = title;
     document.getElementById('video-overlay-author').textContent = author;
     modal.classList.add('active');
+    bindMemoPlayback(modal, videoEl, closeVideoOverlay);
 
     if (videoEl && videoSrc) {
       if (!videoEl.src || !videoEl.src.endsWith(videoSrc)) {
@@ -2513,6 +2569,7 @@ const TravelogMapModule = (() => {
   }
 
   function closeVideoOverlay() {
+    clearMemoPlayback();
     const videoEl = getGuideVideoElement();
     if (videoEl) videoEl.pause();
     document.getElementById('video-overlay').classList.remove('active');
