@@ -53,6 +53,7 @@ const TravelogCreatorModule = (() => {
     '나이키 서초점': ['전품목40%할인권']
   };
   let pendingPublishPackage = null;
+  let publishOnlineInProgress = false;
   let lastSavedPublishSignature = '';
   let guideCoverDataUrl = '';
   let guideIntroAudio = null;
@@ -2993,6 +2994,7 @@ const TravelogCreatorModule = (() => {
   }
 
   async function publishPreparedGuideOnline() {
+    if (publishOnlineInProgress) return;
     const readiness = getPublishReadiness();
     if (!readiness.ready) {
       updateFinalPublishButtonState();
@@ -3005,23 +3007,27 @@ const TravelogCreatorModule = (() => {
       return;
     }
 
+    const resetAfterPublish = !isActiveEditPublished();
+    const publishingGeneration = editorGeneration;
+    const publishingPackage = pendingPublishPackage;
+    publishOnlineInProgress = true;
     try {
       showPublishModalLoading(
         t('Supabase 서버로 출간 중입니다...', 'Publishing to Supabase...', 'Supabaseサーバーに公開しています...'),
         t('가이드 정보는 Database에, 대표 이미지/음성/영상/사진은 Storage에 업로드합니다.', 'Saving guide data to Database and media to Storage.', 'ガイド情報をDatabaseへ、メディアをStorageへ保存します。')
       );
 
-      const publishResult = await window.TravelogSupabase.publishGuidePackage(pendingPublishPackage, { onProgress: updatePublishProgress });
+      const publishResult = await window.TravelogSupabase.publishGuidePackage(publishingPackage, { onProgress: updatePublishProgress });
 
       const completedPackage = {
-        ...pendingPublishPackage,
-        guideId: publishResult.guideId || pendingPublishPackage.guideId,
+        ...publishingPackage,
+        guideId: publishResult.guideId || publishingPackage.guideId,
         publishedAt: new Date().toISOString(),
-        supabaseGuideId: publishResult.guideId || pendingPublishPackage.guideId,
+        supabaseGuideId: publishResult.guideId || publishingPackage.guideId,
         guideCard: {
-          ...(publishResult.guideCard || pendingPublishPackage.guideCard || {}),
+          ...(publishResult.guideCard || publishingPackage.guideCard || {}),
           isSupabaseGuide: true,
-          supabaseGuideId: publishResult.guideId || pendingPublishPackage.guideId,
+          supabaseGuideId: publishResult.guideId || publishingPackage.guideId,
           offlineReady: true,
           offlineStatus: 'creator-local'
         }
@@ -3063,10 +3069,17 @@ const TravelogCreatorModule = (() => {
 
       persistWorkingDraft();
 
-      setTimeout(() => {
-        closePublishModal();
-        moveToHomeTab();
-      }, 1500);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      closePublishModal();
+      // A different editor opened while publishing must never be cleared.
+      if (publishingGeneration === editorGeneration && pendingPublishPackage === publishingPackage) {
+        if (resetAfterPublish) {
+          resetCreatorStudioForNewGuide();
+          persistWorkingDraft();
+        } else {
+          moveToHomeTab();
+        }
+      }
     } catch (error) {
       console.error('[Travelog Publish] Supabase publish failed:', error);
       closePublishModal();
@@ -3076,6 +3089,8 @@ const TravelogCreatorModule = (() => {
         'Supabase publishing failed. Your working data is preserved.',
         'Supabase公開に失敗しました。作業データは保持されています。'
       )}${detailMessage ? `\n\n상세 오류: ${detailMessage}` : ''}`);
+    } finally {
+      publishOnlineInProgress = false;
     }
   }
 
@@ -3680,6 +3695,12 @@ const TravelogCreatorModule = (() => {
 
     resetRecordingStateForNewGuide();
     resetFieldCaptureModals();
+    resetPhotoMemoCanvas();
+    photoMemoDrawing = false;
+    ['photo-memo-camera-input', 'photo-memo-gallery-input', 'video-memo-camera-input', 'video-memo-append-input'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
 
     if (window.TravelogMapModule && typeof window.TravelogMapModule.deleteAllGuidePins === 'function') {
       window.TravelogMapModule.deleteAllGuidePins();

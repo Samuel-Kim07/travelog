@@ -31,9 +31,13 @@ test('map marker clearing does not delete pin data; explicit deletion does',()=>
  const h=harness();const before=seed(h);
  const start=mapSource.indexOf('  function clearPinMarkersFromMap()');
  const end=mapSource.indexOf('  function updateCreatorPinColor',start);
+ h.ctx.creatorPreviewPackage = { pins: [] };
+ let previewClosed = false;
+ h.ctx.closePublishedGuideMemoPopup = () => { previewClosed = true; };
  vm.runInContext(`let customCreatedMarkers={one:{}};let creatorRouteConnected=true;const markersLayer={removeLayer(){}};function stopCreatorGuidePreview(){}function renderTour(){}\n${mapSource.slice(start,end)}\nclearPinMarkersFromMap();`,h.ctx);
  assert.equal(JSON.stringify(h.state.customCreatedPins),before);
  vm.runInContext('deleteAllGuidePins()',h.ctx);assert.equal(h.state.customCreatedPins.length,0);
+ assert.equal(previewClosed, true);
  const restarted=harness(h.storage);restarted.api.restoreWorkingDraft();assert.equal(restarted.state.customCreatedPins.length,0);
 });
 

@@ -2656,6 +2656,7 @@ const TravelogMapModule = (() => {
 
   // Data deletion is reserved for an explicit reset/delete action.
   function deleteAllGuidePins() {
+    if (creatorPreviewPackage) closePublishedGuideMemoPopup();
     window.TravelogApp.getState().customCreatedPins = [];
     window.TravelogCreatorModule?.persistWorkingDraft?.();
     creatorRouteConnected = false;
